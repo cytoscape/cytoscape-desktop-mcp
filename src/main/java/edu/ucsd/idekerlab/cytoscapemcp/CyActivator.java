@@ -1,0 +1,198 @@
+package edu.ucsd.idekerlab.cytoscapemcp;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
+import io.modelcontextprotocol.server.McpServer;
+import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.transport.HttpServletSseServerTransportProvider;
+import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
+import java.util.Properties;
+import org.cytoscape.app.event.AppsFinishedStartingEvent;
+import org.cytoscape.app.event.AppsFinishedStartingListener;
+import org.cytoscape.application.CyApplicationManager;
+import org.cytoscape.model.CyNetworkManager;
+import org.cytoscape.property.AbstractConfigDirPropsReader;
+import org.cytoscape.property.CyProperty;
+import org.cytoscape.service.util.AbstractCyActivator;
+import org.cytoscape.task.read.LoadNetworkURLTaskFactory;
+import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.work.SynchronousTaskManager;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
+import org.osgi.framework.BundleContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class CyActivator extends AbstractCyActivator {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CyActivator.class);
+
+    private volatile org.eclipse.jetty.server.Server jettyServer;
+    private volatile McpSyncServer mcpServer;
+    private volatile BundleContext bundleContext;
+
+    /**
+     * Reads app properties from cytoscapemcp.props bundled in the JAR, then merges any user
+     * overrides from the Cytoscape config directory. Properties are visible and editable via
+     * Edit > Preferences > Properties under the "cytoscapemcp" group.
+     */
+    private static class PropsReader extends AbstractConfigDirPropsReader {
+        PropsReader(String name, String fileName) {
+            super(name, fileName, CyProperty.SavePolicy.CONFIG_DIR);
+        }
+    }
+
+    @Override
+    public void start(BundleContext bc) throws Exception {
+        this.bundleContext = bc;
+
+        // Defer MCP server init until all Cytoscape apps have finished starting.
+        // This ensures the OSGi service registry is fully populated before we
+        // look up services like LoadNetworkURLTaskFactory.
+        AppsFinishedStartingListener listener =
+                new AppsFinishedStartingListener() {
+                    @Override
+                    public void handleEvent(AppsFinishedStartingEvent event) {
+                        try {
+                            initializeApp();
+                        } catch (Exception e) {
+                            LOGGER.error("Failed to start Cytoscape MCP Server", e);
+                        }
+                    }
+                };
+        registerService(bc, listener, AppsFinishedStartingListener.class, new Properties());
+    }
+
+    @Override
+    public void shutDown() {
+        stopServers();
+        super.shutDown();
+    }
+
+    private void initializeApp() {
+        LOGGER.info("Initializing Cytoscape MCP Server...");
+
+        // Register and expose app properties so users can edit them via
+        // Edit > Preferences > Properties > "cytoscapemcp" in Cytoscape.
+        PropsReader propsReader = new PropsReader("cytoscapemcp", "cytoscapemcp.props");
+        Properties propsServiceProps = new Properties();
+        propsServiceProps.setProperty("cyPropertyName", "cytoscapemcp.props");
+        registerAllServices(bundleContext, propsReader, propsServiceProps);
+
+        @SuppressWarnings("unchecked")
+        CyProperty<Properties> cyProperties =
+                getService(bundleContext, CyProperty.class, "(cyPropertyName=cytoscapemcp.props)");
+
+        int port;
+        try {
+            port = Integer.parseInt(
+                    cyProperties.getProperties().getProperty("mcp.http_port", "9998").trim());
+        } catch (NumberFormatException e) {
+            LOGGER.warn("Invalid mcp.http_port value; defaulting to 9998", e);
+            port = 9998;
+        }
+
+        // Retrieve Cytoscape services needed by MCP tools.
+        CyApplicationManager appManager = getService(bundleContext, CyApplicationManager.class);
+        CyNetworkManager networkManager = getService(bundleContext, CyNetworkManager.class);
+        CyNetworkViewManager viewManager = getService(bundleContext, CyNetworkViewManager.class);
+
+        @SuppressWarnings("unchecked")
+        SynchronousTaskManager<?> syncTaskManager =
+                getService(bundleContext, SynchronousTaskManager.class);
+
+        LoadNetworkURLTaskFactory loadNetworkURLTaskFactory =
+                getService(bundleContext, LoadNetworkURLTaskFactory.class);
+
+        startMcpServer(
+                port,
+                cyProperties,
+                appManager,
+                networkManager,
+                viewManager,
+                syncTaskManager,
+                loadNetworkURLTaskFactory);
+    }
+
+    private void startMcpServer(
+            int port,
+            CyProperty<Properties> cyProperties,
+            CyApplicationManager appManager,
+            CyNetworkManager networkManager,
+            CyNetworkViewManager viewManager,
+            SynchronousTaskManager<?> syncTaskManager,
+            LoadNetworkURLTaskFactory loadNetworkURLTaskFactory) {
+
+        // SSE transport provider — part of the MCP SDK core (no Spring required).
+        // Clients connect to GET /mcp; tool calls are posted to /mcp/message.
+        HttpServletSseServerTransportProvider transportProvider =
+                HttpServletSseServerTransportProvider.builder()
+                        .objectMapper(new ObjectMapper())
+                        .messageEndpoint("/mcp/message")
+                        .build();
+
+        // Jetty as the servlet container hosting the MCP SSE servlet.
+        QueuedThreadPool threadPool = new QueuedThreadPool();
+        threadPool.setName("mcp-jetty");
+        jettyServer = new org.eclipse.jetty.server.Server(threadPool);
+
+        ServerConnector connector = new ServerConnector(jettyServer);
+        connector.setPort(port);
+        jettyServer.addConnector(connector);
+
+        ServletContextHandler context = new ServletContextHandler();
+        context.setContextPath("/");
+        context.addServlet(new ServletHolder(transportProvider), "/*");
+        jettyServer.setHandler(context);
+
+        try {
+            jettyServer.start();
+        } catch (Exception e) {
+            LOGGER.error("Failed to start Jetty for MCP server on port {}", port, e);
+            return;
+        }
+
+        // Build the MCP server. Version is read from the OSGi bundle manifest
+        // at runtime so it stays in sync with the Gradle build version automatically.
+        String bundleVersion = bundleContext.getBundle().getVersion().toString();
+        mcpServer = McpServer.sync(transportProvider)
+                .serverInfo("cytoscape-mcp", bundleVersion)
+                .capabilities(ServerCapabilities.builder().tools(false).build())
+                .build();
+
+        // Register MCP tools.
+        LoadNetworkViewTool loadTool = new LoadNetworkViewTool(
+                cyProperties,
+                appManager,
+                networkManager,
+                viewManager,
+                syncTaskManager,
+                loadNetworkURLTaskFactory);
+        mcpServer.addTool(loadTool.toSpec());
+
+        LOGGER.info("Cytoscape MCP Server started on port {} (version {})", port, bundleVersion);
+        LOGGER.info("SSE endpoint:     http://localhost:{}/mcp", port);
+        LOGGER.info("Message endpoint: http://localhost:{}/mcp/message", port);
+    }
+
+    private void stopServers() {
+        if (mcpServer != null) {
+            try {
+                mcpServer.close();
+                LOGGER.info("MCP server stopped");
+            } catch (Exception e) {
+                LOGGER.warn("Error stopping MCP server", e);
+            }
+        }
+        if (jettyServer != null) {
+            try {
+                jettyServer.stop();
+                LOGGER.info("Jetty server stopped");
+            } catch (Exception e) {
+                LOGGER.warn("Error stopping Jetty server", e);
+            }
+        }
+    }
+}

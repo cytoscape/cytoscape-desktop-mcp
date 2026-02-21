@@ -1,0 +1,119 @@
+/*
+ * Cytoscape MCP Server — Gradle build
+ *
+ * Produces an OSGi bundle JAR suitable for installation as a Cytoscape App.
+ * Non-provided dependencies (MCP SDK, Jetty, Jackson) are embedded inside the
+ * bundle JAR via the 'embed' configuration. Cytoscape and OSGi APIs are
+ * declared compileOnly (provided by the Cytoscape OSGi runtime at run time).
+ */
+
+plugins {
+    id 'java'
+    id 'maven-publish'
+}
+
+group = 'edu.ucsd.idekerlab'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-Xlint:deprecation'
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://nrnb-nexus.ucsd.edu/repository/cytoscape_releases/' }
+    maven { url = 'https://nrnb-nexus.ucsd.edu/repository/cytoscape_thirdparty/' }
+    maven { url = 'https://nrnb-nexus.ucsd.edu/repository/cytoscape_snapshots/' }
+}
+
+def cytoscapeVersion = '3.10.0'
+
+// 'embed' — deps that must be physically bundled inside the OSGi JAR because
+// Cytoscape's OSGi runtime does not provide them.
+configurations {
+    embed
+    implementation.extendsFrom embed
+}
+
+dependencies {
+    // === Cytoscape / OSGi APIs — provided by the OSGi runtime, NOT embedded ===
+    compileOnly "org.cytoscape:model-api:${cytoscapeVersion}"
+    compileOnly "org.cytoscape:core-task-api:${cytoscapeVersion}"
+    compileOnly "org.cytoscape:service-api:${cytoscapeVersion}"
+    compileOnly "org.cytoscape:property-api:${cytoscapeVersion}"
+    compileOnly "org.cytoscape:app-api:${cytoscapeVersion}"
+    compileOnly "org.cytoscape:work-api:${cytoscapeVersion}"
+    compileOnly "org.cytoscape:io-api:${cytoscapeVersion}"
+    compileOnly "org.cytoscape:application-api:${cytoscapeVersion}"
+    compileOnly "org.osgi:org.osgi.core:6.0.0"
+    compileOnly "org.ops4j.pax.logging:pax-logging-api:1.5.3"
+    compileOnly "org.slf4j:slf4j-api:1.7.36"
+
+    // === MCP SDK core — includes HttpServletSseServerTransportProvider (no Spring needed) ===
+    embed platform("io.modelcontextprotocol.sdk:mcp-bom:0.12.1")
+    embed "io.modelcontextprotocol.sdk:mcp"
+
+    // === Jetty — servlet container hosting the MCP SSE servlet ===
+    embed "org.eclipse.jetty:jetty-server:12.0.18"
+    embed "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.18"
+
+    // === Jackson — JSON serialization required by MCP SDK ===
+    embed "com.fasterxml.jackson.core:jackson-databind:2.17.2"
+    embed "com.fasterxml.jackson.core:jackson-core:2.17.2"
+    embed "com.fasterxml.jackson.core:jackson-annotations:2.17.2"
+
+    // === Test ===
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.mockito:mockito-core:4.11.0"
+    testImplementation "org.slf4j:slf4j-simple:1.7.36"
+    testImplementation "org.cytoscape:model-api:${cytoscapeVersion}"
+    testImplementation "org.cytoscape:core-task-api:${cytoscapeVersion}"
+    testImplementation "org.cytoscape:service-api:${cytoscapeVersion}"
+    testImplementation "org.cytoscape:property-api:${cytoscapeVersion}"
+    testImplementation "org.cytoscape:app-api:${cytoscapeVersion}"
+    testImplementation "org.cytoscape:work-api:${cytoscapeVersion}"
+    testImplementation "org.cytoscape:io-api:${cytoscapeVersion}"
+    testImplementation "org.cytoscape:application-api:${cytoscapeVersion}"
+    testImplementation "org.osgi:org.osgi.core:6.0.0"
+}
+
+// OSGi bundle JAR — embeds all 'embed' deps and sets the OSGi manifest headers.
+// Physical embedding is done by unpacking the embed JARs into the output JAR.
+// Embed-Dependency uses '*' — precise artifact listing via resolvedConfiguration
+// is incompatible with Gradle 9's configuration cache; the from{} block handles
+// actual embedding regardless of this manifest header value.
+jar {
+    archiveBaseName = 'cytoscape-mcp'
+
+    from {
+        configurations.embed.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes(
+            'Bundle-SymbolicName': 'edu.ucsd.idekerlab.cytoscapemcp',
+            'Bundle-Version': project.version.replace('-SNAPSHOT', '.SNAPSHOT'),
+            'Bundle-Activator': 'edu.ucsd.idekerlab.cytoscapemcp.CyActivator',
+            'Bundle-Name': 'Cytoscape MCP Server',
+            'Bundle-Description': 'MCP server for Cytoscape Desktop — enables AI clients to control Cytoscape via the Model Context Protocol',
+            'Private-Package': 'edu.ucsd.idekerlab.cytoscapemcp.*',
+            'Embed-Dependency': '*',
+            'Embed-Transitive': 'true',
+            'Import-Package': '*;resolution:=optional'
+        )
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
+}
