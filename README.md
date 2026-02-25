@@ -15,7 +15,7 @@ An embedded [Model Context Protocol (MCP)][mcp] server for [Cytoscape Desktop][c
 
 ## How It Works
 
-Once installed, the app starts a Jetty HTTP server inside Cytoscape on startup. AI clients connect to the HTTP endpoint and call MCP tools that interact with Cytoscape's Java API. The server runs entirely within the Cytoscape process — no separate server process or sidecar is needed.
+Once installed, the app starts a Jetty HTTP server inside Cytoscape on startup. AI clients connect to the MCP Streamable HTTP endpoint and call MCP tools that interact with Cytoscape's Java API. The server runs entirely within the Cytoscape process.
 
 ```
 Claude Desktop ──HTTP──► http://localhost:9998/mcp ──► Cytoscape Desktop
@@ -28,7 +28,7 @@ Claude Desktop ──HTTP──► http://localhost:9998/mcp ──► Cytoscape
 
 * [Cytoscape][cytoscape] 3.10 or above
 * Internet connection (for loading networks from [NDEx][ndex])
-* An MCP-compatible AI client (e.g. Claude Desktop)
+* An MCP-compatible AI client that also supports the Streamable HTTP transport(not SSE which is [deprecated as of 02/2025](https://auth0.com/blog/mcp-streamable-http/)) (e.g. Claude Desktop)
 
 ## Installation
 
@@ -45,72 +45,9 @@ MCP endpoint:     http://localhost:9998/mcp
 
 ## Connecting to an Agent
 
-Only local/desktop agents are supported. The Cytoscape MCP server runs on `localhost` inside the Cytoscape process — the AI agent must be on the same machine. Multiple agents can connect simultaneously, but be aware that Cytoscape Desktop is a single-user application — concurrent agents may issue conflicting commands that affect shared view state.
+See **[docs/AgentConfiguration.md](docs/AgentConfiguration.md)** for step-by-step setup instructions for Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
 
-If your agent is not listed below, check its documentation for how to configure an HTTP MCP server at `http://localhost:9998/mcp`.
-
-### Claude Desktop
-
-Add to your MCP configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "cytoscape": {
-      "url": "http://localhost:9998/mcp"
-    }
-  }
-}
-```
-
-Restart Claude Desktop to load the config.
-
-### Claude Code
-
-Add via the CLI:
-
-```bash
-claude mcp add --transport http cytoscape-mcp http://localhost:9998/mcp
-```
-
-Or add a `.mcp.json` file to your project root:
-
-```json
-{
-  "mcpServers": {
-    "cytoscape-mcp": {
-      "type": "http",
-      "url": "http://localhost:9998/mcp"
-    }
-  }
-}
-```
-
-### GitHub Copilot
-
-Add to `.vscode/mcp.json` in your workspace (note: VS Code uses `"servers"`, not `"mcpServers"`):
-
-```json
-{
-  "servers": {
-    "cytoscape-mcp": {
-      "type": "http",
-      "url": "http://localhost:9998/mcp"
-    }
-  }
-}
-```
-
-### OpenAI Codex CLI
-
-Add to `~/.codex/config.toml` (or `.codex/config.toml` in your project root):
-
-```toml
-[mcp_servers.cytoscape-mcp]
-url = "http://localhost:9998/mcp"
-```
-
-## Available MCP Tools
+## Available Cytoscape Desktop MCP Tools
 
 | Tool | Description |
 |------|-------------|
@@ -155,7 +92,8 @@ make help
 
 Full documentation is in the `docs/` directory:
 
-- [User Manual](docs/UserManual.md) — configuration reference and AI client setup
+- [Agent Configuration](docs/AgentConfiguration.md) — connecting Claude Desktop, Claude Code, GitHub Copilot, Codex CLI, and others
+- [User Manual](docs/UserManual.md) — configuration reference and available tools
 - [Tutorial](docs/Tutorial.md) — end-to-end walkthrough: install, connect, load a network
 - [FAQ](docs/FAQ.md) — common questions and troubleshooting
 

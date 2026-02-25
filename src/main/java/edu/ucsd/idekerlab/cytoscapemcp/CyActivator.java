@@ -1,6 +1,7 @@
 package edu.ucsd.idekerlab.cytoscapemcp;
 
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
@@ -129,6 +130,7 @@ public class CyActivator extends AbstractCyActivator {
         HttpServletStreamableServerTransportProvider transportProvider =
                 HttpServletStreamableServerTransportProvider.builder()
                         .mcpEndpoint("/mcp")
+                        .objectMapper(new ObjectMapper())
                         .build();
 
         // Jetty as the servlet container hosting the MCP HTTP servlet.

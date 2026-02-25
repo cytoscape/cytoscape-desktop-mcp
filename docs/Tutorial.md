@@ -27,25 +27,7 @@ If you see a "connection refused" error, check that the app is installed and tha
 
 ## Step 2: Connect Agent
 
-Open (or create) your Agent MCP configuration file, this example uses Claude Code:
-
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-Add (or merge) the following entry for the MCP server published by Cytoscsape Desktop:
-
-```json
-{
-  "mcpServers": {
-    "cytoscape": {
-      "url": "http://localhost:9998/mcp"
-    }
-  }
-}
-```
-
-Save the file and restart Claude Desktop. You should see "cytoscape" listed in Claude's connected tools panel.
-**Note:** Multiple agents can connect simultaneously, but Cytoscape Desktop is a single-user application with shared state — concurrent agents may issue conflicting commands that affect view state. Users are responsible for coordinating agent activity.
+Follow the setup steps in **[AgentConfiguration.md](AgentConfiguration.md)** for your specific agent. Once connected, you should see the Cytoscape MCP tools available in your agent's tool list.
 
 ---
 

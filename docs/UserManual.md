@@ -59,25 +59,9 @@ Loads a biological network from [NDEx](https://www.ndexbio.org) into Cytoscape D
 
 ---
 
-## Connecting an AI Agent Example
-Update your AI agent MCP config to load the Cytoscape Desktop MCP instance. This shows example for Claude Desktop, all agents have similar mcp server config settings.
-**Note:** Multiple agents can connect simultaneously, but Cytoscape Desktop is a single-user application with shared state — concurrent agents may issue conflicting commands that affect view state. Users are responsible for coordinating agent activity.
+## Connecting an AI Agent
 
-### Claude Desktop
-
-Add the following to your Claude Desktop MCP configuration (typically `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "cytoscape": {
-      "url": "http://localhost:9998/mcp"
-    }
-  }
-}
-```
-
-Restart Claude Desktop. Cytoscape must already be running with the MCP app installed.
+See **[AgentConfiguration.md](AgentConfiguration.md)** for step-by-step setup instructions covering Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
 
 ---
 
