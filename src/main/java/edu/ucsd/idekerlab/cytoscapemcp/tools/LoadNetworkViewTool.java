@@ -7,24 +7,29 @@ import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.JsonSchema;
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.cytoscape.application.CyApplicationManager;
+import org.cytoscape.io.read.CyNetworkReader;
+import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetwork;
 import org.cytoscape.model.CyNetworkManager;
+import org.cytoscape.model.subnetwork.CyRootNetwork;
+import org.cytoscape.model.subnetwork.CySubNetwork;
 import org.cytoscape.property.CyProperty;
-import org.cytoscape.task.read.LoadNetworkURLTaskFactory;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.work.FinishStatus;
 import org.cytoscape.work.ObservableTask;
 import org.cytoscape.work.SynchronousTaskManager;
+import org.cytoscape.work.Task;
 import org.cytoscape.work.TaskIterator;
 import org.cytoscape.work.TaskObserver;
 import org.slf4j.Logger;
@@ -50,6 +55,13 @@ public class LoadNetworkViewTool {
                     + " this tool. Network IDs can be found on the NDEx website by searching for a"
                     + " network and copying the UUID from the network's detail page URL.";
 
+    private static final String TOOL_EXAMPLES =
+            "\n\n## Examples\n\n"
+                    + "Example 1 — Load a network by UUID (most common):\n"
+                    + "{\"network-id\": \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\"}\n\n"
+                    + "Example 2 — Load a different network (minimal):\n"
+                    + "{\"network-id\": \"f3b72e5a-2d8c-4f1b-9e6a-8c7d5f4e3b2a\"}";
+
     private static final String NETWORK_ID_DESCRIPTION =
             "The UUID of the network on NDEx"
                     + " (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\")."
@@ -63,7 +75,7 @@ public class LoadNetworkViewTool {
     private final CyNetworkManager networkManager;
     private final CyNetworkViewManager viewManager;
     private final SynchronousTaskManager<?> syncTaskManager;
-    private final LoadNetworkURLTaskFactory loadNetworkURLTaskFactory;
+    private final InputStreamTaskFactory cxReaderFactory;
 
     public LoadNetworkViewTool(
             CyProperty<Properties> cyProperties,
@@ -71,25 +83,26 @@ public class LoadNetworkViewTool {
             CyNetworkManager networkManager,
             CyNetworkViewManager viewManager,
             SynchronousTaskManager<?> syncTaskManager,
-            LoadNetworkURLTaskFactory loadNetworkURLTaskFactory) {
+            InputStreamTaskFactory cxReaderFactory) {
         this.cyProperties = cyProperties;
         this.appManager = appManager;
         this.networkManager = networkManager;
         this.viewManager = viewManager;
         this.syncTaskManager = syncTaskManager;
-        this.loadNetworkURLTaskFactory = loadNetworkURLTaskFactory;
+        this.cxReaderFactory = cxReaderFactory;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
         Tool toolDef = Tool.builder()
                 .name(TOOL_NAME)
-                .description(TOOL_DESCRIPTION)
+                .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                 .inputSchema(new JsonSchema(
                         "object",
-                        Map.of("network-id", Map.of(
-                                "type", "string",
-                                "description", NETWORK_ID_DESCRIPTION)),
+                        Map.of(
+                                "network-id", Map.of(
+                                        "type", "string",
+                                        "description", NETWORK_ID_DESCRIPTION)),
                         List.of("network-id"),
                         null, null, null))
                 .build();
@@ -103,6 +116,7 @@ public class LoadNetworkViewTool {
     // -- Handler --------------------------------------------------------------
 
     private CallToolResult handle(McpSyncServerExchange exchange, CallToolRequest request) {
+        LOGGER.info("Tool call received: {} params={}", TOOL_NAME, request.arguments());
         String networkId = extractNetworkId(request);
         if (networkId == null) {
             return error(
@@ -121,7 +135,7 @@ public class LoadNetworkViewTool {
 
         CyNetwork loadedNetwork;
         try {
-            loadedNetwork = executeLoad(ndexUrl);
+            loadedNetwork = executeLoad(ndexUrl, networkId);
         } catch (Exception e) {
             LOGGER.error("Error loading NDEx network {}", networkId, e);
             return error(
@@ -137,6 +151,7 @@ public class LoadNetworkViewTool {
                             + "\" was not found on NDEx or could not be loaded into Cytoscape.");
         }
 
+        setCollectionName(loadedNetwork);
         activateNetwork(loadedNetwork);
 
         String displayName = getDisplayName(loadedNetwork, networkId);
@@ -161,36 +176,36 @@ public class LoadNetworkViewTool {
                 .getProperties()
                 .getProperty("mcp.ndexbaseurl", "https://www.ndexbio.org")
                 .trim();
-        return new URL(ndexBase + "/v2/network/" + networkId + "/cx2");
+        return new URL(ndexBase + "/v2/network/" + networkId);
     }
 
     /**
-     * Executes the network load task and returns the newly created {@link CyNetwork}.
+     * Downloads the network CX stream from NDEx, parses it with the CX-specific network reader,
+     * and registers the resulting network and view with Cytoscape.
      *
-     * <p>Uses the two-arg {@code execute(TaskIterator, TaskObserver)} overload so that
-     * {@link TaskObserver#allFinished} gives a definitive completion signal and
-     * {@link TaskObserver#taskFinished} can capture the result directly from
-     * {@link ObservableTask#getResults} — avoiding the race condition of diffing the
-     * network set immediately after a one-arg {@code execute()} that may return before
-     * the network is fully registered.
+     * <p>Uses {@link InputStreamTaskFactory} (OSGi ID {@code cytoscapeCxNetworkReaderFactory})
+     * to obtain the CX reader. This ensures the correct reader is used (the generic
+     * {@code CyNetworkReaderManager} selects the wrong reader for CX streams).
      *
-     * <p>Falls back to a before/after {@link CyNetworkManager#getNetworkSet()} diff
-     * if the load task does not implement {@link ObservableTask}.
+     * <p>After the reader finishes, networks are manually registered via
+     * {@link CyNetworkManager#addNetwork} and views are built via
+     * {@link CyNetworkReader#buildCyNetworkView} then registered via
+     * {@link CyNetworkViewManager#addNetworkView}.
      */
-    private CyNetwork executeLoad(URL ndexUrl) {
-        Set<CyNetwork> networksBefore = networkManager.getNetworkSet();
-        TaskIterator tasks = loadNetworkURLTaskFactory.createTaskIterator(ndexUrl, null);
+    private CyNetwork executeLoad(URL ndexUrl, String networkId) throws IOException {
+        InputStream cxStream = openStream(ndexUrl);
 
-        AtomicReference<CyNetwork> observed = new AtomicReference<>();
+        TaskIterator ti = cxReaderFactory.createTaskIterator(cxStream, null);
+        CyNetworkReader reader = (CyNetworkReader) ti.next();
+
+        syncTaskManager.setExecutionContext(new java.util.HashMap<>());
+
         AtomicReference<FinishStatus> completionStatus = new AtomicReference<>();
 
-        syncTaskManager.execute(tasks, new TaskObserver() {
+        syncTaskManager.execute(new TaskIterator((Task) reader), new TaskObserver() {
             @Override
             public void taskFinished(ObservableTask task) {
-                CyNetwork net = task.getResults(CyNetwork.class);
-                if (net != null) {
-                    observed.compareAndSet(null, net);
-                }
+                // Not needed — we access the reader directly after completion
             }
 
             @Override
@@ -206,12 +221,42 @@ public class LoadNetworkViewTool {
                     cause != null ? cause.getMessage() : "Network load task failed", cause);
         }
 
-        // Prefer the network captured via ObservableTask; fall back to set diff.
-        CyNetwork result = observed.get();
-        if (result == null) {
-            result = findNewNetwork(networksBefore);
+        CyNetwork[] networks = reader.getNetworks();
+        if (networks == null || networks.length == 0) {
+            return null;
         }
-        return result;
+
+        CyNetwork loaded = networks[0];
+
+        // Register the network with Cytoscape (creates the collection)
+        networkManager.addNetwork(loaded);
+
+        // Build and register the view (buildCyNetworkView does NOT auto-register)
+        CyNetworkView view = reader.buildCyNetworkView(loaded);
+        if (view != null) {
+            viewManager.addNetworkView(view);
+        }
+
+        return loaded;
+    }
+
+    /** Downloads the CX stream from the given URL. Package-private for test overriding. */
+    InputStream openStream(URL url) throws IOException {
+        return url.openStream();
+    }
+
+    /**
+     * Sets the root network (collection) name to match the loaded sub-network name,
+     * so the Network panel displays the proper name instead of a UUID.
+     */
+    private void setCollectionName(CyNetwork network) {
+        if (network instanceof CySubNetwork) {
+            CyRootNetwork root = ((CySubNetwork) network).getRootNetwork();
+            String subName = network.getRow(network).get(CyNetwork.NAME, String.class);
+            if (subName != null) {
+                root.getRow(root).set(CyNetwork.NAME, subName);
+            }
+        }
     }
 
     private void activateNetwork(CyNetwork network) {
@@ -225,15 +270,6 @@ public class LoadNetworkViewTool {
     private String getDisplayName(CyNetwork network, String fallbackId) {
         String name = network.getRow(network).get(CyNetwork.NAME, String.class);
         return name != null ? name : fallbackId;
-    }
-
-    private CyNetwork findNewNetwork(Set<CyNetwork> before) {
-        for (CyNetwork net : networkManager.getNetworkSet()) {
-            if (!before.contains(net)) {
-                return net;
-            }
-        }
-        return null;
     }
 
     // -- Result helpers -------------------------------------------------------

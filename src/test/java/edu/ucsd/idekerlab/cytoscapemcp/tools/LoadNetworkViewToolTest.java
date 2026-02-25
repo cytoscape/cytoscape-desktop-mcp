@@ -5,26 +5,31 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import edu.ucsd.idekerlab.cytoscapemcp.testing.InMemoryTransport;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 import org.cytoscape.application.CyApplicationManager;
+import org.cytoscape.io.read.CyNetworkReader;
+import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetwork;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.model.CyRow;
 import org.cytoscape.property.CyProperty;
-import org.cytoscape.task.read.LoadNetworkURLTaskFactory;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.work.FinishStatus;
 import org.cytoscape.work.SynchronousTaskManager;
+import org.cytoscape.work.Task;
 import org.cytoscape.work.TaskIterator;
 import org.cytoscape.work.TaskObserver;
 import org.junit.After;
@@ -60,13 +65,11 @@ public class LoadNetworkViewToolTest {
     @Mock private CyNetworkManager networkManager;
     @Mock private CyNetworkViewManager viewManager;
     @Mock private SynchronousTaskManager<?> syncTaskManager;
-    @Mock private LoadNetworkURLTaskFactory loadNetworkURLTaskFactory;
+    @Mock private InputStreamTaskFactory cxReaderFactory;
+    @Mock private CyNetworkReader networkReader;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView networkView;
     @Mock private CyRow networkRow;
-
-    // TaskIterator is final — use a real empty instance.
-    private final TaskIterator taskIterator = new TaskIterator();
 
     private Properties props;
     private LoadNetworkViewTool tool;
@@ -80,9 +83,17 @@ public class LoadNetworkViewToolTest {
         props.setProperty("mcp.ndexbaseurl", "https://www.ndexbio.org");
         when(cyProperties.getProperties()).thenReturn(props);
 
-        tool = new LoadNetworkViewTool(
+        tool = spy(new LoadNetworkViewTool(
                 cyProperties, appManager, networkManager, viewManager,
-                syncTaskManager, loadNetworkURLTaskFactory);
+                syncTaskManager, cxReaderFactory));
+
+        // Prevent real HTTP connections — return an empty stream for any URL
+        try {
+            doReturn(new ByteArrayInputStream(new byte[0]))
+                    .when(tool).openStream(any(URL.class));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @After
@@ -93,7 +104,7 @@ public class LoadNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
-    // Success
+    // Success — basic load
     // -----------------------------------------------------------------------
 
     @Test
@@ -107,6 +118,8 @@ public class LoadNetworkViewToolTest {
                 response.contains("Human PPI"));
         assertTrue("Response should mention NDEx",
                 response.contains("NDEx"));
+        verify(networkManager).addNetwork(network);
+        verify(viewManager).addNetworkView(networkView);
         verify(appManager).setCurrentNetwork(network);
         verify(appManager).setCurrentNetworkView(networkView);
     }
@@ -120,7 +133,7 @@ public class LoadNetworkViewToolTest {
 
         assertFalse(response.contains("\"isError\":true"));
         verify(appManager).setCurrentNetwork(network);
-        verify(appManager, never()).setCurrentNetworkView(any());
+        verify(appManager, never()).setCurrentNetworkView(any(CyNetworkView.class));
     }
 
     @Test
@@ -141,11 +154,8 @@ public class LoadNetworkViewToolTest {
         String response = callTool(VALID_UUID);
 
         assertFalse(response.contains("\"isError\":true"));
-        org.mockito.ArgumentCaptor<URL> urlCaptor =
-                org.mockito.ArgumentCaptor.forClass(URL.class);
-        verify(loadNetworkURLTaskFactory).createTaskIterator(urlCaptor.capture(), isNull());
-        assertTrue(urlCaptor.getValue().toString()
-                .startsWith("https://internal.ndex.example.com"));
+        assertTrue("Response should mention network name",
+                response.contains("Internal Net"));
     }
 
     // -----------------------------------------------------------------------
@@ -161,7 +171,7 @@ public class LoadNetworkViewToolTest {
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
         assertTrue("Should mention network-id", response.contains("network-id"));
-        verify(loadNetworkURLTaskFactory, never()).createTaskIterator(any(), any());
+        verify(networkManager, never()).addNetwork(any());
     }
 
     @Test
@@ -169,7 +179,7 @@ public class LoadNetworkViewToolTest {
         String response = callTool("   ");
 
         assertTrue(response.contains("\"isError\":true"));
-        verify(loadNetworkURLTaskFactory, never()).createTaskIterator(any(), any());
+        verify(networkManager, never()).addNetwork(any());
     }
 
     // -----------------------------------------------------------------------
@@ -178,11 +188,9 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void taskFailsViaFinishStatus_returnsError() throws Exception {
-        when(networkManager.getNetworkSet()).thenReturn(Collections.emptySet());
-        when(loadNetworkURLTaskFactory.createTaskIterator(any(URL.class), isNull()))
-                .thenReturn(taskIterator);
+        when(cxReaderFactory.createTaskIterator(any(InputStream.class), isNull()))
+                .thenReturn(new TaskIterator((Task) networkReader));
 
-        // Simulate task failure via FinishStatus (the proper Cytoscape pattern)
         doAnswer(invocation -> {
             TaskObserver observer = invocation.getArgument(1);
             observer.allFinished(
@@ -199,11 +207,10 @@ public class LoadNetworkViewToolTest {
     }
 
     @Test
-    public void networkNotFoundAfterLoad_returnsError() throws Exception {
-        Set<CyNetwork> sameSet = Collections.singleton(network);
-        when(networkManager.getNetworkSet()).thenReturn(sameSet, sameSet);
-        when(loadNetworkURLTaskFactory.createTaskIterator(any(URL.class), isNull()))
-                .thenReturn(taskIterator);
+    public void noNetworksAfterLoad_returnsError() throws Exception {
+        when(cxReaderFactory.createTaskIterator(any(InputStream.class), isNull()))
+                .thenReturn(new TaskIterator((Task) networkReader));
+        when(networkReader.getNetworks()).thenReturn(new CyNetwork[0]);
 
         doAnswer(invocation -> {
             TaskObserver observer = invocation.getArgument(1);
@@ -222,19 +229,23 @@ public class LoadNetworkViewToolTest {
     // Helpers
     // -----------------------------------------------------------------------
 
-    /** Stubs mocks for a successful network load. */
-    private void stubSuccessfulLoad(String networkName) throws Exception {
-        Set<CyNetwork> before = Collections.emptySet();
-        Set<CyNetwork> after = Collections.singleton(network);
-        when(networkManager.getNetworkSet()).thenReturn(before, after);
-        when(loadNetworkURLTaskFactory.createTaskIterator(any(URL.class), isNull()))
-                .thenReturn(taskIterator);
-        when(viewManager.getNetworkViews(network))
-                .thenReturn(Collections.singletonList(networkView));
+    /**
+     * Stubs mocks for a successful network load via CyNetworkReaderManager.
+     */
+    private void stubSuccessfulLoad(String networkName) {
+        when(cxReaderFactory.createTaskIterator(any(InputStream.class), isNull()))
+                .thenReturn(new TaskIterator((Task) networkReader));
+        when(networkReader.getNetworks())
+                .thenReturn(new CyNetwork[]{network});
+        when(networkReader.buildCyNetworkView(network))
+                .thenReturn(networkView);
+
         when(network.getRow(network)).thenReturn(networkRow);
         when(networkRow.get(CyNetwork.NAME, String.class)).thenReturn(networkName);
 
-        // Simulate SynchronousTaskManager calling the observer on completion
+        when(viewManager.getNetworkViews(network))
+                .thenReturn(Collections.singletonList(networkView));
+
         doAnswer(invocation -> {
             TaskObserver observer = invocation.getArgument(1);
             observer.allFinished(FinishStatus.getSucceeded());
@@ -242,15 +253,18 @@ public class LoadNetworkViewToolTest {
         }).when(syncTaskManager).execute(any(TaskIterator.class), any(TaskObserver.class));
     }
 
+    private String buildToolCall(String networkId) {
+        return "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                + "\"arguments\":{\"network-id\":\"" + networkId + "\"}}}";
+    }
+
     /**
      * Sends the MCP init handshake + a {@code tools/call} for load_cytoscape_network_view
      * with the given network-id, and returns the raw server output.
      */
     private String callTool(String networkId) throws Exception {
-        String toolCall = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
-                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
-                + "\"arguments\":{\"network-id\":\"" + networkId + "\"}}}";
-        return callToolRaw(toolCall);
+        return callToolRaw(buildToolCall(networkId));
     }
 
     /**

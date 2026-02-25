@@ -1,7 +1,7 @@
 # Agent Instructions for cytoscape-mcp
 
 ## Project Overview
-Cytoscape Desktop app (OSGi bundle) that embeds an MCP (Model Context Protocol) server inside Cytoscape. AI clients such as Claude Desktop connect to the server over HTTP/SSE and invoke tools that control Cytoscape directly — loading networks, setting views, and querying the active session. Built with Java 11, Gradle, packaged as an OSGi bundle with embedded dependencies (MCP SDK, Jetty, Jackson).
+Cytoscape Desktop app (OSGi bundle) that embeds an MCP (Model Context Protocol) server inside Cytoscape. AI clients such as Claude Desktop connect to the server over HTTP and invoke tools that control Cytoscape directly — loading networks, setting views, and querying the active session. Built with Java 11, Gradle, packaged as an OSGi bundle with embedded dependencies (MCP SDK, Jetty, Jackson).
 
 ## Build Commands
 Use the Makefile targets — they wrap Gradle:
@@ -36,10 +36,9 @@ docs/
 `CyActivator` extends `AbstractCyActivator`. Jetty and the MCP server are started inside `initializeApp()`, which is called after `AppsFinishedStartingEvent` to ensure all Cytoscape services are registered before being looked up. `shutDown()` stops both servers. A JVM shutdown hook registered in `start()` provides SIGINT/SIGTERM safety in case the OSGi shutdown is bypassed.
 
 ### MCP Server Architecture
-- **Transport:** `HttpServletSseServerTransportProvider` from the MCP SDK core (`io.modelcontextprotocol.sdk:mcp:0.12.1`) — no Spring required
+- **Transport:** `HttpServletStreamableServerTransportProvider` from the MCP SDK core (`io.modelcontextprotocol.sdk:mcp:0.12.1`) — no Spring required
 - **Servlet container:** Jetty 12.0.x (`jetty-server` + `jetty-ee10-servlet`) hosts the transport servlet
-- **SSE endpoint:** `GET /mcp` — AI clients connect here
-- **Message endpoint:** `POST /mcp/message` — tool call requests arrive here
+- **MCP endpoint:** `POST/GET /mcp` — unified endpoint for all client communication
 - **Server type:** `McpSyncServer` (synchronous) — tool calls block until complete
 - **Bundle version** is read from `bundleContext.getBundle().getVersion()` at startup and passed to `McpServer.sync().serverInfo()`
 
@@ -64,7 +63,13 @@ docs/
 5. Register in `CyActivator.startMcpServer()` via `mcpServer.addTool(newTool.toSpec())`
 
 ### NDEx Network Loading
-`LoadNetworkViewTool` loads networks from NDEx using `LoadNetworkURLTaskFactory` (obtained from the OSGi service registry) and `SynchronousTaskManager` to block until the load completes. The NDEx CX2 URL is `{mcp.ndexbaseurl}/v2/network/{uuid}/cx2`. After loading, the new network is identified by diffing the `CyNetworkManager.getNetworkSet()` before and after, then set as current via `CyApplicationManager`.
+`LoadNetworkViewTool` loads networks from NDEx using the CX-specific `InputStreamTaskFactory` (OSGi ID `cytoscapeCxNetworkReaderFactory`, from `io-api`) and `SynchronousTaskManager` to block until the read completes. The NDEx URL is `{mcp.ndexbaseurl}/v2/network/{uuid}` (no format suffix — Cytoscape auto-detects CX or CX2).
+
+**Important:** Do NOT use `CyNetworkReaderManager.getReader()` for CX streams — it selects the wrong reader (SIF/table parser instead of CX parser). Instead, use `InputStreamTaskFactory` obtained via `getService(bundleContext, InputStreamTaskFactory.class, "(id=cytoscapeCxNetworkReaderFactory)")`. This is the same approach used by CyNDEx-2 (`CxTaskFactoryManager`).
+
+The tool downloads the CX stream directly from NDEx via `URL.openStream()`, then uses `cxReaderFactory.createTaskIterator(cxStream, null)` to get the CX reader. The reader is executed via `SynchronousTaskManager` (which provides a proper `TaskMonitor` with UI progress). After the reader finishes, networks are manually registered via `CyNetworkManager.addNetwork()` (which creates a new collection), views are built via `CyNetworkReader.buildCyNetworkView()` and registered via `CyNetworkViewManager.addNetworkView()`. The root network (collection) name is set to match the loaded sub-network name via `CySubNetwork.getRootNetwork()`, then the network is activated as current via `CyApplicationManager`.
+
+**Tool use examples** are embedded in the tool description string (not the MCP `Tool` schema, which has no `inputExamples` field) to improve LLM accuracy when invoking the tool.
 
 ### Testing
 - JUnit 4 + Mockito 4 — mock all Cytoscape services at the service boundary

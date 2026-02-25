@@ -2,12 +2,12 @@
 
 ## Introduction
 
-This tutorial walks through the complete workflow of connecting Claude Desktop to Cytoscape Desktop via the MCP server and using it to load a biological network from NDEx.
+This tutorial walks through the complete workflow of connecting Claude Desktop to Cytoscape Desktop via the MCP server and using it to load a biological network from NDEx as the current view.
 
 **Prerequisites:**
 - Cytoscape 3.10+ installed and running
 - Cytoscape MCP Server app installed (see [User Manual](UserManual.md))
-- Claude Desktop installed
+- MCP enabled Agent such as Claude or Codex installed.
 
 ---
 
@@ -16,23 +16,23 @@ This tutorial walks through the complete workflow of connecting Claude Desktop t
 After Cytoscape starts, confirm the MCP server is active by opening a terminal and running:
 
 ```bash
-curl -N http://localhost:9998/mcp
+curl http://localhost:9998/mcp
 ```
 
-You should see the connection held open as an SSE stream. Press `Ctrl+C` to exit.
+You should see an HTTP response (a 400 or 405 error is expected — it confirms the server is listening). A "connection refused" error means the server is not running.
 
 If you see a "connection refused" error, check that the app is installed and that Cytoscape has fully started.
 
 ---
 
-## Step 2: Connect Claude Desktop
+## Step 2: Connect Agent
 
-Open (or create) your Claude Desktop MCP configuration file:
+Open (or create) your Agent MCP configuration file, this example uses Claude Code:
 
 - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
-Add (or merge) the following entry:
+Add (or merge) the following entry for the MCP server published by Cytoscsape Desktop:
 
 ```json
 {
@@ -45,6 +45,7 @@ Add (or merge) the following entry:
 ```
 
 Save the file and restart Claude Desktop. You should see "cytoscape" listed in Claude's connected tools panel.
+**Note:** Multiple agents can connect simultaneously, but Cytoscape Desktop is a single-user application with shared state — concurrent agents may issue conflicting commands that affect view state. Users are responsible for coordinating agent activity.
 
 ---
 
@@ -61,15 +62,13 @@ Save the file and restart Claude Desktop. You should see "cytoscape" listed in C
 
 ---
 
-## Step 4: Load the Network via Claude
+## Step 4: Load the Network into Cytoscape Desktop via Agent
 
-In Claude Desktop, type a prompt like:
+In Agent, type a prompt like:
 
 > "Load the network with NDEx ID a7e43e3d-c7f8-11ec-8d17-005056ae23aa into Cytoscape."
 
-Claude will call the `load_cytoscape_network_view` MCP tool. Within a few seconds the network should appear in Cytoscape Desktop as the active network view.
-
-If Claude asks for the network ID (rather than calling the tool immediately), provide the UUID — the tool description tells Claude to request it from you before proceeding.
+Agent will call the `load_cytoscape_network_view` MCP tool published by Cytoscape Desktop. Within a few seconds the network should appear in Cytoscape Desktop as the active network view.
 
 ---
 
@@ -81,7 +80,7 @@ Switch to Cytoscape Desktop. The loaded network should be visible in the **Netwo
 
 ## Changing the NDEx Server (Optional)
 
-If you are using a private NDEx instance, update the base URL via **Edit > Preferences > Properties > cytoscapemcp** and set `mcp.ndexbaseurl` to your server's URL. Changes take effect immediately for subsequent tool calls.
+If you are using a custom NDEx instance, update the base URL via **Edit > Preferences > Properties > cytoscapemcp** and set `mcp.ndexbaseurl` to your server's URL. Changes take effect immediately for subsequent tool calls.
 
 ---
 

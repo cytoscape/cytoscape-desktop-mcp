@@ -30,7 +30,7 @@ Yes. Change the `mcp.ndexbaseurl` property via **Edit > Preferences > Properties
 
 ### Does the server require internet access?
 
-Only when the `load_cytoscape_network_view` tool is called — it fetches the network CX2 file from NDEx. If you are using a local NDEx instance, no internet access is required.
+Only when the `load_cytoscape_network_view` tool is called — it fetches the network from NDEx. If you are using a local NDEx instance, no internet access is required.
 
 ---
 
@@ -38,9 +38,9 @@ Only when the `load_cytoscape_network_view` tool is called — it fetches the ne
 
 Run the following from a terminal while Cytoscape is open:
 ```bash
-curl -N http://localhost:9998/mcp
+curl http://localhost:9998/mcp
 ```
-You should see an SSE stream open (no error response). Press Ctrl+C to cancel.
+You should see an HTTP response (a 400 or 405 error is expected — it confirms the server is listening). A "connection refused" error means the server is not running.
 
 ---
 
@@ -59,6 +59,6 @@ The MCP server stops cleanly. The OSGi framework calls the app's `shutDown()` ca
 
 ---
 
-### Can I run multiple MCP tools at the same time?
+### Can I run multiple Agents against the Cytoscape MCP concurrently?
 
-The current implementation uses a synchronous task manager for network loading, which serializes operations. Concurrent tool calls from multiple AI clients will queue behind each other.
+Yes. The Streamable HTTP transport supports multiple concurrent agent connections, each with its own session. However, Cytoscape Desktop is a single-user application with shared state — concurrent agents may issue conflicting commands (e.g., both changing the active view). Users are responsible for coordinating agent activity to avoid conflicts.

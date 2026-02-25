@@ -4,7 +4,7 @@
 
 The Cytoscape MCP Server app exposes [Cytoscape Desktop](https://cytoscape.org) as an MCP (Model Context Protocol) server, allowing AI clients such as Claude Desktop to control Cytoscape directly through natural language.
 
-Once installed, the app starts an HTTP server inside Cytoscape that AI clients connect to over Server-Sent Events (SSE). Clients can discover and call tools that load networks, manipulate views, and query the active session.
+Once installed, the app starts an HTTP server inside Cytoscape that AI clients connect to over HTTP. Clients can discover and call tools that load networks, manipulate views, and query the active session.
 
 ---
 
@@ -19,8 +19,7 @@ Once installed, the app starts an HTTP server inside Cytoscape that AI clients c
 After startup the app logs:
 ```
 Cytoscape MCP Server started on port 9998 (version X.Y.Z)
-SSE endpoint:     http://localhost:9998/mcp
-Message endpoint: http://localhost:9998/mcp/message
+MCP endpoint:     http://localhost:9998/mcp
 ```
 
 ---
@@ -54,9 +53,15 @@ Loads a biological network from [NDEx](https://www.ndexbio.org) into Cytoscape D
 
 **Network IDs** can be found by browsing [NDEx](https://www.ndexbio.org), searching for the network of interest, and copying the UUID from the URL of the network's detail page.
 
+**Example prompt** — after connecting your agent, try this to load the Yeast ergosterol network:
+
+> Load the NDEx network 63836e7b-ca44-11f0-a218-005056ae3c32 into Cytoscape
+
 ---
 
-## Connecting an AI Client
+## Connecting an AI Agent Example
+Update your AI agent MCP config to load the Cytoscape Desktop MCP instance. This shows example for Claude Desktop, all agents have similar mcp server config settings.
+**Note:** Multiple agents can connect simultaneously, but Cytoscape Desktop is a single-user application with shared state — concurrent agents may issue conflicting commands that affect view state. Users are responsible for coordinating agent activity.
 
 ### Claude Desktop
 

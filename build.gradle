@@ -5,10 +5,16 @@
  * Non-provided dependencies (MCP SDK, Jetty, Jackson) are embedded inside the
  * bundle JAR via the 'embed' configuration. Cytoscape and OSGi APIs are
  * declared compileOnly (provided by the Cytoscape OSGi runtime at run time).
+ *
+ * The biz.aQute.bnd.builder plugin generates the OSGi manifest by scanning
+ * bytecode — same BND engine that maven-bundle-plugin uses. BND instructions
+ * like Import-Package: *;resolution:=optional are expanded into real package
+ * names, not written literally into the manifest.
  */
 
 plugins {
     id 'java'
+    id 'biz.aQute.bnd.builder'
     id 'maven-publish'
 }
 
@@ -54,11 +60,11 @@ dependencies {
     compileOnly "org.ops4j.pax.logging:pax-logging-api:1.5.3"
     compileOnly "org.slf4j:slf4j-api:1.7.36"
 
-    // === MCP SDK core — includes HttpServletSseServerTransportProvider (no Spring needed) ===
+    // === MCP SDK core — includes HttpServletStreamableServerTransportProvider (no Spring needed) ===
     embed platform("io.modelcontextprotocol.sdk:mcp-bom:0.12.1")
     embed "io.modelcontextprotocol.sdk:mcp"
 
-    // === Jetty — servlet container hosting the MCP SSE servlet ===
+    // === Jetty — servlet container hosting the MCP HTTP servlet ===
     embed "org.eclipse.jetty:jetty-server:12.0.18"
     embed "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.18"
 
@@ -82,31 +88,56 @@ dependencies {
     testImplementation "org.osgi:org.osgi.core:6.0.0"
 }
 
-// OSGi bundle JAR — embeds all 'embed' deps and sets the OSGi manifest headers.
+// OSGi bundle JAR — BND scans bytecode and generates the manifest.
 // Physical embedding is done by unpacking the embed JARs into the output JAR.
-// Embed-Dependency uses '*' — precise artifact listing via resolvedConfiguration
-// is incompatible with Gradle 9's configuration cache; the from{} block handles
-// actual embedding regardless of this manifest header value.
+// BND instructions (below) are processed at build time — wildcards like * in
+// Import-Package are expanded into actual package names, matching the behavior
+// of maven-bundle-plugin.
 jar {
     archiveBaseName = 'cytoscape-mcp'
 
-    from {
+    from({
         configurations.embed.collect { it.isDirectory() ? it : zipTree(it) }
+    }) {
+        // Exclude multi-release class files and their OSGI-INF manifests —
+        // Felix in Cytoscape 3.10.x can't handle them and fails to resolve
+        // the bundle. The base classes work fine on all supported JDK versions.
+        exclude 'META-INF/versions/**'
+        // Exclude embedded JARs' manifests and code-signing files
+        exclude 'META-INF/MANIFEST.MF'
+        exclude 'META-INF/*.SF'
+        exclude 'META-INF/*.DSA'
+        exclude 'META-INF/*.RSA'
+        // Exclude SLF4J — Cytoscape provides it via pax-logging. If embedded,
+        // the bundle uses a no-op SLF4J with no backend and logs are lost.
+        exclude 'org/slf4j/**'
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
-    manifest {
-        attributes(
-            'Bundle-SymbolicName': 'edu.ucsd.idekerlab.cytoscapemcp',
-            'Bundle-Version': project.version.replace('-SNAPSHOT', '.SNAPSHOT'),
-            'Bundle-Activator': 'edu.ucsd.idekerlab.cytoscapemcp.CyActivator',
-            'Bundle-Name': 'Cytoscape MCP Server',
-            'Bundle-Description': 'MCP server for Cytoscape Desktop — enables AI clients to control Cytoscape via the Model Context Protocol',
-            'Private-Package': 'edu.ucsd.idekerlab.cytoscapemcp.*',
-            'Embed-Dependency': '*',
-            'Embed-Transitive': 'true',
-            'Import-Package': '*;resolution:=optional'
-        )
+    bundle {
+        // Only scan our own code + compileOnly deps for Import-Package.
+        // Embedded deps are inside the JAR — their internal references
+        // should NOT become bundle imports (matches maven-bundle-plugin
+        // behavior in open-cyweb).
+        classpath = sourceSets.main.output + sourceSets.main.compileClasspath
+
+        bnd '''\
+            Bundle-SymbolicName: edu.ucsd.idekerlab.cytoscapemcp
+            Bundle-Activator: edu.ucsd.idekerlab.cytoscapemcp.CyActivator
+            Bundle-Name: Cytoscape MCP Server
+            Bundle-Description: MCP server for Cytoscape Desktop — enables AI clients to control Cytoscape via the Model Context Protocol
+
+            # BND scans bytecode, expands * into every external package reference,
+            # and marks each with resolution:=optional — identical to maven-bundle-plugin.
+            Import-Package: *;resolution:=optional
+
+            Private-Package: edu.ucsd.idekerlab.cytoscapemcp,edu.ucsd.idekerlab.cytoscapemcp.tools
+            Embed-Dependency: *
+            Embed-Transitive: true
+
+            # Match open-cyweb: declare Java 11 compatibility for Cytoscape 3.10.x
+            Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=11))"
+        '''
     }
 }
 
@@ -117,3 +148,19 @@ publishing {
         }
     }
 }
+
+// Ensure tests pass before publishing — mirrors Maven's install lifecycle
+// where test phase always runs before the install phase.
+tasks.named('publishToMavenLocal') {
+    dependsOn tasks.named('test')
+}
+
+test {
+    outputs.upToDateWhen { false }
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+    }
+}
+
+

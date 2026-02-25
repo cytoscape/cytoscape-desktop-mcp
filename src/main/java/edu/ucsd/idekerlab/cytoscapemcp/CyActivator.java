@@ -1,10 +1,9 @@
 package edu.ucsd.idekerlab.cytoscapemcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.server.transport.HttpServletSseServerTransportProvider;
+import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
 import java.util.Properties;
 import org.cytoscape.app.event.AppsFinishedStartingEvent;
@@ -14,7 +13,7 @@ import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.AbstractConfigDirPropsReader;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.service.util.AbstractCyActivator;
-import org.cytoscape.task.read.LoadNetworkURLTaskFactory;
+import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.work.SynchronousTaskManager;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
@@ -47,6 +46,7 @@ public class CyActivator extends AbstractCyActivator {
     @Override
     public void start(BundleContext bc) throws Exception {
         this.bundleContext = bc;
+        LOGGER.info("Registering AppsFinishedStartingListener");
 
         // Defer MCP server init until all Cytoscape apps have finished starting.
         // This ensures the OSGi service registry is fully populated before we
@@ -55,6 +55,7 @@ public class CyActivator extends AbstractCyActivator {
                 new AppsFinishedStartingListener() {
                     @Override
                     public void handleEvent(AppsFinishedStartingEvent event) {
+                        LOGGER.info("AppsFinishedStartingEvent received — initializing MCP server");
                         try {
                             initializeApp();
                         } catch (Exception e) {
@@ -72,8 +73,6 @@ public class CyActivator extends AbstractCyActivator {
     }
 
     private void initializeApp() {
-        LOGGER.info("Initializing Cytoscape MCP Server...");
-
         // Register and expose app properties so users can edit them via
         // Edit > Preferences > Properties > "cytoscapemcp" in Cytoscape.
         PropsReader propsReader = new PropsReader("cytoscapemcp", "cytoscapemcp.props");
@@ -103,8 +102,9 @@ public class CyActivator extends AbstractCyActivator {
         SynchronousTaskManager<?> syncTaskManager =
                 getService(bundleContext, SynchronousTaskManager.class);
 
-        LoadNetworkURLTaskFactory loadNetworkURLTaskFactory =
-                getService(bundleContext, LoadNetworkURLTaskFactory.class);
+        InputStreamTaskFactory cxReaderFactory =
+                getService(bundleContext, InputStreamTaskFactory.class,
+                        "(id=cytoscapeCxNetworkReaderFactory)");
 
         startMcpServer(
                 port,
@@ -113,7 +113,7 @@ public class CyActivator extends AbstractCyActivator {
                 networkManager,
                 viewManager,
                 syncTaskManager,
-                loadNetworkURLTaskFactory);
+                cxReaderFactory);
     }
 
     private void startMcpServer(
@@ -123,17 +123,15 @@ public class CyActivator extends AbstractCyActivator {
             CyNetworkManager networkManager,
             CyNetworkViewManager viewManager,
             SynchronousTaskManager<?> syncTaskManager,
-            LoadNetworkURLTaskFactory loadNetworkURLTaskFactory) {
+            InputStreamTaskFactory cxReaderFactory) {
 
-        // SSE transport provider — part of the MCP SDK core (no Spring required).
-        // Clients connect to GET /mcp; tool calls are posted to /mcp/message.
-        HttpServletSseServerTransportProvider transportProvider =
-                HttpServletSseServerTransportProvider.builder()
-                        .objectMapper(new ObjectMapper())
-                        .messageEndpoint("/mcp/message")
+        // Streamable HTTP transport provider — part of the MCP SDK core (no Spring required).
+        HttpServletStreamableServerTransportProvider transportProvider =
+                HttpServletStreamableServerTransportProvider.builder()
+                        .mcpEndpoint("/mcp")
                         .build();
 
-        // Jetty as the servlet container hosting the MCP SSE servlet.
+        // Jetty as the servlet container hosting the MCP HTTP servlet.
         QueuedThreadPool threadPool = new QueuedThreadPool();
         threadPool.setName("mcp-jetty");
         jettyServer = new org.eclipse.jetty.server.Server(threadPool);
@@ -169,12 +167,10 @@ public class CyActivator extends AbstractCyActivator {
                 networkManager,
                 viewManager,
                 syncTaskManager,
-                loadNetworkURLTaskFactory);
+                cxReaderFactory);
         mcpServer.addTool(loadTool.toSpec());
 
-        LOGGER.info("Cytoscape MCP Server started on port {} (version {})", port, bundleVersion);
-        LOGGER.info("SSE endpoint:     http://localhost:{}/mcp", port);
-        LOGGER.info("Message endpoint: http://localhost:{}/mcp/message", port);
+        LOGGER.info("Cytoscape MCP Server started — http://localhost:{}/mcp (version {})", port, bundleVersion);
     }
 
     private void stopServers() {
