@@ -1,16 +1,10 @@
 package edu.ucsd.idekerlab.cytoscapemcp.ui;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.event.WindowEvent;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.JButton;
 import javax.swing.JEditorPane;
@@ -19,9 +13,23 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
-import org.eclipse.jetty.server.Server;
 import org.junit.Before;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Unit tests for {@link McpConfigDialog}. Verifies status display, markdown rendering, and timer
@@ -29,23 +37,23 @@ import org.junit.Test;
  */
 public class McpConfigDialogTest {
 
-    private Server mockServer;
+    private AtomicBoolean serverRunning;
     private JFrame mockParent;
     private int testPort;
 
     @Before
     public void setUp() {
-        mockServer = mock(Server.class);
+        serverRunning = new AtomicBoolean(false);
         mockParent = new JFrame();
         mockParent.setSize(1000, 800);
-        testPort = 9998;
+        testPort = 1234;
     }
 
     // --- Dialog creation and sizing ---
 
     @Test
     public void constructor_setsDialogSize80x70PercentOfParent() {
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         assertEquals("Width should be 80% of parent", 800, dialog.getWidth());
         assertEquals("Height should be 70% of parent", 560, dialog.getHeight());
@@ -53,21 +61,21 @@ public class McpConfigDialogTest {
 
     @Test
     public void constructor_setsNonModal() {
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         assertFalse("Dialog should be non-modal", dialog.isModal());
     }
 
     @Test
     public void constructor_setsTitleToMcpServer() {
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         assertEquals("Title should be 'MCP Server'", "MCP Server", dialog.getTitle());
     }
 
     @Test
     public void constructor_noParent_usesFallbackSize() {
-        McpConfigDialog dialog = new McpConfigDialog(null, mockServer, testPort);
+        McpConfigDialog dialog = new McpConfigDialog(null, serverRunning::get, testPort);
 
         assertEquals("Width should be fallback 800", 800, dialog.getWidth());
         assertEquals("Height should be fallback 600", 600, dialog.getHeight());
@@ -77,8 +85,8 @@ public class McpConfigDialogTest {
 
     @Test
     public void updateStatus_serverRunning_displaysGreenRunningMessage() {
-        when(mockServer.isRunning()).thenReturn(true);
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        serverRunning.set(true);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         JLabel statusLabel = findStatusLabel(dialog);
         assertNotNull("Status label should exist", statusLabel);
@@ -94,8 +102,8 @@ public class McpConfigDialogTest {
 
     @Test
     public void updateStatus_serverStopped_displaysRedStoppedMessage() {
-        when(mockServer.isRunning()).thenReturn(false);
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        serverRunning.set(false);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         JLabel statusLabel = findStatusLabel(dialog);
         assertNotNull("Status label should exist", statusLabel);
@@ -121,12 +129,14 @@ public class McpConfigDialogTest {
 
     @Test
     public void constructor_loadsAndRendersMarkdownAsHtml() {
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         JEditorPane editorPane = findEditorPane(dialog);
         assertNotNull("Editor pane should exist for markdown content", editorPane);
         assertEquals(
-                "Editor pane should use HTML content type", "text/html", editorPane.getContentType());
+                "Editor pane should use HTML content type",
+                "text/html",
+                editorPane.getContentType());
         assertFalse("Editor pane should not be editable", editorPane.isEditable());
 
         String content = editorPane.getText();
@@ -138,7 +148,7 @@ public class McpConfigDialogTest {
 
     @Test
     public void constructor_replacesPortPlaceholderInRenderedContent() {
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         JEditorPane editorPane = findEditorPane(dialog);
         assertNotNull("Editor pane should exist", editorPane);
@@ -155,7 +165,7 @@ public class McpConfigDialogTest {
 
     @Test
     public void closeButton_disposesDialog() {
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         JButton closeButton = findCloseButton(dialog);
         assertNotNull("Close button should exist", closeButton);
@@ -171,7 +181,7 @@ public class McpConfigDialogTest {
 
     @Test
     public void windowListeners_registered() {
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         assertTrue(
                 "Dialog should have window listeners for timer management",
@@ -180,8 +190,8 @@ public class McpConfigDialogTest {
 
     @Test
     public void windowOpened_startsTimer() {
-        when(mockServer.isRunning()).thenReturn(true);
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        serverRunning.set(true);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         // Simulate window opened event
         WindowEvent openEvent = new WindowEvent(dialog, WindowEvent.WINDOW_OPENED);
@@ -195,8 +205,8 @@ public class McpConfigDialogTest {
 
     @Test
     public void windowClosed_stopsTimer() {
-        when(mockServer.isRunning()).thenReturn(true);
-        McpConfigDialog dialog = new McpConfigDialog(mockParent, mockServer, testPort);
+        serverRunning.set(true);
+        McpConfigDialog dialog = new McpConfigDialog(mockParent, serverRunning::get, testPort);
 
         // Start timer first
         WindowEvent openEvent = new WindowEvent(dialog, WindowEvent.WINDOW_OPENED);
@@ -223,7 +233,8 @@ public class McpConfigDialogTest {
                     if (child instanceof JLabel) {
                         JLabel label = (JLabel) child;
                         // Status label contains "server" text
-                        if (label.getText() != null && label.getText().toLowerCase().contains("server")) {
+                        if (label.getText() != null
+                                && label.getText().toLowerCase().contains("server")) {
                             return label;
                         }
                     }

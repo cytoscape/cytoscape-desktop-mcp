@@ -8,6 +8,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Supplier;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -22,7 +23,6 @@ import javax.swing.Timer;
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
-import org.eclipse.jetty.server.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,14 +37,14 @@ public class McpConfigDialog extends JDialog {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(McpConfigDialog.class);
 
-    private final Server jettyServer;
+    private final Supplier<Boolean> isRunning;
     private final int port;
     private final JLabel statusLabel;
     private final Timer statusTimer;
 
-    public McpConfigDialog(JFrame parent, Server jettyServer, int port) {
+    public McpConfigDialog(JFrame parent, Supplier<Boolean> isRunning, int port) {
         super(parent, "MCP Server", false); // non-modal
-        this.jettyServer = jettyServer;
+        this.isRunning = isRunning;
         this.port = port;
 
         // Size: 80% × 70% of parent frame, or sensible fallback if no parent
@@ -100,7 +100,7 @@ public class McpConfigDialog extends JDialog {
     }
 
     private void updateStatus() {
-        boolean running = jettyServer != null && jettyServer.isRunning();
+        boolean running = isRunning != null && Boolean.TRUE.equals(isRunning.get());
         if (running) {
             statusLabel.setText("● MCP server running at http://localhost:" + port + "/mcp");
             statusLabel.setForeground(new Color(0, 140, 0));

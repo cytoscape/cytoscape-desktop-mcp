@@ -3,6 +3,7 @@ package edu.ucsd.idekerlab.cytoscapemcp.ui;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Window;
+import java.util.function.Supplier;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -10,8 +11,6 @@ import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
-
-import org.eclipse.jetty.server.Server;
 
 /**
  * The "MCP" button shown in Cytoscape's status bar. Extends {@link JButton} directly so it sizes
@@ -22,29 +21,30 @@ public class McpStatusPanel extends JButton {
     private static final Color COLOR_RUNNING = new Color(0, 140, 0);
     private static final Color COLOR_STOPPED = Color.RED;
 
-    private final Server jettyServer;
+    private final Supplier<Boolean> isRunning;
     private final int port;
     private final Timer statusTimer;
 
     private McpConfigDialog dialog;
 
-    public McpStatusPanel(Server jettyServer, int port) {
+    public McpStatusPanel(Supplier<Boolean> isRunning, int port) {
         super("MCP");
-        this.jettyServer = jettyServer;
+        this.isRunning = isRunning;
         this.port = port;
 
         setFont(getFont().deriveFont(Font.BOLD, 10f));
         setToolTipText("MCP Server Configuration");
         setFocusPainted(false);
 
-        // Apply native grey border on macOS Aqua (matches TaskStatusBar / other status bar buttons).
+        // Apply native grey border on macOS Aqua (matches TaskStatusBar / other status bar
+        // buttons).
         // On other LAFs use a 1px grey line border.
         if (isAquaLAF()) {
             putClientProperty("JButton.buttonType", "gradient");
         } else {
             setBorderPainted(true);
-            setBorder(BorderFactory.createLineBorder(
-                    UIManager.getColor("Separator.foreground"), 1));
+            setBorder(
+                    BorderFactory.createLineBorder(UIManager.getColor("Separator.foreground"), 1));
             setContentAreaFilled(false);
             setOpaque(false);
         }
@@ -64,7 +64,7 @@ public class McpStatusPanel extends JButton {
     }
 
     private void updateButtonColor() {
-        boolean running = jettyServer != null && jettyServer.isRunning();
+        boolean running = isRunning != null && Boolean.TRUE.equals(isRunning.get());
         setForeground(running ? COLOR_RUNNING : COLOR_STOPPED);
     }
 
@@ -72,7 +72,7 @@ public class McpStatusPanel extends JButton {
         if (dialog == null || !dialog.isDisplayable()) {
             Window ancestor = SwingUtilities.getWindowAncestor(this);
             JFrame parent = ancestor instanceof JFrame ? (JFrame) ancestor : null;
-            dialog = new McpConfigDialog(parent, jettyServer, port);
+            dialog = new McpConfigDialog(parent, isRunning, port);
         }
         dialog.setVisible(true);
         dialog.toFront();

@@ -1,21 +1,35 @@
 package edu.ucsd.idekerlab.cytoscapemcp;
 
+import javax.swing.JPanel;
+import javax.swing.JToolBar;
+
+import org.junit.Before;
+import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import javax.swing.JPanel;
-import javax.swing.JToolBar;
-
 import org.cytoscape.application.swing.CySwingApplication;
-import org.junit.Before;
-import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * Unit tests verifying that CyActivator uses the public {@link CySwingApplication#getStatusToolBar()}
- * API to locate the status toolbar, rather than walking the Swing component tree.
+ * Unit tests verifying that CyActivator uses the public {@link
+ * CySwingApplication#getStatusToolBar()} API to locate the status toolbar, rather than walking the
+ * Swing component tree.
  */
 public class CyActivatorToolbarTest {
 
@@ -36,7 +50,10 @@ public class CyActivatorToolbarTest {
         JToolBar result = mockSwingApp.getStatusToolBar();
 
         assertNotNull("Status toolbar should be non-null", result);
-        assertEquals("Should return toolbar from CySwingApplication.getStatusToolBar()", expected, result);
+        assertEquals(
+                "Should return toolbar from CySwingApplication.getStatusToolBar()",
+                expected,
+                result);
         verify(mockSwingApp).getStatusToolBar();
     }
 
@@ -53,4 +70,3 @@ public class CyActivatorToolbarTest {
         assertEquals("Panel in toolbar should be our panel", panel, toolbar.getComponent(0));
     }
 }
-

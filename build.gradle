@@ -2,9 +2,10 @@
  * Cytoscape MCP Server — Gradle build
  *
  * Produces an OSGi bundle JAR suitable for installation as a Cytoscape App.
- * Non-provided dependencies (MCP SDK, Jetty, Jackson) are embedded inside the
- * bundle JAR via the 'embed' configuration. Cytoscape and OSGi APIs are
- * declared compileOnly (provided by the Cytoscape OSGi runtime at run time).
+ * Non-provided dependencies (MCP SDK, Jackson) are embedded inside the
+ * bundle JAR via the 'embed' configuration. Cytoscape, CyREST, OSGi, and
+ * Servlet APIs are declared compileOnly (provided by the Cytoscape/CyREST
+ * OSGi runtime at run time).
  *
  * The biz.aQute.bnd.builder plugin generates the OSGi manifest by scanning
  * bytecode — same BND engine that maven-bundle-plugin uses. BND instructions
@@ -67,9 +68,9 @@ dependencies {
     embed platform("io.modelcontextprotocol.sdk:mcp-bom:0.12.1")
     embed "io.modelcontextprotocol.sdk:mcp"
 
-    // === Jetty — servlet container hosting the MCP HTTP servlet ===
-    embed "org.eclipse.jetty:jetty-server:12.0.18"
-    embed "org.eclipse.jetty.ee10:jetty-ee10-servlet:12.0.18"
+    // === JAX-RS / Swagger / Servlet — provided by CyREST's OSGi runtime, NOT embedded ===
+    compileOnly "javax.ws.rs:javax.ws.rs-api:2.1.1"
+    compileOnly "javax.servlet:javax.servlet-api:3.1.0"
 
     // === Jackson — JSON serialization required by MCP SDK ===
     embed "com.fasterxml.jackson.core:jackson-databind:2.17.2"
@@ -139,6 +140,7 @@ jar {
             Bundle-Activator: edu.ucsd.idekerlab.cytoscapemcp.CyActivator
             Bundle-Name: Cytoscape MCP Server
             Bundle-Description: MCP server for Cytoscape Desktop — enables AI clients to control Cytoscape via the Model Context Protocol
+            Cytoscape-App-Dependencies: cyREST;3.5.0
 
             # BND scans bytecode, expands * into every external package reference,
             # and marks each with resolution:=optional — identical to maven-bundle-plugin.
