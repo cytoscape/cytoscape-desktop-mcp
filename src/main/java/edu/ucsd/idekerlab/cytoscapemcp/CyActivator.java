@@ -1,22 +1,7 @@
 package edu.ucsd.idekerlab.cytoscapemcp;
 
-import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.modelcontextprotocol.server.McpServer;
-import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
-import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
 import java.util.Properties;
-import org.cytoscape.app.event.AppsFinishedStartingEvent;
-import org.cytoscape.app.event.AppsFinishedStartingListener;
-import org.cytoscape.application.CyApplicationManager;
-import org.cytoscape.model.CyNetworkManager;
-import org.cytoscape.property.AbstractConfigDirPropsReader;
-import org.cytoscape.property.CyProperty;
-import org.cytoscape.service.util.AbstractCyActivator;
-import org.cytoscape.io.read.InputStreamTaskFactory;
-import org.cytoscape.view.model.CyNetworkViewManager;
-import org.cytoscape.work.SynchronousTaskManager;
+
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.server.ServerConnector;
@@ -24,6 +9,26 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.osgi.framework.BundleContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
+
+import org.cytoscape.app.event.AppsFinishedStartingEvent;
+import org.cytoscape.app.event.AppsFinishedStartingListener;
+import org.cytoscape.application.CyApplicationManager;
+import org.cytoscape.io.read.InputStreamTaskFactory;
+import org.cytoscape.model.CyNetworkManager;
+import org.cytoscape.property.AbstractConfigDirPropsReader;
+import org.cytoscape.property.CyProperty;
+import org.cytoscape.service.util.AbstractCyActivator;
+import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.work.TaskManager;
+
+import io.modelcontextprotocol.server.McpServer;
+import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
+import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
 
 public class CyActivator extends AbstractCyActivator {
 
@@ -35,8 +40,8 @@ public class CyActivator extends AbstractCyActivator {
 
     /**
      * Reads app properties from cytoscapemcp.props bundled in the JAR, then merges any user
-     * overrides from the Cytoscape config directory. Properties are visible and editable via
-     * Edit > Preferences > Properties under the "cytoscapemcp" group.
+     * overrides from the Cytoscape config directory. Properties are visible and editable via Edit >
+     * Preferences > Properties under the "cytoscapemcp" group.
      */
     private static class PropsReader extends AbstractConfigDirPropsReader {
         PropsReader(String name, String fileName) {
@@ -87,8 +92,12 @@ public class CyActivator extends AbstractCyActivator {
 
         int port;
         try {
-            port = Integer.parseInt(
-                    cyProperties.getProperties().getProperty("mcp.http_port", "9998").trim());
+            port =
+                    Integer.parseInt(
+                            cyProperties
+                                    .getProperties()
+                                    .getProperty("mcp.http_port", "9998")
+                                    .trim());
         } catch (NumberFormatException e) {
             LOGGER.warn("Invalid mcp.http_port value; defaulting to 9998", e);
             port = 9998;
@@ -100,11 +109,12 @@ public class CyActivator extends AbstractCyActivator {
         CyNetworkViewManager viewManager = getService(bundleContext, CyNetworkViewManager.class);
 
         @SuppressWarnings("unchecked")
-        SynchronousTaskManager<?> syncTaskManager =
-                getService(bundleContext, SynchronousTaskManager.class);
+        TaskManager<?, ?> taskManager = getService(bundleContext, TaskManager.class);
 
         InputStreamTaskFactory cxReaderFactory =
-                getService(bundleContext, InputStreamTaskFactory.class,
+                getService(
+                        bundleContext,
+                        InputStreamTaskFactory.class,
                         "(id=cytoscapeCxNetworkReaderFactory)");
 
         startMcpServer(
@@ -113,7 +123,7 @@ public class CyActivator extends AbstractCyActivator {
                 appManager,
                 networkManager,
                 viewManager,
-                syncTaskManager,
+                taskManager,
                 cxReaderFactory);
     }
 
@@ -123,7 +133,7 @@ public class CyActivator extends AbstractCyActivator {
             CyApplicationManager appManager,
             CyNetworkManager networkManager,
             CyNetworkViewManager viewManager,
-            SynchronousTaskManager<?> syncTaskManager,
+            TaskManager<?, ?> taskManager,
             InputStreamTaskFactory cxReaderFactory) {
 
         // Streamable HTTP transport provider — part of the MCP SDK core (no Spring required).
@@ -157,22 +167,27 @@ public class CyActivator extends AbstractCyActivator {
         // Build the MCP server. Version is read from the OSGi bundle manifest
         // at runtime so it stays in sync with the Gradle build version automatically.
         String bundleVersion = bundleContext.getBundle().getVersion().toString();
-        mcpServer = McpServer.sync(transportProvider)
-                .serverInfo("cytoscape-mcp", bundleVersion)
-                .capabilities(ServerCapabilities.builder().tools(false).build())
-                .build();
+        mcpServer =
+                McpServer.sync(transportProvider)
+                        .serverInfo("cytoscape-mcp", bundleVersion)
+                        .capabilities(ServerCapabilities.builder().tools(false).build())
+                        .build();
 
         // Register MCP tools.
-        LoadNetworkViewTool loadTool = new LoadNetworkViewTool(
-                cyProperties,
-                appManager,
-                networkManager,
-                viewManager,
-                syncTaskManager,
-                cxReaderFactory);
+        LoadNetworkViewTool loadTool =
+                new LoadNetworkViewTool(
+                        cyProperties,
+                        appManager,
+                        networkManager,
+                        viewManager,
+                        taskManager,
+                        cxReaderFactory);
         mcpServer.addTool(loadTool.toSpec());
 
-        LOGGER.info("Cytoscape MCP Server started — http://localhost:{}/mcp (version {})", port, bundleVersion);
+        LOGGER.info(
+                "Cytoscape MCP Server started — http://localhost:{}/mcp (version {})",
+                port,
+                bundleVersion);
     }
 
     private void stopServers() {

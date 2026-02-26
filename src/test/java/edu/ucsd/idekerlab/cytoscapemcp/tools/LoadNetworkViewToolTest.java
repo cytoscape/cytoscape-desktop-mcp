@@ -1,5 +1,18 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
+import java.util.Properties;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,12 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import edu.ucsd.idekerlab.cytoscapemcp.testing.InMemoryTransport;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.net.URL;
-import java.util.Collections;
-import java.util.List;
-import java.util.Properties;
+
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.CyNetworkReader;
 import org.cytoscape.io.read.InputStreamTaskFactory;
@@ -28,20 +36,37 @@ import org.cytoscape.property.CyProperty;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.work.FinishStatus;
-import org.cytoscape.work.SynchronousTaskManager;
 import org.cytoscape.work.Task;
 import org.cytoscape.work.TaskIterator;
+import org.cytoscape.work.TaskManager;
 import org.cytoscape.work.TaskObserver;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * Exercises {@link LoadNetworkViewTool} through its public interface ({@code toSpec()})
- * by registering it on a real {@link io.modelcontextprotocol.server.McpSyncServer} backed
- * by {@link InMemoryTransport}. Cytoscape services are Mockito stubs.
+ * Exercises {@link LoadNetworkViewTool} through its public interface ({@code toSpec()}) by
+ * registering it on a real {@link io.modelcontextprotocol.server.McpSyncServer} backed by {@link
+ * InMemoryTransport}. Cytoscape services are Mockito stubs.
  */
 public class LoadNetworkViewToolTest {
 
@@ -51,8 +76,8 @@ public class LoadNetworkViewToolTest {
 
     private static final String INIT_REQUEST =
             "{\"jsonrpc\":\"2.0\",\"id\":0,\"method\":\"initialize\","
-            + "\"params\":{\"protocolVersion\":\"2025-03-26\","
-            + "\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}";
+                    + "\"params\":{\"protocolVersion\":\"2025-03-26\","
+                    + "\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}";
 
     private static final String INITIALIZED_NOTIFICATION =
             "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}";
@@ -60,11 +85,13 @@ public class LoadNetworkViewToolTest {
     // --- Mocks -------------------------------------------------------------
 
     @SuppressWarnings("unchecked")
-    @Mock private CyProperty<Properties> cyProperties;
+    @Mock
+    private CyProperty<Properties> cyProperties;
+
     @Mock private CyApplicationManager appManager;
     @Mock private CyNetworkManager networkManager;
     @Mock private CyNetworkViewManager viewManager;
-    @Mock private SynchronousTaskManager<?> syncTaskManager;
+    @Mock private TaskManager<?, ?> taskManager;
     @Mock private InputStreamTaskFactory cxReaderFactory;
     @Mock private CyNetworkReader networkReader;
     @Mock private CyNetwork network;
@@ -83,14 +110,19 @@ public class LoadNetworkViewToolTest {
         props.setProperty("mcp.ndexbaseurl", "https://www.ndexbio.org");
         when(cyProperties.getProperties()).thenReturn(props);
 
-        tool = spy(new LoadNetworkViewTool(
-                cyProperties, appManager, networkManager, viewManager,
-                syncTaskManager, cxReaderFactory));
+        tool =
+                spy(
+                        new LoadNetworkViewTool(
+                                cyProperties,
+                                appManager,
+                                networkManager,
+                                viewManager,
+                                taskManager,
+                                cxReaderFactory));
 
         // Prevent real HTTP connections — return an empty stream for any URL
         try {
-            doReturn(new ByteArrayInputStream(new byte[0]))
-                    .when(tool).openStream(any(URL.class));
+            doReturn(new ByteArrayInputStream(new byte[0])).when(tool).openStream(any(URL.class));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -114,10 +146,8 @@ public class LoadNetworkViewToolTest {
         String response = callTool(VALID_UUID);
 
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
-        assertTrue("Response should mention network name",
-                response.contains("Human PPI"));
-        assertTrue("Response should mention NDEx",
-                response.contains("NDEx"));
+        assertTrue("Response should mention network name", response.contains("Human PPI"));
+        assertTrue("Response should mention NDEx", response.contains("NDEx"));
         verify(networkManager).addNetwork(network);
         verify(viewManager).addNetworkView(networkView);
         verify(appManager).setCurrentNetwork(network);
@@ -154,8 +184,7 @@ public class LoadNetworkViewToolTest {
         String response = callTool(VALID_UUID);
 
         assertFalse(response.contains("\"isError\":true"));
-        assertTrue("Response should mention network name",
-                response.contains("Internal Net"));
+        assertTrue("Response should mention network name", response.contains("Internal Net"));
     }
 
     // -----------------------------------------------------------------------
@@ -164,10 +193,11 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void missingNetworkId_returnsError() throws Exception {
-        String response = callToolRaw(
-                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
-                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
-                + "\"arguments\":{}}}");
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{}}}");
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
         assertTrue("Should mention network-id", response.contains("network-id"));
@@ -191,18 +221,21 @@ public class LoadNetworkViewToolTest {
         when(cxReaderFactory.createTaskIterator(any(InputStream.class), isNull()))
                 .thenReturn(new TaskIterator((Task) networkReader));
 
-        doAnswer(invocation -> {
-            TaskObserver observer = invocation.getArgument(1);
-            observer.allFinished(
-                    FinishStatus.newFailed(null, new RuntimeException("NDEx unreachable")));
-            return null;
-        }).when(syncTaskManager).execute(any(TaskIterator.class), any(TaskObserver.class));
+        doAnswer(
+                        invocation -> {
+                            TaskObserver observer = invocation.getArgument(1);
+                            observer.allFinished(
+                                    FinishStatus.newFailed(
+                                            null, new RuntimeException("NDEx unreachable")));
+                            return null;
+                        })
+                .when(taskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
 
         String response = callTool(VALID_UUID);
 
         assertTrue(response.contains("\"isError\":true"));
-        assertTrue("Should surface the error message",
-                response.contains("NDEx unreachable"));
+        assertTrue("Should surface the error message", response.contains("NDEx unreachable"));
         verify(appManager, never()).setCurrentNetwork(any());
     }
 
@@ -212,11 +245,14 @@ public class LoadNetworkViewToolTest {
                 .thenReturn(new TaskIterator((Task) networkReader));
         when(networkReader.getNetworks()).thenReturn(new CyNetwork[0]);
 
-        doAnswer(invocation -> {
-            TaskObserver observer = invocation.getArgument(1);
-            observer.allFinished(FinishStatus.getSucceeded());
-            return null;
-        }).when(syncTaskManager).execute(any(TaskIterator.class), any(TaskObserver.class));
+        doAnswer(
+                        invocation -> {
+                            TaskObserver observer = invocation.getArgument(1);
+                            observer.allFinished(FinishStatus.getSucceeded());
+                            return null;
+                        })
+                .when(taskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
 
         String response = callTool(VALID_UUID);
 
@@ -229,16 +265,12 @@ public class LoadNetworkViewToolTest {
     // Helpers
     // -----------------------------------------------------------------------
 
-    /**
-     * Stubs mocks for a successful network load via CyNetworkReaderManager.
-     */
+    /** Stubs mocks for a successful network load via CyNetworkReaderManager. */
     private void stubSuccessfulLoad(String networkName) {
         when(cxReaderFactory.createTaskIterator(any(InputStream.class), isNull()))
                 .thenReturn(new TaskIterator((Task) networkReader));
-        when(networkReader.getNetworks())
-                .thenReturn(new CyNetwork[]{network});
-        when(networkReader.buildCyNetworkView(network))
-                .thenReturn(networkView);
+        when(networkReader.getNetworks()).thenReturn(new CyNetwork[] {network});
+        when(networkReader.buildCyNetworkView(network)).thenReturn(networkView);
 
         when(network.getRow(network)).thenReturn(networkRow);
         when(networkRow.get(CyNetwork.NAME, String.class)).thenReturn(networkName);
@@ -246,35 +278,39 @@ public class LoadNetworkViewToolTest {
         when(viewManager.getNetworkViews(network))
                 .thenReturn(Collections.singletonList(networkView));
 
-        doAnswer(invocation -> {
-            TaskObserver observer = invocation.getArgument(1);
-            observer.allFinished(FinishStatus.getSucceeded());
-            return null;
-        }).when(syncTaskManager).execute(any(TaskIterator.class), any(TaskObserver.class));
+        doAnswer(
+                        invocation -> {
+                            TaskObserver observer = invocation.getArgument(1);
+                            observer.allFinished(FinishStatus.getSucceeded());
+                            return null;
+                        })
+                .when(taskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
     }
 
     private String buildToolCall(String networkId) {
         return "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
-                + "\"arguments\":{\"network-id\":\"" + networkId + "\"}}}";
+                + "\"arguments\":{\"network-id\":\""
+                + networkId
+                + "\"}}}";
     }
 
     /**
-     * Sends the MCP init handshake + a {@code tools/call} for load_cytoscape_network_view
-     * with the given network-id, and returns the raw server output.
+     * Sends the MCP init handshake + a {@code tools/call} for load_cytoscape_network_view with the
+     * given network-id, and returns the raw server output.
      */
     private String callTool(String networkId) throws Exception {
         return callToolRaw(buildToolCall(networkId));
     }
 
     /**
-     * Sends the MCP init handshake + a raw JSON-RPC tool call request,
-     * and returns the raw server output.
+     * Sends the MCP init handshake + a raw JSON-RPC tool call request, and returns the raw server
+     * output.
      */
     private String callToolRaw(String toolCallJson) throws Exception {
         transport = new InMemoryTransport();
-        transport.startServer("cytoscape-mcp-test", "0.0.0-test",
-                List.of(tool.toSpec()));
+        transport.startServer("cytoscape-mcp-test", "0.0.0-test", List.of(tool.toSpec()));
 
         transport.send(INIT_REQUEST);
         transport.send(INITIALIZED_NOTIFICATION);

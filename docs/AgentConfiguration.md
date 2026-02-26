@@ -82,3 +82,14 @@ codex mcp add cytoscape-mcp --http-url http://localhost:9998/mcp
 ```
 
 To verify: run `codex mcp list`, or type `/mcp` inside the interactive Codex TUI.
+
+## Diagnostics
+You can interrogate the Cytoscape MCP server directly while the Cytoscape Desktop is running by using available mcp client tools. this is one example [cli-mcp](https://lobehub.com/mcp/zueai-cli-mcp#direct-url-access-no-config):
+
+```bash
+# install uv first, this enables running python based apps without installing python
+$ curl -LsSf https://astral.sh | sh
+# now run the tool as needed to check the mcp server
+$ uvx cli-mcp direct list --url http://localhost:9998/mcp
+```
+

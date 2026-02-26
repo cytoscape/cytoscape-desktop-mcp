@@ -1,12 +1,5 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
-import io.modelcontextprotocol.server.McpServerFeatures;
-import io.modelcontextprotocol.server.McpSyncServerExchange;
-import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
-import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
-import io.modelcontextprotocol.spec.McpSchema.JsonSchema;
-import io.modelcontextprotocol.spec.McpSchema.TextContent;
-import io.modelcontextprotocol.spec.McpSchema.Tool;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -15,7 +8,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.CyNetworkReader;
 import org.cytoscape.io.read.InputStreamTaskFactory;
@@ -26,14 +25,21 @@ import org.cytoscape.model.subnetwork.CySubNetwork;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.FinishStatus;
 import org.cytoscape.work.ObservableTask;
-import org.cytoscape.work.SynchronousTaskManager;
-import org.cytoscape.work.Task;
 import org.cytoscape.work.TaskIterator;
+import org.cytoscape.work.TaskManager;
+import org.cytoscape.work.TaskMonitor;
 import org.cytoscape.work.TaskObserver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import io.modelcontextprotocol.server.McpServerFeatures;
+import io.modelcontextprotocol.server.McpSyncServerExchange;
+import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.JsonSchema;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
+import io.modelcontextprotocol.spec.McpSchema.Tool;
 
 /**
  * MCP tool that loads a biological network from NDEx into Cytoscape Desktop and sets it as the
@@ -74,7 +80,7 @@ public class LoadNetworkViewTool {
     private final CyApplicationManager appManager;
     private final CyNetworkManager networkManager;
     private final CyNetworkViewManager viewManager;
-    private final SynchronousTaskManager<?> syncTaskManager;
+    private final TaskManager<?, ?> taskManager;
     private final InputStreamTaskFactory cxReaderFactory;
 
     public LoadNetworkViewTool(
@@ -82,30 +88,37 @@ public class LoadNetworkViewTool {
             CyApplicationManager appManager,
             CyNetworkManager networkManager,
             CyNetworkViewManager viewManager,
-            SynchronousTaskManager<?> syncTaskManager,
+            TaskManager<?, ?> taskManager,
             InputStreamTaskFactory cxReaderFactory) {
         this.cyProperties = cyProperties;
         this.appManager = appManager;
         this.networkManager = networkManager;
         this.viewManager = viewManager;
-        this.syncTaskManager = syncTaskManager;
+        this.taskManager = taskManager;
         this.cxReaderFactory = cxReaderFactory;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
-        Tool toolDef = Tool.builder()
-                .name(TOOL_NAME)
-                .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
-                .inputSchema(new JsonSchema(
-                        "object",
-                        Map.of(
-                                "network-id", Map.of(
-                                        "type", "string",
-                                        "description", NETWORK_ID_DESCRIPTION)),
-                        List.of("network-id"),
-                        null, null, null))
-                .build();
+        Tool toolDef =
+                Tool.builder()
+                        .name(TOOL_NAME)
+                        .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
+                        .inputSchema(
+                                new JsonSchema(
+                                        "object",
+                                        Map.of(
+                                                "network-id",
+                                                Map.of(
+                                                        "type",
+                                                        "string",
+                                                        "description",
+                                                        NETWORK_ID_DESCRIPTION)),
+                                        List.of("network-id"),
+                                        null,
+                                        null,
+                                        null))
+                        .build();
 
         return McpServerFeatures.SyncToolSpecification.builder()
                 .tool(toolDef)
@@ -141,7 +154,9 @@ public class LoadNetworkViewTool {
             return error(
                     "Failed to load network from NDEx. The network may not exist or the NDEx"
                             + " server may be unreachable. network-id: \""
-                            + networkId + "\", error: " + e.getMessage());
+                            + networkId
+                            + "\", error: "
+                            + e.getMessage());
         }
 
         if (loadedNetwork == null) {
@@ -156,8 +171,11 @@ public class LoadNetworkViewTool {
 
         String displayName = getDisplayName(loadedNetwork, networkId);
         LOGGER.info("Successfully loaded and activated network \"{}\"", displayName);
-        return success("Successfully loaded network \"" + displayName + "\" from NDEx into"
-                + " Cytoscape and set it as the current network view.");
+        return success(
+                "Successfully loaded network \""
+                        + displayName
+                        + "\" from NDEx into"
+                        + " Cytoscape and set it as the current network view.");
     }
 
     // -- Steps ----------------------------------------------------------------
@@ -172,25 +190,26 @@ public class LoadNetworkViewTool {
     }
 
     private URL buildNdexUrl(String networkId) throws MalformedURLException {
-        String ndexBase = cyProperties
-                .getProperties()
-                .getProperty("mcp.ndexbaseurl", "https://www.ndexbio.org")
-                .trim();
+        String ndexBase =
+                cyProperties
+                        .getProperties()
+                        .getProperty("mcp.ndexbaseurl", "https://www.ndexbio.org")
+                        .trim();
         return new URL(ndexBase + "/v2/network/" + networkId);
     }
 
     /**
-     * Downloads the network CX stream from NDEx, parses it with the CX-specific network reader,
-     * and registers the resulting network and view with Cytoscape.
+     * Downloads the network CX stream from NDEx, parses it with the CX-specific network reader, and
+     * registers the resulting network and view with Cytoscape.
      *
-     * <p>Uses {@link InputStreamTaskFactory} (OSGi ID {@code cytoscapeCxNetworkReaderFactory})
-     * to obtain the CX reader. This ensures the correct reader is used (the generic
-     * {@code CyNetworkReaderManager} selects the wrong reader for CX streams).
+     * <p>Uses {@link InputStreamTaskFactory} (OSGi ID {@code cytoscapeCxNetworkReaderFactory}) to
+     * obtain the CX reader. This ensures the correct reader is used (the generic {@code
+     * CyNetworkReaderManager} selects the wrong reader for CX streams).
      *
-     * <p>After the reader finishes, networks are manually registered via
-     * {@link CyNetworkManager#addNetwork} and views are built via
-     * {@link CyNetworkReader#buildCyNetworkView} then registered via
-     * {@link CyNetworkViewManager#addNetworkView}.
+     * <p>After the reader finishes, networks are manually registered via {@link
+     * CyNetworkManager#addNetwork} and views are built via {@link
+     * CyNetworkReader#buildCyNetworkView} then registered via {@link
+     * CyNetworkViewManager#addNetworkView}.
      */
     private CyNetwork executeLoad(URL ndexUrl, String networkId) throws IOException {
         InputStream cxStream = openStream(ndexUrl);
@@ -198,21 +217,33 @@ public class LoadNetworkViewTool {
         TaskIterator ti = cxReaderFactory.createTaskIterator(cxStream, null);
         CyNetworkReader reader = (CyNetworkReader) ti.next();
 
-        syncTaskManager.setExecutionContext(new java.util.HashMap<>());
-
+        LoadNetworkTask wrapper = new LoadNetworkTask(reader, networkId);
+        CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<FinishStatus> completionStatus = new AtomicReference<>();
 
-        syncTaskManager.execute(new TaskIterator((Task) reader), new TaskObserver() {
-            @Override
-            public void taskFinished(ObservableTask task) {
-                // Not needed — we access the reader directly after completion
-            }
+        taskManager.execute(
+                new TaskIterator(wrapper),
+                new TaskObserver() {
+                    @Override
+                    public void taskFinished(ObservableTask task) {
+                        // Not needed — we access the reader directly after completion
+                    }
 
-            @Override
-            public void allFinished(FinishStatus finishStatus) {
-                completionStatus.set(finishStatus);
+                    @Override
+                    public void allFinished(FinishStatus finishStatus) {
+                        completionStatus.set(finishStatus);
+                        latch.countDown();
+                    }
+                });
+
+        try {
+            if (!latch.await(120, TimeUnit.SECONDS)) {
+                throw new RuntimeException("Network load timed out after 120 seconds");
             }
-        });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Network load interrupted", e);
+        }
 
         FinishStatus status = completionStatus.get();
         if (status != null && status.getType() == FinishStatus.Type.FAILED) {
@@ -246,8 +277,8 @@ public class LoadNetworkViewTool {
     }
 
     /**
-     * Sets the root network (collection) name to match the loaded sub-network name,
-     * so the Network panel displays the proper name instead of a UUID.
+     * Sets the root network (collection) name to match the loaded sub-network name, so the Network
+     * panel displays the proper name instead of a UUID.
      */
     private void setCollectionName(CyNetwork network) {
         if (network instanceof CySubNetwork) {
@@ -280,5 +311,33 @@ public class LoadNetworkViewTool {
 
     private static CallToolResult error(String message) {
         return new CallToolResult(List.of(new TextContent(message)), true);
+    }
+
+    // -- Inner task class ---------------------------------------------------
+
+    /**
+     * Wraps the CX network reader as an {@link AbstractTask} so that execution via {@link
+     * TaskManager} causes a "Load NDEx Network" entry to appear in Cytoscape's Task History panel.
+     * The title and status messages set on the {@link TaskMonitor} are captured by Cytoscape's
+     * TaskHistoryWindow.
+     */
+    private static final class LoadNetworkTask extends AbstractTask {
+        private final CyNetworkReader reader;
+        private final String networkId;
+
+        LoadNetworkTask(CyNetworkReader reader, String networkId) {
+            this.reader = reader;
+            this.networkId = networkId;
+        }
+
+        @Override
+        public void run(TaskMonitor monitor) throws Exception {
+            monitor.setTitle("[MCP Tool Invocation] Load Network View");
+            monitor.setStatusMessage("Downloading NDEx network " + networkId + " from NDEx...");
+            monitor.setProgress(-1); // indeterminate while downloading
+            reader.run(monitor);
+            monitor.setProgress(1.0);
+            monitor.setStatusMessage("Network downloaded.");
+        }
     }
 }

@@ -16,6 +16,8 @@ plugins {
     id 'java'
     id 'biz.aQute.bnd.builder'
     id 'maven-publish'
+    id 'com.diffplug.spotless' version '6.25.0'
+    id 'jacoco'
 }
 
 group = 'edu.ucsd.idekerlab'
@@ -160,6 +162,32 @@ test {
     testLogging {
         events "passed", "skipped", "failed"
         showStandardStreams = true
+    }
+    finalizedBy jacocoTestReport
+}
+
+// === Spotless — mirrors open-cyweb pom.xml configuration ==================
+// google-java-format AOSP style, same import order, removes unused imports.
+// Run 'spotlessApply' to auto-fix; 'spotlessCheck' (part of 'check') to verify.
+spotless {
+    java {
+        googleJavaFormat('1.17.0').aosp()
+        importOrder('java', 'javax', 'org', 'com', '\\#', 'edu.ucsd', 'org.cytoscape', '\\#', '\\#')
+        removeUnusedImports()
+    }
+}
+
+// === JaCoCo coverage reporting =============================================
+// Reports generated in build/reports/jacoco/test/ after each test run.
+jacoco {
+    toolVersion = '0.8.11'
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
     }
 }
 
