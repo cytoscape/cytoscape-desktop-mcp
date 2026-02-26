@@ -1,7 +1,7 @@
 # Agent Instructions for cytoscape-mcp
 
 ## Project Overview
-Cytoscape Desktop app (OSGi bundle) that embeds an MCP (Model Context Protocol) server inside Cytoscape. AI clients such as Claude Desktop connect to the server over HTTP and invoke tools that control Cytoscape directly — loading networks, setting views, and querying the active session. Built with Java 11, Gradle, packaged as an OSGi bundle with embedded dependencies (MCP SDK, Jetty, Jackson).
+Cytoscape Desktop app (OSGi bundle) that embeds an MCP server inside Cytoscape. See **[README.md](README.md)** and **[docs/](docs/)** for usage, installation, and agent connection instructions.
 
 ## Build Commands
 Use the Makefile targets — they wrap Gradle:
@@ -16,19 +16,38 @@ No formatter/linter is currently configured. The `-Xlint:deprecation` flag is ac
 ```
 src/main/java/edu/ucsd/idekerlab/cytoscapemcp/
 ├── CyActivator.java                   # OSGi bundle activator — starts/stops Jetty + MCP server
+├── ui/
+│   ├── McpStatusPanel.java            # MCP toolbar button (extends JButton)
+│   └── McpConfigDialog.java           # Agent configuration dialog (renders AgentConfiguration.md)
 └── tools/
     └── LoadNetworkViewTool.java       # MCP tool: loads a network from NDEx and sets it as current view
 
 src/main/resources/
-└── cytoscapemcp.props                 # App properties (mcp.http_port, mcp.ndexbaseurl)
+├── cytoscapemcp.props                 # App properties (mcp.http_port, mcp.ndexbaseurl)
+└── docs/AgentConfiguration.md        # Embedded — rendered inside McpConfigDialog
 
 docs/
-├── UserManual.md                      # Configuration reference and AI client connection guide
+├── AgentConfiguration.md             # Source for agent connection instructions (also embedded in JAR)
+├── UserManual.md                      # Configuration reference and available tools
 ├── FAQ.md                             # Frequently asked questions
-└── Tutorial.md                        # End-to-end tutorial: install, connect Claude Desktop, load network
+└── Tutorial.md                        # End-to-end tutorial: install, connect, load a network
 ```
 
-**Important:** Keep `docs/Tutorial.md`, `docs/FAQ.md`, and `docs/UserManual.md` up to date whenever code or functionality changes (new properties, new tools, transport changes).
+**Important:** Keep `docs/` up to date whenever code or functionality changes (new properties, new tools, transport changes). `docs/AgentConfiguration.md` is also copied into `src/main/resources/docs/` so it can be rendered inside the app at runtime — keep both in sync.
+
+## MCP Toolbar Button — Positioning
+
+`McpStatusPanel` extends `JButton` directly (not `JPanel`) to match the natural sizing of the other status bar buttons.
+
+Cytoscape exposes `CySwingApplication.getStatusToolBar()` which returns the inner `JToolBar` at index 2 of the status bar's parent `JPanel`. That parent uses a `GroupLayout` with four children: `JobStatusBar`, `TaskStatusBar`, the `JToolBar`, and `MemStatusPanel`.
+
+`CyActivator.injectIntoStatusBar()` rebuilds the parent's `GroupLayout` to insert the MCP button at position 0 (leftmost). The critical constraint is that `TaskStatusBar` must keep its `Short.MAX_VALUE` maximum width — it contains both the "Show Tasks" button and the task-title label internally, and constraining it to `PREFERRED_SIZE` crushes the title label (regression). The rebuilt layout is:
+
+```
+[MCP (pref)] [JobStatusBar (pref)] [TaskStatusBar (expands, Short.MAX_VALUE)] [JToolBar (pref)] [MemStatusPanel (pref)]
+```
+
+Do **not** call `toolbar.add(mcpPanel, 0)` — this places the button inside the expanding `JToolBar` region, which lands it far right. The parent `GroupLayout` must be rebuilt directly.
 
 ## Key Patterns
 

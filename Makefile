@@ -20,7 +20,7 @@ help:
 clean:
 	$(GRADLEW) clean
 
-test: clean
+test:
 	$(GRADLEW) test
 
 lint:
@@ -30,7 +30,7 @@ lint-fix:
 	$(GRADLEW) spotlessApply
 
 coverage:
-	$(GRADLEW) test jacocoTestReport
+	$(GRADLEW) jacocoTestReport
 
 build: clean
 	$(GRADLEW) jar

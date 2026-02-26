@@ -1,35 +1,36 @@
 # Connecting an Agent to the Cytoscape MCP Server
 
-The Cytoscape MCP Server publishes its endpoint over the [MCP Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). Any MCP-compatible agent that supports this standard transport can connect to it.
+**MCP URL:** `http://localhost:{mcp.http_port}/mcp`
 
-**MCP URL** `http://localhost:9998/mcp` (Cytoscape must be running with this app installed at which point this url will be live)
+Cytoscape must be running with this app installed. The port defaults to 9998 and can be changed under Edit > Preferences > Properties > cytoscapemcp.
 
-**Note:** Multiple agents can connect simultaneously, but Cytoscape Desktop is a single-user application with shared state — concurrent agents may issue conflicting commands that affect view state. Users are responsible for coordinating agent activity.
+Multiple agents can connect simultaneously. Cytoscape is a single-user application — concurrent agents may issue conflicting commands.
 
-If your agent is not listed below, consult its documentation for how to configure an MCP server for Streamable HTTP and specify the url as shown.
+If your agent is not listed below, consult its documentation for configuring an MCP server with Streamable HTTP transport.
 
 ---
 
 ## Claude Desktop
 
-1. Open Claude Desktop and go to **Settings > Connectors**.
-2. Click **"Add custom connector"**.
-3. Enter the server URL: `http://localhost:9998/mcp`
-4. Save — the connector is active immediately, no restart needed.
+Open Claude Desktop and go to **Settings > Connectors**. Click **Add custom connector**. Enter the URL and save — active immediately, no restart needed.
 
-To verify: click the **"+"** button in the chat input and select **"Connectors"** to confirm Cytoscape appears in the list.
+```
+http://localhost:{mcp.http_port}/mcp
+```
+
+To verify: click the **+** button in the chat input and select **Connectors**.
 
 ---
 
 ## Claude Code
 
-```bash
-claude mcp add --transport http cytoscape-mcp http://localhost:9998/mcp
+```
+claude mcp add --transport http cytoscape-mcp http://localhost:{mcp.http_port}/mcp
 ```
 
-To verify it was added:
+To verify:
 
-```bash
+```
 claude mcp list
 ```
 
@@ -37,59 +38,54 @@ claude mcp list
 
 ## GitHub Copilot (VS Code)
 
-**Option A — Command Palette (guided):**
+**Option A — Command Palette:** Open Command Palette (Cmd+Shift+P / Ctrl+Shift+P), run **MCP: Add Server**, choose HTTP, enter the URL below, name it `cytoscape-mcp`.
 
-1. Open the Command Palette: `Cmd+Shift+P` (macOS) or `Ctrl+Shift+P` (Windows/Linux).
-2. Run **"MCP: Add Server"**.
-3. Choose **HTTP** as the server type, enter `http://localhost:9998/mcp` as the URL, and name it `cytoscape-mcp`.
-4. Choose **Workspace** scope (project-only) or **User** scope (all projects).
-
-**Option B — VS Code CLI (one-liner):**
-
-```bash
-code --add-mcp '{"name":"cytoscape-mcp","type":"http","url":"http://localhost:9998/mcp"}'
+```
+http://localhost:{mcp.http_port}/mcp
 ```
 
-To manage or remove servers later: `Cmd+Shift+P` → **"MCP: List Servers"**.
+**Option B — CLI:**
+
+```
+code --add-mcp '{"name":"cytoscape-mcp","type":"http","url":"http://localhost:{mcp.http_port}/mcp"}'
+```
 
 ---
 
 ## GitHub Copilot CLI
 
-Inside a Copilot CLI interactive session, run:
+Inside a Copilot CLI interactive session, run `/mcp add` and fill in the form (Tab to navigate, Ctrl+S to save):
 
-```
-/mcp add
-```
+**Server Name:** `cytoscape-mcp`
+**Server Type:** SSE
+**URL:** `http://localhost:{mcp.http_port}/mcp`
+**HTTP Headers:** leave blank
 
-Fill in the form fields (Tab to navigate, Ctrl+S to save):
-
-| Field | Value |
-|-------|-------|
-| Server Name | `cytoscape-mcp` |
-| Server Type | SSE |
-| URL | `http://localhost:9998/mcp` |
-| HTTP Headers | *(leave blank)* |
-
-To verify: run `/mcp show` inside the session to list configured servers.
+To verify: run `/mcp show` inside the session.
 
 ---
 
 ## OpenAI Codex CLI
 
-```bash
-codex mcp add cytoscape-mcp --http-url http://localhost:9998/mcp
+```
+codex mcp add cytoscape-mcp --http-url http://localhost:{mcp.http_port}/mcp
 ```
 
-To verify: run `codex mcp list`, or type `/mcp` inside the interactive Codex TUI.
+To verify: run `codex mcp list` or type `/mcp` inside the Codex TUI.
+
+---
 
 ## Diagnostics
-You can interrogate the Cytoscape MCP server directly while the Cytoscape Desktop is running by using available mcp client tools. this is one example [cli-mcp](https://lobehub.com/mcp/zueai-cli-mcp#direct-url-access-no-config):
 
-```bash
-# install uv first, this enables running python based apps without installing python
-$ curl -LsSf https://astral.sh | sh
-# now run the tool as needed to check the mcp server
-$ uvx cli-mcp direct list --url http://localhost:9998/mcp
+To interrogate the MCP server directly, install [cli-mcp](https://lobehub.com/mcp/zueai-cli-mcp):
+
+```
+uvx cli-mcp direct list --url http://localhost:{mcp.http_port}/mcp
+```
+
+Install uv first if needed:
+
+```
+curl -LsSf https://astral.sh | sh
 ```
 

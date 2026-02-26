@@ -17,6 +17,11 @@ An embedded [Model Context Protocol (MCP)][mcp] server for [Cytoscape Desktop][c
 
 Once installed, the app starts a Jetty HTTP server inside Cytoscape on startup. AI clients connect to the MCP Streamable HTTP endpoint and call MCP tools that interact with Cytoscape's Java API. The server runs entirely within the Cytoscape process.
 
+The app also adds two visual indicators to the Cytoscape Desktop UI:
+
+- **MCP toolbar button** — a bold **MCP** button in the bottom-left status bar. The label is green when the MCP server is running and red when it is not (e.g. port conflict on startup). Clicking it opens the Agent Configuration dialog with connection instructions for all supported agents.
+- **Task History entries** — every MCP tool invocation is recorded in Cytoscape's Task History panel (**View > Show Task History**), so you can see exactly which tools an agent called and when.
+
 ```
 Claude Desktop ──HTTP──► http://localhost:9998/mcp ──► Cytoscape Desktop
                                                            └── load network from NDEx

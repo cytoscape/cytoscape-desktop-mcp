@@ -58,6 +58,7 @@ dependencies {
     compileOnly "org.cytoscape:work-api:${cytoscapeVersion}"
     compileOnly "org.cytoscape:io-api:${cytoscapeVersion}"
     compileOnly "org.cytoscape:application-api:${cytoscapeVersion}"
+    compileOnly "org.cytoscape:swing-application-api:${cytoscapeVersion}"
     compileOnly "org.osgi:org.osgi.core:6.0.0"
     compileOnly "org.ops4j.pax.logging:pax-logging-api:1.5.3"
     compileOnly "org.slf4j:slf4j-api:1.7.36"
@@ -75,6 +76,9 @@ dependencies {
     embed "com.fasterxml.jackson.core:jackson-core:2.17.2"
     embed "com.fasterxml.jackson.core:jackson-annotations:2.17.2"
 
+    // === commonmark — Markdown-to-HTML for the MCP config dialog ===
+    embed 'org.commonmark:commonmark:0.21.0'
+
     // === Test ===
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.mockito:mockito-core:4.11.0"
@@ -87,7 +91,14 @@ dependencies {
     testImplementation "org.cytoscape:work-api:${cytoscapeVersion}"
     testImplementation "org.cytoscape:io-api:${cytoscapeVersion}"
     testImplementation "org.cytoscape:application-api:${cytoscapeVersion}"
+    testImplementation "org.cytoscape:swing-application-api:${cytoscapeVersion}"
     testImplementation "org.osgi:org.osgi.core:6.0.0"
+}
+
+// Ensure tests pass before building the JAR — mirrors Maven's lifecycle
+// where test phase always precedes package.
+tasks.named('jar') {
+    dependsOn tasks.named('test')
 }
 
 // OSGi bundle JAR — BND scans bytecode and generates the manifest.
@@ -133,13 +144,21 @@ jar {
             # and marks each with resolution:=optional — identical to maven-bundle-plugin.
             Import-Package: *;resolution:=optional
 
-            Private-Package: edu.ucsd.idekerlab.cytoscapemcp,edu.ucsd.idekerlab.cytoscapemcp.tools
+            Private-Package: edu.ucsd.idekerlab.cytoscapemcp,edu.ucsd.idekerlab.cytoscapemcp.tools,edu.ucsd.idekerlab.cytoscapemcp.ui
             Embed-Dependency: *
             Embed-Transitive: true
 
             # Match open-cyweb: declare Java 11 compatibility for Cytoscape 3.10.x
             Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=11))"
         '''
+    }
+}
+
+// Copy AgentConfiguration.md from docs/ into the JAR root so it is accessible
+// as a classpath resource via getClass().getResourceAsStream("/AgentConfiguration.md").
+processResources {
+    from('docs') {
+        include 'AgentConfiguration.md'
     }
 }
 
@@ -162,6 +181,14 @@ test {
     testLogging {
         events "passed", "skipped", "failed"
         showStandardStreams = true
+    }
+    afterSuite { desc, result ->
+        if (!desc.parent) {
+            println "\nTest summary: ${result.testCount} tests — " +
+                "${result.successfulTestCount} passed, " +
+                "${result.failedTestCount} failed, " +
+                "${result.skippedTestCount} skipped"
+        }
     }
     finalizedBy jacocoTestReport
 }

@@ -13,21 +13,26 @@ This tutorial walks through the complete workflow of connecting Claude Desktop t
 
 ## Step 1: Verify the MCP Server is Running
 
-After Cytoscape starts, confirm the MCP server is active by opening a terminal and running:
+After Cytoscape starts, look at the **bottom-left corner** of the Cytoscape window. You should see a bold **MCP** button:
+
+- **Green label** — the server started successfully and is ready.
+- **Red label** — the server failed to start (usually a port conflict). Change `mcp.http_port` under **Edit > Preferences > Properties > cytoscapemcp** and restart Cytoscape.
+
+You can also confirm via `curl`:
 
 ```bash
 curl http://localhost:9998/mcp
 ```
 
-You should see an HTTP response (a 400 or 405 error is expected — it confirms the server is listening). A "connection refused" error means the server is not running.
-
-If you see a "connection refused" error, check that the app is installed and that Cytoscape has fully started.
+A 400 or 405 HTTP response confirms the server is listening. A "connection refused" error means the server is not running.
 
 ---
 
 ## Step 2: Connect Agent
 
-Follow the setup steps in **[AgentConfiguration.md](AgentConfiguration.md)** for your specific agent. Once connected, you should see the Cytoscape MCP tools available in your agent's tool list.
+Click the **MCP** button in the bottom-left corner of Cytoscape to open the Agent Configuration dialog. It shows the current MCP endpoint URL and step-by-step instructions for your specific agent.
+
+Alternatively, follow the setup steps in **[AgentConfiguration.md](AgentConfiguration.md)**. Once connected, you should see the Cytoscape MCP tools available in your agent's tool list.
 
 ---
 
@@ -57,6 +62,8 @@ Agent will call the `load_cytoscape_network_view` MCP tool published by Cytoscap
 ## Step 5: Verify in Cytoscape
 
 Switch to Cytoscape Desktop. The loaded network should be visible in the **Network** panel and rendered in the main canvas. The network name typically matches what is stored in NDEx.
+
+To confirm the tool call was recorded, open **View > Show Task History** — you should see a `load_cytoscape_network_view` entry with a timestamp.
 
 ---
 

@@ -24,6 +24,25 @@ MCP endpoint:     http://localhost:9998/mcp
 
 ---
 
+## Desktop UI
+
+The app adds two visual indicators to the Cytoscape Desktop interface:
+
+### MCP Toolbar Button
+
+A bold **MCP** button appears in the bottom-left status bar next to the other status buttons. The label color reflects the current server state:
+
+- **Green** — MCP server is running and ready to accept connections.
+- **Red** — MCP server failed to start (e.g. the configured port is already in use by another process). Check `mcp.http_port` in Preferences and restart Cytoscape.
+
+Click the button to open the **Agent Configuration** dialog, which shows the current endpoint URL and step-by-step connection instructions for all supported agents.
+
+### Task History
+
+Every MCP tool invocation is recorded as an entry in Cytoscape's Task History. To view it, go to **View > Show Task History**. Each entry shows the tool name and the time it was called, giving you a full audit trail of agent activity.
+
+---
+
 ## Configuration
 
 Properties are editable at runtime via **Edit > Preferences > Properties > cytoscapemcp**.
