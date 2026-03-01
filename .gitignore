@@ -6,6 +6,7 @@ bin/
 .DS_Store
 docs/_build
 .vscode
+.claude
 
 # Ignore Gradle project-specific cache directory
 .gradle
@@ -19,5 +20,3 @@ build
 gradlew
 gradlew.bat
 /gradle
-
-cy-ndex-2/

@@ -61,16 +61,15 @@ dependencies {
     compileOnly "org.cytoscape:application-api:${cytoscapeVersion}"
     compileOnly "org.cytoscape:swing-application-api:${cytoscapeVersion}"
     compileOnly "org.osgi:org.osgi.core:6.0.0"
+    compileOnly "org.osgi:org.osgi.compendium:5.0.0"
     compileOnly "org.ops4j.pax.logging:pax-logging-api:1.5.3"
     compileOnly "org.slf4j:slf4j-api:1.7.36"
 
-    // === MCP SDK core — includes HttpServletStreamableServerTransportProvider (no Spring needed) ===
     embed platform("io.modelcontextprotocol.sdk:mcp-bom:0.12.1")
     embed "io.modelcontextprotocol.sdk:mcp"
 
-    // === JAX-RS / Swagger / Servlet — provided by CyREST's OSGi runtime, NOT embedded ===
-    compileOnly "javax.ws.rs:javax.ws.rs-api:2.1.1"
-    compileOnly "javax.servlet:javax.servlet-api:3.1.0"
+    // === JAX-RS API — provided by CyREST's Jersey runtime, NOT embedded ===
+    compileOnly "javax.ws.rs:javax.ws.rs-api:2.0"
 
     // === Jackson — JSON serialization required by MCP SDK ===
     embed "com.fasterxml.jackson.core:jackson-databind:2.17.2"
@@ -94,6 +93,10 @@ dependencies {
     testImplementation "org.cytoscape:application-api:${cytoscapeVersion}"
     testImplementation "org.cytoscape:swing-application-api:${cytoscapeVersion}"
     testImplementation "org.osgi:org.osgi.core:6.0.0"
+    testImplementation "org.osgi:org.osgi.compendium:5.0.0"
+    testImplementation "javax.ws.rs:javax.ws.rs-api:2.0"
+    // Jersey common provides RuntimeDelegateImpl needed to build javax.ws.rs.core.Response in tests
+    testImplementation "org.glassfish.jersey.core:jersey-common:2.23"
 }
 
 // Ensure tests pass before building the JAR — mirrors Maven's lifecycle
@@ -143,11 +146,13 @@ jar {
             Cytoscape-App-Dependencies: cyREST;3.5.0
 
             # BND scans bytecode, expands * into every external package reference,
-            # and marks each with resolution:=optional — identical to maven-bundle-plugin.
+            # and marks each with resolution:=optional.
             Import-Package: *;resolution:=optional
 
+            # No Export-Package — identical to diffusion and cy-ndex-2 which export nothing.
+            # publisher-5.3 discovers @Path resources via OSGi service instances, not package imports.
             Private-Package: edu.ucsd.idekerlab.cytoscapemcp,edu.ucsd.idekerlab.cytoscapemcp.tools,edu.ucsd.idekerlab.cytoscapemcp.ui
-            Embed-Dependency: *
+            Embed-Dependency: *;scope=!provided|test;groupId=!org.cytoscape
             Embed-Transitive: true
 
             # Match open-cyweb: declare Java 11 compatibility for Cytoscape 3.10.x

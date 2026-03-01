@@ -1,4 +1,4 @@
-package edu.ucsd.idekerlab.cytoscapemcp.testing;
+package edu.ucsd.idekerlab.cytoscapemcp.fixture;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

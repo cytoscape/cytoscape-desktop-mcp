@@ -15,7 +15,9 @@ No formatter/linter is currently configured. The `-Xlint:deprecation` flag is ac
 ## Project Structure
 ```
 src/main/java/edu/ucsd/idekerlab/cytoscapemcp/
-├── CyActivator.java                   # OSGi bundle activator — starts/stops Jetty + MCP server
+├── CyActivator.java                   # OSGi bundle activator — starts/stops MCP server
+├── McpEndpoint.java                   # JAX-RS @Path("/mcp") resource — POST/DELETE, no @Context
+├── McpTransportProvider.java          # MCP Streamable HTTP wire-protocol logic (JAX-RS Response/StreamingOutput)
 ├── ui/
 │   ├── McpStatusPanel.java            # MCP toolbar button (extends JButton)
 │   └── McpConfigDialog.java           # Agent configuration dialog (renders AgentConfiguration.md)
@@ -23,7 +25,7 @@ src/main/java/edu/ucsd/idekerlab/cytoscapemcp/
     └── LoadNetworkViewTool.java       # MCP tool: loads a network from NDEx and sets it as current view
 
 src/main/resources/
-├── cytoscapemcp.props                 # App properties (mcp.http_port, mcp.ndexbaseurl)
+├── cytoscapemcp.props                 # App properties (mcp.ndexbaseurl)
 └── docs/AgentConfiguration.md        # Embedded — rendered inside McpConfigDialog
 
 docs/
@@ -52,14 +54,15 @@ Do **not** call `toolbar.add(mcpPanel, 0)` — this places the button inside the
 ## Key Patterns
 
 ### OSGi Lifecycle
-`CyActivator` extends `AbstractCyActivator`. Jetty and the MCP server are started inside `initializeApp()`, which is called after `AppsFinishedStartingEvent` to ensure all Cytoscape services are registered before being looked up. `shutDown()` stops both servers. A JVM shutdown hook registered in `start()` provides SIGINT/SIGTERM safety in case the OSGi shutdown is bypassed.
+`CyActivator` extends `AbstractCyActivator`. The MCP server and JAX-RS endpoint are started inside `initializeApp()`, which is called after `AppsFinishedStartingEvent` to ensure all Cytoscape services are registered before being looked up. `shutDown()` stops the transport and server; OSGi service unregistration is automatic.
 
 ### MCP Server Architecture
-- **Transport:** `HttpServletStreamableServerTransportProvider` from the MCP SDK core (`io.modelcontextprotocol.sdk:mcp:0.12.1`) — no Spring required
-- **Servlet container:** Jetty 12.0.x (`jetty-server` + `jetty-ee10-servlet`) hosts the transport servlet
-- **MCP endpoint:** `POST/GET /mcp` — unified endpoint for all client communication
-- **Server type:** `McpSyncServer` (synchronous) — tool calls block until complete
+- **Transport:** MCP 2025-03-26 **Streamable HTTP** transport only (not the deprecated HTTP+SSE transport). `McpTransportProvider` implements `McpStreamableServerTransportProvider` using JAX-RS `Response`/`StreamingOutput`/`InputStream` — no `javax.servlet` types.
+- **Endpoint registration:** `McpEndpoint` (`@Path("/mcp")`) registered as an OSGi service. publisher-5.3 (osgi-jax-rs-connector) discovers the `@Path` annotation and hot-mounts it into Jersey. **No `@Context` injection** — all request data arrives as `@HeaderParam` strings and `InputStream`, which avoids the HK2 proxy-generation failure that would cause Jersey's init to fail silently (503 for all CyREST endpoints).
+- **MCP endpoint:** `POST/DELETE /mcp` on CyREST's existing port (default 1234)
+- **Server type:** `McpSyncServer` (synchronous) — tool calls run on `Schedulers.boundedElastic()` automatically
 - **Bundle version** is read from `bundleContext.getBundle().getVersion()` at startup and passed to `McpServer.sync().serverInfo()`
+- **Architecture decisions:** See [docs/product-specs/MCPServer.md](docs/product-specs/MCPServer.md) for details on transport design, sync vs async, and SDK version pinning
 
 ### App Properties (CyProperty)
 - `PropsReader` inner class in `CyActivator` extends `AbstractConfigDirPropsReader` with `SavePolicy.CONFIG_DIR`
@@ -71,7 +74,6 @@ Do **not** call `toolbar.add(mcpPanel, 0)` — this places the button inside the
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `mcp.http_port` | `9998` | TCP port Jetty listens on (requires restart to change) |
 | `mcp.ndexbaseurl` | `https://www.ndexbio.org` | NDEx server base URL (read at tool-call time, no restart needed) |
 
 ### Adding New MCP Tools
@@ -96,8 +98,8 @@ The tool downloads the CX stream directly from NDEx via `URL.openStream()`, then
 
 ## Dependencies
 - **Cytoscape APIs 3.10.0** — all `compileOnly` (provided by OSGi runtime)
+- **JAX-RS API 2.0** (`javax.ws.rs:javax.ws.rs-api`) — `compileOnly` (provided by CyREST's Jersey runtime)
 - **MCP SDK 0.12.1** (`io.modelcontextprotocol.sdk:mcp`) — embedded in bundle JAR
-- **Jetty 12.0.18** (`jetty-server`, `jetty-ee10-servlet`) — embedded in bundle JAR
 - **Jackson 2.17.2** — embedded in bundle JAR
 - Non-provided deps are physically unpacked into the bundle JAR via the `embed` Gradle configuration
 

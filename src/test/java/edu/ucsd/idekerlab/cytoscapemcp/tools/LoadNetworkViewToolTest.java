@@ -24,7 +24,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import edu.ucsd.idekerlab.cytoscapemcp.testing.InMemoryTransport;
+import edu.ucsd.idekerlab.cytoscapemcp.fixture.InMemoryTransport;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.CyNetworkReader;

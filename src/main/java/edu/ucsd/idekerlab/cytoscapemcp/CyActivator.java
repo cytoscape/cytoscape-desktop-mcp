@@ -39,7 +39,7 @@ public class CyActivator extends AbstractCyActivator {
     private static final Logger LOGGER = LoggerFactory.getLogger(CyActivator.class);
 
     private volatile McpSyncServer mcpServer;
-    private volatile McpJaxRsTransportProvider transportProvider;
+    private volatile McpTransportProvider transportProvider;
     private volatile BundleContext bundleContext;
 
     /**
@@ -58,9 +58,9 @@ public class CyActivator extends AbstractCyActivator {
         this.bundleContext = bc;
         LOGGER.info("Registering AppsFinishedStartingListener");
 
-        // Defer MCP server init until all Cytoscape apps have finished starting.
-        // This ensures the OSGi service registry is fully populated before we
-        // look up services like LoadNetworkURLTaskFactory.
+        // Defer MCP server init until all Cytoscape apps have finished osgi load and starting.
+        // This ensures javax.servlet is on classpath from CyRest app. Also, by deferring,
+        // can log during the deferred init routines as the logger infrastructure is fully ready.
         AppsFinishedStartingListener listener =
                 new AppsFinishedStartingListener() {
                     @Override
@@ -173,18 +173,18 @@ public class CyActivator extends AbstractCyActivator {
             TaskManager<?, ?> taskManager,
             InputStreamTaskFactory cxReaderFactory) {
 
-        // JAX-RS transport provider — registered as an OSGi service so CyREST's
-        // AutomationAppTracker discovers @Path("/mcp") and mounts it under CyREST's port.
-        transportProvider = new McpJaxRsTransportProvider();
+        transportProvider = new McpTransportProvider();
 
         // Build the MCP server. Version is read from the OSGi bundle manifest
         // at runtime so it stays in sync with the Gradle build version automatically.
         String bundleVersion = bundleContext.getBundle().getVersion().toString();
+        LOGGER.info("Building MCP sync server (bundle version {})...", bundleVersion);
         mcpServer =
                 McpServer.sync(transportProvider)
                         .serverInfo("cytoscape-mcp", bundleVersion)
                         .capabilities(ServerCapabilities.builder().tools(false).build())
                         .build();
+        LOGGER.info("MCP sync server built — setSessionFactory should have been called above");
 
         // Register MCP tools.
         LoadNetworkViewTool loadTool =
@@ -197,16 +197,12 @@ public class CyActivator extends AbstractCyActivator {
                         cxReaderFactory);
         mcpServer.addTool(loadTool.toSpec());
 
-        // Register as OSGi service — CyREST's AutomationAppTracker detects @Path("/mcp")
-        // and mounts the endpoint inside CyREST's Jersey container at /mcp.
-        registerService(
-                bundleContext,
-                transportProvider,
-                McpJaxRsTransportProvider.class,
-                new Properties());
-
-        LOGGER.info(
-                "Cytoscape MCP Server registered with CyREST at /mcp (version {})", bundleVersion);
+        // Register McpEndpoint as an OSGi service under its concrete class type.
+        // publisher-5.3's ResourceTracker discovers the @Path("/mcp") annotation on the class
+        // and hot-mounts it into Jersey — no javax.servlet types needed, no HK2 proxy issues.
+        McpEndpoint mcpEndpoint = new McpEndpoint(transportProvider);
+        registerService(bundleContext, mcpEndpoint, McpEndpoint.class, new Properties());
+        LOGGER.info("McpEndpoint registered as OSGi service at /mcp (version {})", bundleVersion);
     }
 
     /**

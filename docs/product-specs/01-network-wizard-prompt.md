@@ -95,12 +95,12 @@ Capture: $views (array of network view descriptors)
 If $views is empty → skip Phase 0 entirely, go to PHASE 1, STEP 1.
 
 If $views is non-empty → present a numbered list:
-
-Say: "Welcome! I see you already have networks loaded in Cytoscape. Would you like to work with one of these, or create a new one?
-
-1. Load a new network
+* first choice in list is 'Load a new network'
+* then add more choices for:
 {for each view in $views:}
 {N}. {collection_name} > {network_name} — {node_count} nodes, {edge_count} edges {if view_suid is null: '(no view)'}"
+
+Say: "Welcome! I see you already have networks loaded in Cytoscape. Would you like to work with one of these, or load a netowrk and create a new view?
 
 Capture: $network_choice
 
