@@ -11,6 +11,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -58,7 +59,8 @@ public class InMemoryTransport {
      */
     public void startServer(String name, String version, List<SyncToolSpecification> tools) {
         StdioServerTransportProvider transport =
-                new StdioServerTransportProvider(new ObjectMapper(), serverInput, serverOutput);
+                new StdioServerTransportProvider(
+                        new JacksonMcpJsonMapper(new ObjectMapper()), serverInput, serverOutput);
 
         McpServer.SyncSpecification<?> builder =
                 McpServer.sync(transport)

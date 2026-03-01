@@ -30,6 +30,10 @@ import org.cytoscape.service.util.AbstractCyActivator;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.work.TaskManager;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
+import io.modelcontextprotocol.json.schema.jackson2.DefaultJsonSchemaValidator;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
@@ -177,12 +181,18 @@ public class CyActivator extends AbstractCyActivator {
 
         // Build the MCP server. Version is read from the OSGi bundle manifest
         // at runtime so it stays in sync with the Gradle build version automatically.
+        // Explicitly supply jsonMapper and jsonSchemaValidator to bypass McpJsonDefaults,
+        // which uses ServiceLoader with the Thread context classloader — that classloader
+        // cannot find META-INF/services inside our bundle in OSGi/Karaf/Felix.
         String bundleVersion = bundleContext.getBundle().getVersion().toString();
         LOGGER.info("Building MCP sync server (bundle version {})...", bundleVersion);
+        ObjectMapper objectMapper = new ObjectMapper();
         mcpServer =
                 McpServer.sync(transportProvider)
                         .serverInfo("cytoscape-mcp", bundleVersion)
                         .capabilities(ServerCapabilities.builder().tools(false).build())
+                        .jsonMapper(new JacksonMcpJsonMapper(objectMapper))
+                        .jsonSchemaValidator(new DefaultJsonSchemaValidator(objectMapper))
                         .build();
         LOGGER.info("MCP sync server built — setSessionFactory should have been called above");
 

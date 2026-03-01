@@ -65,8 +65,9 @@ dependencies {
     compileOnly "org.ops4j.pax.logging:pax-logging-api:1.5.3"
     compileOnly "org.slf4j:slf4j-api:1.7.36"
 
-    embed platform("io.modelcontextprotocol.sdk:mcp-bom:0.12.1")
-    embed "io.modelcontextprotocol.sdk:mcp"
+    embed platform("io.modelcontextprotocol.sdk:mcp-bom:1.0.0")
+    embed "io.modelcontextprotocol.sdk:mcp-core"
+    embed "io.modelcontextprotocol.sdk:mcp-json-jackson2"
 
     // === JAX-RS API — provided by CyREST's Jersey runtime, NOT embedded ===
     compileOnly "javax.ws.rs:javax.ws.rs-api:2.0"

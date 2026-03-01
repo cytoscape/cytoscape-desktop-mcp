@@ -306,11 +306,14 @@ public class LoadNetworkViewTool {
     // -- Result helpers -------------------------------------------------------
 
     private static CallToolResult success(String message) {
-        return new CallToolResult(List.of(new TextContent(message)), false);
+        return CallToolResult.builder().content(List.of(new TextContent(message))).build();
     }
 
     private static CallToolResult error(String message) {
-        return new CallToolResult(List.of(new TextContent(message)), true);
+        return CallToolResult.builder()
+                .content(List.of(new TextContent(message)))
+                .isError(true)
+                .build();
     }
 
     // -- Inner task class ---------------------------------------------------

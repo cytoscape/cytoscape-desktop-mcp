@@ -19,10 +19,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.modelcontextprotocol.common.McpTransportContext;
+import io.modelcontextprotocol.json.McpJsonMapper;
+import io.modelcontextprotocol.json.TypeRef;
+import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.spec.HttpHeaders;
 import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -92,19 +94,21 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
     private static final String FAILED_TO_SEND_ERROR_RESPONSE = "Failed to send error response: {}";
 
     private final ObjectMapper objectMapper;
+    private final McpJsonMapper jsonMapper;
     private volatile McpStreamableServerSession.Factory sessionFactory;
     private final ConcurrentHashMap<String, McpStreamableServerSession> sessions =
             new ConcurrentHashMap<>();
     private volatile boolean isClosing = false;
 
     public McpTransportProvider() {
-        this.objectMapper = new ObjectMapper()
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        this.objectMapper = new ObjectMapper();
+        this.jsonMapper = new JacksonMcpJsonMapper(this.objectMapper);
         logger.info("McpTransportProvider instance created (no-arg constructor)");
     }
 
     public McpTransportProvider(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+        this.jsonMapper = new JacksonMcpJsonMapper(objectMapper);
         logger.info("McpTransportProvider instance created (ObjectMapper constructor)");
     }
 
@@ -118,7 +122,10 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
 
     @Override
     public List<String> protocolVersions() {
-        return List.of(ProtocolVersions.MCP_2024_11_05, ProtocolVersions.MCP_2025_03_26);
+        return List.of(
+                ProtocolVersions.MCP_2024_11_05,
+                ProtocolVersions.MCP_2025_03_26,
+                ProtocolVersions.MCP_2025_06_18);
     }
 
     @Override
@@ -215,7 +222,7 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
             }
 
             McpSchema.JSONRPCMessage message =
-                    McpSchema.deserializeJsonRpcMessage(objectMapper, sb.toString());
+                    McpSchema.deserializeJsonRpcMessage(jsonMapper, sb.toString());
 
             if (message instanceof McpSchema.JSONRPCRequest
                     && ((McpSchema.JSONRPCRequest) message)
@@ -489,8 +496,9 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
         }
 
         @Override
-        public <T> T unmarshalFrom(Object data, TypeReference<T> typeRef) {
-            return objectMapper.convertValue(data, typeRef);
+        public <T> T unmarshalFrom(Object data, TypeRef<T> typeRef) {
+            return objectMapper.convertValue(
+                    data, objectMapper.getTypeFactory().constructType(typeRef.getType()));
         }
 
         @Override
