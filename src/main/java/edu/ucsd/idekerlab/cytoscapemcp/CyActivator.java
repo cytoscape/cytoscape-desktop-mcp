@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.ui.McpStatusPanel;
 
@@ -261,6 +262,10 @@ public class CyActivator extends AbstractCyActivator {
                         taskManager,
                         cxReaderFactory);
         mcpServer.addTool(loadTool.toSpec());
+
+        GetLoadedNetworkViewsTool getLoadedNetworkViewsTool =
+                new GetLoadedNetworkViewsTool(networkManager, viewManager);
+        mcpServer.addTool(getLoadedNetworkViewsTool.toSpec());
 
         // Register McpEndpoint as an OSGi service under its concrete class type.
         // publisher-5.3's ResourceTracker discovers the @Path("/mcp") annotation on the class
