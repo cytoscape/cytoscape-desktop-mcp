@@ -8,7 +8,9 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.function.Supplier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -18,7 +20,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.Timer;
+import javax.swing.SwingUtilities;
 
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
@@ -30,21 +32,22 @@ import org.slf4j.LoggerFactory;
  * Non-modal dialog showing the real-time MCP server status and the contents of
  * AgentConfiguration.md rendered as HTML.
  *
- * <p>Size: 80% × 70% of the parent frame, centered on it. A javax.swing.Timer polls server status
- * every 2 seconds while the dialog is open.
+ * <p>Size: 80% × 70% of the parent frame, centered on it. A {@link ScheduledExecutorService}
+ * polls the server via a live {@link McpLivenessProbe} every 5 seconds while the dialog is open,
+ * updating the status label on the EDT.
  */
 public class McpConfigDialog extends JDialog {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(McpConfigDialog.class);
 
-    private final Supplier<Boolean> isRunning;
+    private final McpLivenessProbe probe;
     private final int port;
     private final JLabel statusLabel;
-    private final Timer statusTimer;
+    private ScheduledExecutorService scheduler;
 
-    public McpConfigDialog(JFrame parent, Supplier<Boolean> isRunning, int port) {
+    public McpConfigDialog(JFrame parent, McpLivenessProbe probe, int port) {
         super(parent, "MCP Server", false); // non-modal
-        this.isRunning = isRunning;
+        this.probe = probe;
         this.port = port;
 
         // Size: 80% × 70% of parent frame, or sensible fallback if no parent
@@ -80,27 +83,44 @@ public class McpConfigDialog extends JDialog {
         btnPanel.add(closeBtn);
         add(btnPanel, BorderLayout.SOUTH);
 
-        // Show initial status before timer fires
-        updateStatus();
-
-        // Poll server status every 2 seconds while dialog is open
-        statusTimer = new Timer(2000, e -> updateStatus());
         addWindowListener(
                 new WindowAdapter() {
                     @Override
                     public void windowOpened(WindowEvent we) {
-                        statusTimer.start();
+                        startProbing();
                     }
 
                     @Override
                     public void windowClosed(WindowEvent we) {
-                        statusTimer.stop();
+                        stopProbing();
                     }
                 });
     }
 
-    private void updateStatus() {
-        boolean running = isRunning != null && Boolean.TRUE.equals(isRunning.get());
+    private void startProbing() {
+        scheduler =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            Thread t = new Thread(r, "mcp-dialog-probe");
+                            t.setDaemon(true);
+                            return t;
+                        });
+        // Run immediately then every 5 s
+        scheduler.scheduleWithFixedDelay(this::runProbe, 0, 5, TimeUnit.SECONDS);
+    }
+
+    private void stopProbing() {
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+        }
+    }
+
+    private void runProbe() {
+        boolean alive = probe.isAlive();
+        SwingUtilities.invokeLater(() -> updateStatus(alive));
+    }
+
+    private void updateStatus(boolean running) {
         if (running) {
             statusLabel.setText("● MCP server running at http://localhost:" + port + "/mcp");
             statusLabel.setForeground(new Color(0, 140, 0));

@@ -146,12 +146,7 @@ public class CyActivator extends AbstractCyActivator {
                 () -> {
                     JToolBar toolbar = finalSwingApp.getStatusToolBar();
                     if (toolbar != null) {
-                        McpStatusPanel mcpPanel =
-                                new McpStatusPanel(
-                                        () ->
-                                                transportProvider != null
-                                                        && transportProvider.isRunning(),
-                                        finalCyRestPort);
+                        McpStatusPanel mcpPanel = new McpStatusPanel(finalCyRestPort);
                         boolean injected = injectIntoStatusBar(toolbar, mcpPanel);
                         if (!injected) {
                             // Fallback: prepend to statusToolBar directly

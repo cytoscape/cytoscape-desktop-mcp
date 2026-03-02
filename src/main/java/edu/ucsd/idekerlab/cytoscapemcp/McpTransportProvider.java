@@ -395,6 +395,16 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
         }
     }
 
+    /** Handles {@code GET /mcp/health}. Returns 200 when running, 503 when shutting down. */
+    public Response handleHealth() {
+        if (this.isClosing) {
+            return Response.status(503).entity("Server is shutting down").build();
+        }
+        return Response.ok("{\"status\":\"ok\",\"transport\":\"mcp-streamable-http\"}")
+                .type(APPLICATION_JSON)
+                .build();
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

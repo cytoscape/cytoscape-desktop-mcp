@@ -4,6 +4,7 @@ import java.io.InputStream;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -65,5 +66,18 @@ public class McpEndpoint {
     public Response handleDelete(@HeaderParam("mcp-session-id") String sessionId) {
         logger.debug("McpEndpoint.handleDelete — sessionId={}", sessionId);
         return transportProvider.handleDelete(sessionId);
+    }
+
+    /**
+     * Stateless health check — no session required.
+     *
+     * <p>Returns {@code 200 {"status":"ok","transport":"mcp-streamable-http"}} while the
+     * server is running, or {@code 503} while it is shutting down.
+     */
+    @GET
+    @Path("health")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response handleHealth() {
+        return transportProvider.handleHealth();
     }
 }

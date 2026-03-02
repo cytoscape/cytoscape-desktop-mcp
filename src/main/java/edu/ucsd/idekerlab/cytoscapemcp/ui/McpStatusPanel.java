@@ -3,42 +3,45 @@ package edu.ucsd.idekerlab.cytoscapemcp.ui;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Window;
-import java.util.function.Supplier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
-import javax.swing.Timer;
 import javax.swing.UIManager;
 
 /**
  * The "MCP" button shown in Cytoscape's status bar. Extends {@link JButton} directly so it sizes
  * naturally alongside other status bar buttons (e.g. "Show Tasks").
+ *
+ * <p>Status color is determined by a live {@code tools/list} probe against the MCP server endpoint
+ * via {@link McpLivenessProbe}. A single-threaded {@link ScheduledExecutorService} runs the probe
+ * off the EDT every 5 seconds (with a 1-second initial delay), then marshals the color update back
+ * to the EDT via {@link SwingUtilities#invokeLater}.
  */
 public class McpStatusPanel extends JButton {
 
     private static final Color COLOR_RUNNING = new Color(0, 140, 0);
     private static final Color COLOR_STOPPED = Color.RED;
 
-    private final Supplier<Boolean> isRunning;
+    private final McpLivenessProbe probe;
     private final int port;
-    private final Timer statusTimer;
+    private final ScheduledExecutorService scheduler;
 
     private McpConfigDialog dialog;
 
-    public McpStatusPanel(Supplier<Boolean> isRunning, int port) {
+    public McpStatusPanel(int port) {
         super("MCP");
-        this.isRunning = isRunning;
         this.port = port;
+        this.probe = new McpLivenessProbe(port);
 
         setFont(getFont().deriveFont(Font.BOLD, 10f));
         setToolTipText("MCP Server Configuration");
         setFocusPainted(false);
 
-        // Apply native grey border on macOS Aqua (matches TaskStatusBar / other status bar
-        // buttons).
-        // On other LAFs use a 1px grey line border.
         if (isAquaLAF()) {
             putClientProperty("JButton.buttonType", "gradient");
         } else {
@@ -51,28 +54,32 @@ public class McpStatusPanel extends JButton {
 
         addActionListener(e -> showDialog());
 
-        // Set initial color immediately, then poll every 2 s.
-        updateButtonColor();
-        statusTimer = new Timer(2000, e -> updateButtonColor());
-        statusTimer.start();
+        scheduler =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            Thread t = new Thread(r, "mcp-status-probe");
+                            t.setDaemon(true);
+                            return t;
+                        });
+        scheduler.scheduleWithFixedDelay(this::runProbe, 1, 5, TimeUnit.SECONDS);
     }
 
     @Override
     public void removeNotify() {
-        statusTimer.stop();
+        scheduler.shutdownNow();
         super.removeNotify();
     }
 
-    private void updateButtonColor() {
-        boolean running = isRunning != null && Boolean.TRUE.equals(isRunning.get());
-        setForeground(running ? COLOR_RUNNING : COLOR_STOPPED);
+    private void runProbe() {
+        boolean alive = probe.isAlive();
+        SwingUtilities.invokeLater(() -> setForeground(alive ? COLOR_RUNNING : COLOR_STOPPED));
     }
 
     private void showDialog() {
         if (dialog == null || !dialog.isDisplayable()) {
             Window ancestor = SwingUtilities.getWindowAncestor(this);
             JFrame parent = ancestor instanceof JFrame ? (JFrame) ancestor : null;
-            dialog = new McpConfigDialog(parent, isRunning, port);
+            dialog = new McpConfigDialog(parent, probe, port);
         }
         dialog.setVisible(true);
         dialog.toFront();
@@ -83,3 +90,4 @@ public class McpStatusPanel extends JButton {
         return lafClass.contains("Aqua") || lafClass.contains("aqua");
     }
 }
+
