@@ -39,49 +39,47 @@ import reactor.core.publisher.Mono;
  *
  * <h3>Why a port is required</h3>
  *
- * <p>The MCP SDK ships {@code HttpServletStreamableServerTransportProvider}, which
- * extends {@code jakarta.servlet.http.HttpServlet} and holds a
- * {@code jakarta.servlet.AsyncContext} per streaming response. That class cannot be used
- * here for two reasons:
+ * <p>The MCP SDK ships {@code HttpServletStreamableServerTransportProvider}, which extends {@code
+ * jakarta.servlet.http.HttpServlet} and holds a {@code jakarta.servlet.AsyncContext} per streaming
+ * response. That class cannot be used here for two reasons:
  *
  * <ol>
- *   <li><b>Namespace mismatch.</b> CyREST runs on Pax Web / Jetty 9.4 (Servlet 3.1,
- *       {@code javax.servlet}). The SDK uses {@code jakarta.servlet} 6.1, which is a
- *       different namespace requiring Servlet 6.0+ / Jetty 12+. The two are binary
- *       incompatible.</li>
- *   <li><b>JAX-RS hand-off boundary.</b> The MCP HTTP endpoint in this app is
- *       {@link McpEndpoint} — a plain JAX-RS {@code @Path("/mcp")} resource class
- *       registered as an OSGi service via publisher-5.3. publisher-5.3 discovers the
- *       {@code @Path} annotation and mounts the class into Jersey. By the time a request
- *       reaches {@link McpEndpoint}, it has already passed through Jersey's request
- *       pipeline: the method parameters are a deserialized {@link InputStream} body and
- *       {@code @HeaderParam} strings. There is no {@code HttpServletRequest} or
- *       {@code AsyncContext} in scope — {@link McpEndpoint} cannot delegate to a class
- *       that requires them.</li>
+ *   <li><b>Namespace mismatch.</b> CyREST runs on Pax Web / Jetty 9.4 (Servlet 3.1, {@code
+ *       javax.servlet}). The SDK uses {@code jakarta.servlet} 6.1, which is a different namespace
+ *       requiring Servlet 6.0+ / Jetty 12+. The two are binary incompatible.
+ *   <li><b>JAX-RS hand-off boundary.</b> The MCP HTTP endpoint in this app is {@link McpEndpoint} —
+ *       a plain JAX-RS {@code @Path("/mcp")} resource class registered as an OSGi service via
+ *       publisher-5.3. publisher-5.3 discovers the {@code @Path} annotation and mounts the class
+ *       into Jersey. By the time a request reaches {@link McpEndpoint}, it has already passed
+ *       through Jersey's request pipeline: the method parameters are a deserialized {@link
+ *       InputStream} body and {@code @HeaderParam} strings. There is no {@code HttpServletRequest}
+ *       or {@code AsyncContext} in scope — {@link McpEndpoint} cannot delegate to a class that
+ *       requires them.
  * </ol>
  *
  * <h3>What this class does instead</h3>
  *
- * <p>This class re-implements the same MCP wire-protocol logic as the SDK transport,
- * using only standard JAX-RS and Java IO types:
+ * <p>This class re-implements the same MCP wire-protocol logic as the SDK transport, using only
+ * standard JAX-RS and Java IO types:
+ *
  * <ul>
- *   <li>Request body — {@link InputStream} passed from {@link McpEndpoint}</li>
- *   <li>Single JSON response — {@code Response.ok(json).type(application/json)}</li>
- *   <li>Streaming response — {@code Response.ok(StreamingOutput).type(text/event-stream)};
- *       {@link StreamingOutput#write(java.io.OutputStream)} runs on a Jetty worker thread
- *       and blocks until {@code session.responseStream(...).block()} completes, keeping
- *       the HTTP connection alive for the duration of the stream</li>
+ *   <li>Request body — {@link InputStream} passed from {@link McpEndpoint}
+ *   <li>Single JSON response — {@code Response.ok(json).type(application/json)}
+ *   <li>Streaming response — {@code Response.ok(StreamingOutput).type(text/event-stream)}; {@link
+ *       StreamingOutput#write(java.io.OutputStream)} runs on a Jetty worker thread and blocks until
+ *       {@code session.responseStream(...).block()} completes, keeping the HTTP connection alive
+ *       for the duration of the stream
  * </ul>
  *
  * <h3>Transport</h3>
  *
- * <p>Implements the <b>MCP 2025-03-26 Streamable HTTP transport</b>
- * ({@link McpStreamableServerTransportProvider}) only. The deprecated HTTP+SSE transport
- * (separate {@code GET /sse} and {@code POST /messages} endpoints) is not supported.
+ * <p>Implements the <b>MCP 2025-03-26 Streamable HTTP transport</b> ({@link
+ * McpStreamableServerTransportProvider}) only. The deprecated HTTP+SSE transport (separate {@code
+ * GET /sse} and {@code POST /messages} endpoints) is not supported.
  *
- * <p>This class is a pure internal delegate — it carries no JAX-RS {@code @Path}
- * annotation and is not registered as an OSGi service directly. {@link McpEndpoint}
- * receives request data and forwards it here.
+ * <p>This class is a pure internal delegate — it carries no JAX-RS {@code @Path} annotation and is
+ * not registered as an OSGi service directly. {@link McpEndpoint} receives request data and
+ * forwards it here.
  */
 public class McpTransportProvider implements McpStreamableServerTransportProvider {
 
@@ -189,13 +187,12 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
     // -------------------------------------------------------------------------
 
     /**
-     * Handles {@code POST /mcp}. Returns a plain JSON response for initialize, or a
-     * {@link StreamingOutput} HTTP streaming response for tool requests (blocks Jetty
-     * thread until done).
+     * Handles {@code POST /mcp}. Returns a plain JSON response for initialize, or a {@link
+     * StreamingOutput} HTTP streaming response for tool requests (blocks Jetty thread until done).
      *
-     * <p>Per MCP 2025-03-26, the streaming response uses {@code text/event-stream} wire
-     * format. The client {@code Accept} header MUST include both {@code application/json}
-     * and {@code text/event-stream}.
+     * <p>Per MCP 2025-03-26, the streaming response uses {@code text/event-stream} wire format. The
+     * client {@code Accept} header MUST include both {@code application/json} and {@code
+     * text/event-stream}.
      */
     public Response handlePost(String accept, String sessionId, InputStream body) {
         logger.info("handlePost invoked — accept={} sessionId={}", accept, sessionId);
@@ -306,8 +303,7 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
                 StreamingOutput stream =
                         (OutputStream output) -> {
                             PrintWriter writer =
-                                    new PrintWriter(
-                                            new OutputStreamWriter(output, UTF_8), true);
+                                    new PrintWriter(new OutputStreamWriter(output, UTF_8), true);
                             McpSessionTransport sessionTransport =
                                     new McpSessionTransport(sid, writer);
                             try {
@@ -381,9 +377,7 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
 
         McpTransportContext tc = McpTransportContext.EMPTY;
         try {
-            session.delete()
-                    .contextWrite(c -> c.put(McpTransportContext.KEY, tc))
-                    .block();
+            session.delete().contextWrite(c -> c.put(McpTransportContext.KEY, tc)).block();
             this.sessions.remove(sessionId);
             return Response.ok().build();
         } catch (Exception e) {
@@ -411,18 +405,14 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
 
     private Response errorResponse(int status, List<String> errors) {
         return Response.status(status)
-                .entity(
-                        errorJson(
-                                McpSchema.ErrorCodes.INVALID_REQUEST,
-                                String.join("; ", errors)))
+                .entity(errorJson(McpSchema.ErrorCodes.INVALID_REQUEST, String.join("; ", errors)))
                 .type(APPLICATION_JSON)
                 .build();
     }
 
     private String errorJson(int code, String message) {
         try {
-            return objectMapper.writeValueAsString(
-                    McpError.builder(code).message(message).build());
+            return objectMapper.writeValueAsString(McpError.builder(code).message(message).build());
         } catch (Exception e) {
             logger.error(FAILED_TO_SEND_ERROR_RESPONSE, e.getMessage());
             return "{\"error\":\"" + message.replace("\"", "\\\"") + "\"}";

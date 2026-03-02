@@ -43,10 +43,10 @@ public class McpEndpoint {
     /**
      * Handles MCP POST requests (initialize or streaming tool calls).
      *
-     * <p>The {@code Accept} header must include both {@code application/json} and
-     * {@code text/event-stream}. For initialize, returns a plain JSON response. For subsequent
-     * tool calls, returns a {@code text/event-stream} {@link javax.ws.rs.core.StreamingOutput} that
-     * blocks the Jetty worker thread while sending streaming events.
+     * <p>The {@code Accept} header must include both {@code application/json} and {@code
+     * text/event-stream}. For initialize, returns a plain JSON response. For subsequent tool calls,
+     * returns a {@code text/event-stream} {@link javax.ws.rs.core.StreamingOutput} that blocks the
+     * Jetty worker thread while sending streaming events.
      */
     @POST
     @Consumes(MediaType.WILDCARD)
@@ -59,9 +59,7 @@ public class McpEndpoint {
         return transportProvider.handlePost(accept, sessionId, body);
     }
 
-    /**
-     * Handles MCP DELETE requests — terminates the named session.
-     */
+    /** Handles MCP DELETE requests — terminates the named session. */
     @DELETE
     public Response handleDelete(@HeaderParam("mcp-session-id") String sessionId) {
         logger.debug("McpEndpoint.handleDelete — sessionId={}", sessionId);
@@ -71,8 +69,8 @@ public class McpEndpoint {
     /**
      * Stateless health check — no session required.
      *
-     * <p>Returns {@code 200 {"status":"ok","transport":"mcp-streamable-http"}} while the
-     * server is running, or {@code 503} while it is shutting down.
+     * <p>Returns {@code 200 {"status":"ok","transport":"mcp-streamable-http"}} while the server is
+     * running, or {@code 503} while it is shutting down.
      */
     @GET
     @Path("health")

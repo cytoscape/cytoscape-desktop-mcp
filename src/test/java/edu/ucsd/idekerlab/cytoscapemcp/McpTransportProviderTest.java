@@ -1,14 +1,5 @@
 package edu.ucsd.idekerlab.cytoscapemcp;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -21,6 +12,33 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpStreamableServerSession;
@@ -202,8 +220,7 @@ public class McpTransportProviderTest {
         // Initialize to register the session
         provider.handlePost(ACCEPT_BOTH, null, body(initializeJson(1)));
 
-        when(session.accept(any(McpSchema.JSONRPCNotification.class)))
-                .thenReturn(Mono.empty());
+        when(session.accept(any(McpSchema.JSONRPCNotification.class))).thenReturn(Mono.empty());
 
         String notifJson =
                 "{\"jsonrpc\":\"2.0\","
@@ -218,11 +235,9 @@ public class McpTransportProviderTest {
         wireFactory();
         provider.handlePost(ACCEPT_BOTH, null, body(initializeJson(1)));
 
-        when(session.accept(any(McpSchema.JSONRPCResponse.class)))
-                .thenReturn(Mono.empty());
+        when(session.accept(any(McpSchema.JSONRPCResponse.class))).thenReturn(Mono.empty());
 
-        String responseJson =
-                "{\"jsonrpc\":\"2.0\",\"id\":\"msg-1\",\"result\":{}}";
+        String responseJson = "{\"jsonrpc\":\"2.0\",\"id\":\"msg-1\",\"result\":{}}";
         Response r = provider.handlePost(ACCEPT_BOTH, "test-session-id", body(responseJson));
         assertEquals(202, r.getStatus());
     }

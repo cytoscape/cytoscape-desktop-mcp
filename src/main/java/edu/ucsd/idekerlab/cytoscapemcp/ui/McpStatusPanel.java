@@ -90,4 +90,3 @@ public class McpStatusPanel extends JButton {
         return lafClass.contains("Aqua") || lafClass.contains("aqua");
     }
 }
-

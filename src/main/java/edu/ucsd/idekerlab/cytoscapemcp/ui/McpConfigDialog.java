@@ -32,9 +32,9 @@ import org.slf4j.LoggerFactory;
  * Non-modal dialog showing the real-time MCP server status and the contents of
  * AgentConfiguration.md rendered as HTML.
  *
- * <p>Size: 80% × 70% of the parent frame, centered on it. A {@link ScheduledExecutorService}
- * polls the server via a live {@link McpLivenessProbe} every 5 seconds while the dialog is open,
- * updating the status label on the EDT.
+ * <p>Size: 80% × 70% of the parent frame, centered on it. A {@link ScheduledExecutorService} polls
+ * the server via a live {@link McpLivenessProbe} every 5 seconds while the dialog is open, updating
+ * the status label on the EDT.
  */
 public class McpConfigDialog extends JDialog {
 

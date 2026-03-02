@@ -9,9 +9,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Performs a stateless liveness check against the MCP server's {@code GET /mcp/health} endpoint.
  *
- * <p>Returns {@code true} only if {@code GET http://localhost:{port}/mcp/health} responds with
- * HTTP 200. No session is created or torn down. All exceptions are swallowed and logged at
- * DEBUG level so the status-bar timer never throws.
+ * <p>Returns {@code true} only if {@code GET http://localhost:{port}/mcp/health} responds with HTTP
+ * 200. No session is created or torn down. All exceptions are swallowed and logged at DEBUG level
+ * so the status-bar timer never throws.
  */
 public class McpLivenessProbe {
 
@@ -25,14 +25,12 @@ public class McpLivenessProbe {
         this.port = port;
     }
 
-    /**
-     * Returns {@code true} if the MCP server's health endpoint responds with HTTP 200.
-     */
+    /** Returns {@code true} if the MCP server's health endpoint responds with HTTP 200. */
     public boolean isAlive() {
         try {
             HttpURLConnection conn =
-                    (HttpURLConnection) new URL("http://localhost:" + port + "/mcp/health")
-                            .openConnection();
+                    (HttpURLConnection)
+                            new URL("http://localhost:" + port + "/mcp/health").openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(TIMEOUT_MS);
             conn.setReadTimeout(TIMEOUT_MS);

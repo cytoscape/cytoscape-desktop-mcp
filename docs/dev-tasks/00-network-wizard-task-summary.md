@@ -4,6 +4,8 @@
 
 The product specs (01 through 03, plus 00 shared reference) define a **Network Setup and Styling Wizard** delivered as MCP prompts and tools. The wizard orchestrates 6 phases: select/create network view (Phase 0), load network (Phase 1), analyze (Phase 2), layout (Phase 3), default styling (Phase 4, delegated to 02 spec), mapping styling (Phase 5, delegated to 03 spec), and wrap-up (Phase 6).
 
+First review these docs to understand the network wizard feature spec, they are all located in `docs/product-sepcs/`
+
 This document captures the bottoms-up DFS traversal of the spec hierarchy (01 → phases → sub-steps → leaf tools, with cross-references into 02 and 03 specs) and produces an ordered list of implementation tasks.
 
 ---
@@ -54,7 +56,7 @@ This document captures the bottoms-up DFS traversal of the spec hierarchy (01 �
 
 ## Ordered Task List
 
-Each task is an independent, committable unit with unit tests. Tasks are ordered by dependency — task 1 has no dependencies; later tasks build on earlier ones.
+Each task is an independent, committable unit with unit tests. Tasks are ordered by dependency — task 1 has no dependencies; later tasks build on earlier ones. Very important aspect to remember - during task you are allowed to make all file edits and at end of each task pause after all file edits are done and let user review and do the git commit themselves for each task changeset. 
 
 **Live Agent Test Milestones**: Four milestone gates (M1–M4) are inserted at phase boundaries. Each milestone requires deploying the JAR into live Cytoscape and running an agent test script via MCP. A milestone **MUST** pass before any subsequent dev task begins — this catches OSGi wiring failures, EDT deadlocks, service lookup misses, and classloading errors that unit tests cannot surface.
 
