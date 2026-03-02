@@ -15,6 +15,8 @@ import org.osgi.framework.BundleContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.ui.McpStatusPanel;
 
@@ -27,10 +29,15 @@ import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.AbstractConfigDirPropsReader;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.service.util.AbstractCyActivator;
+import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
+import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
+import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.view.presentation.RenderingEngineManager;
+import org.cytoscape.view.vizmap.VisualMappingFunctionFactory;
+import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.work.SynchronousTaskManager;
 import org.cytoscape.work.TaskManager;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.json.schema.jackson2.DefaultJsonSchemaValidator;
@@ -113,13 +120,57 @@ public class CyActivator extends AbstractCyActivator {
                         InputStreamTaskFactory.class,
                         "(id=cytoscapeCxNetworkReaderFactory)");
 
+        // Visual mapping services (for styling tools).
+        VisualMappingManager vmmManager = getService(bundleContext, VisualMappingManager.class);
+        RenderingEngineManager renderingEngineManager =
+                getService(bundleContext, RenderingEngineManager.class);
+        VisualMappingFunctionFactory continuousMappingFactory =
+                getService(
+                        bundleContext,
+                        VisualMappingFunctionFactory.class,
+                        "(mapping.type=continuous)");
+        VisualMappingFunctionFactory discreteMappingFactory =
+                getService(
+                        bundleContext,
+                        VisualMappingFunctionFactory.class,
+                        "(mapping.type=discrete)");
+        VisualMappingFunctionFactory passthroughMappingFactory =
+                getService(
+                        bundleContext,
+                        VisualMappingFunctionFactory.class,
+                        "(mapping.type=passthrough)");
+
+        // Layout services.
+        CyLayoutAlgorithmManager layoutManager =
+                getService(bundleContext, CyLayoutAlgorithmManager.class);
+
+        // File loading.
+        LoadNetworkFileTaskFactory loadFileTaskFactory =
+                getService(bundleContext, LoadNetworkFileTaskFactory.class);
+
+        // View creation and synchronous task execution.
+        CyNetworkViewFactory networkViewFactory =
+                getService(bundleContext, CyNetworkViewFactory.class);
+        @SuppressWarnings("unchecked")
+        SynchronousTaskManager<?> syncTaskManager =
+                getService(bundleContext, SynchronousTaskManager.class);
+
         startMcpServer(
                 cyProperties,
                 appManager,
                 networkManager,
                 viewManager,
                 taskManager,
-                cxReaderFactory);
+                cxReaderFactory,
+                vmmManager,
+                renderingEngineManager,
+                continuousMappingFactory,
+                discreteMappingFactory,
+                passthroughMappingFactory,
+                layoutManager,
+                loadFileTaskFactory,
+                networkViewFactory,
+                syncTaskManager);
 
         // Read the CyREST port for display in the status panel.
         @SuppressWarnings("unchecked")
@@ -170,7 +221,16 @@ public class CyActivator extends AbstractCyActivator {
             CyNetworkManager networkManager,
             CyNetworkViewManager viewManager,
             TaskManager<?, ?> taskManager,
-            InputStreamTaskFactory cxReaderFactory) {
+            InputStreamTaskFactory cxReaderFactory,
+            VisualMappingManager vmmManager,
+            RenderingEngineManager renderingEngineManager,
+            VisualMappingFunctionFactory continuousMappingFactory,
+            VisualMappingFunctionFactory discreteMappingFactory,
+            VisualMappingFunctionFactory passthroughMappingFactory,
+            CyLayoutAlgorithmManager layoutManager,
+            LoadNetworkFileTaskFactory loadFileTaskFactory,
+            CyNetworkViewFactory networkViewFactory,
+            SynchronousTaskManager<?> syncTaskManager) {
 
         transportProvider = new McpTransportProvider();
 
