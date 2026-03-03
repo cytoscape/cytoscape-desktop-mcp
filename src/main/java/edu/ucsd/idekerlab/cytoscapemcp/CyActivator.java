@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.ucsd.idekerlab.cytoscapemcp.prompts.GuidelinePrompt;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
@@ -248,7 +249,7 @@ public class CyActivator extends AbstractCyActivator {
         mcpServer =
                 McpServer.sync(transportProvider)
                         .serverInfo("cytoscape-mcp", bundleVersion)
-                        .capabilities(ServerCapabilities.builder().tools(false).build())
+                        .capabilities(ServerCapabilities.builder().tools(false).prompts(false).build())
                         .jsonMapper(new JacksonMcpJsonMapper(objectMapper))
                         .jsonSchemaValidator(new DefaultJsonSchemaValidator(objectMapper))
                         .build();
@@ -278,6 +279,9 @@ public class CyActivator extends AbstractCyActivator {
                 new CreateNetworkViewTool(
                         appManager, networkManager, viewManager, networkViewFactory);
         mcpServer.addTool(createNetworkViewTool.toSpec());
+
+        // Register MCP prompts.
+        mcpServer.addPrompt(new GuidelinePrompt().toSpec());
 
         // Register McpEndpoint as an OSGi service under its concrete class type.
         // publisher-5.3's ResourceTracker discovers the @Path("/mcp") annotation on the class

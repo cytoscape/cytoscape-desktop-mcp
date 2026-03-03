@@ -110,6 +110,37 @@ docs/harness/product-specs/
 
 Specs define the canonical `Say:` / `Ask:` / `Capture:` / `Call tool:` directives that drive agent behaviour. Tool schemas in Section 4 of each spec are the source of truth for the corresponding tool implementations in the `tools` package.
 
+## Guideline prompt
+
+`GuidelinePrompt` (in `prompts/`) is registered as the `cytoscape-guidelines` MCP prompt. It is fetched by the agent during session initialisation via `prompts/list` + `prompts/get` and injected into the agent's context before any tool calls are made.
+
+### Why a cross-cutting prompt rather than per-tool descriptions
+
+The guidelines express **server-wide behavioural policy** — how the agent should handle any failure, regardless of which tool was called. Embedding this in individual tool `description` fields would:
+- Repeat the same ~300-character policy block in every tool schema
+- Require updating every tool if the policy changes
+- Bloat the model's tool-selection context with irrelevant error-handling prose
+
+A named server prompt is fetched once and applies globally, which is the correct MCP idiom for cross-cutting rules.
+
+### Three-rule error handling model
+
+The prompt defines three mutually exclusive rules the agent applies on any tool failure:
+
+| Rule | Trigger | Agent action |
+|------|---------|-------------|
+| **RULE 1** — Connectivity failure | Connection refused, host unreachable, timeout, HTTP 503, socket error | Suppress raw error; do not retry; show fixed user message: _"Please make sure your Cytoscape desktop is running..."_ |
+| **RULE 2** — Formatted application error | Structured error body with business logic feedback | Follow embedded next-step instructions if present; otherwise display the error message verbatim |
+| **RULE 3** — Unexpected server error | Unformatted HTTP 4xx/5xx, Java stack trace | Suppress raw error; show fixed user message directing user to check the MCP status toolbar |
+
+### Why suppress raw errors for Rules 1 and 3
+
+Connectivity errors and stack traces are meaningless to a non-technical user. The fixed messages are actionable: Rule 1 tells the user exactly what to do; Rule 3 directs them to the visual status indicator that shows whether the server is operational.
+
+### Client support caveat
+
+The MCP spec does not require clients to call `prompts/list` / `prompts/get`. Claude Desktop and Cursor both do. A minimal or custom MCP client that skips prompts will not receive these guidelines. For such clients, the fallback is the raw tool error text, which is harmless but less user-friendly.
+
 ## Key classes
 
 | Class | Role |
@@ -119,3 +150,4 @@ Specs define the canonical `Say:` / `Ask:` / `Capture:` / `Call tool:` directive
 | `McpTransportProvider` | MCP Streamable HTTP wire protocol — session lifecycle, JAX-RS `Response`/`StreamingOutput`/`InputStream` |
 | `McpStatusPanel` | Swing toolbar button — polls `McpLivenessProbe` every 5 s, shows green/red server status |
 | `McpLivenessProbe` | Stateless health checker — single `GET /mcp/health`, no session created or torn down |
+| `GuidelinePrompt` | MCP `cytoscape-guidelines` prompt — cross-cutting error-handling rules injected into agent context at session start |
