@@ -1,5 +1,6 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -27,6 +28,7 @@ import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.model.subnetwork.CyRootNetwork;
 import org.cytoscape.model.subnetwork.CySubNetwork;
 import org.cytoscape.property.CyProperty;
+import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.work.AbstractTask;
@@ -83,6 +85,7 @@ public class LoadNetworkViewTool {
     private final CyNetworkViewManager viewManager;
     private final TaskManager<?, ?> taskManager;
     private final InputStreamTaskFactory cxReaderFactory;
+    private final LoadNetworkFileTaskFactory loadFileTaskFactory;
 
     public LoadNetworkViewTool(
             CyProperty<Properties> cyProperties,
@@ -90,13 +93,15 @@ public class LoadNetworkViewTool {
             CyNetworkManager networkManager,
             CyNetworkViewManager viewManager,
             TaskManager<?, ?> taskManager,
-            InputStreamTaskFactory cxReaderFactory) {
+            InputStreamTaskFactory cxReaderFactory,
+            LoadNetworkFileTaskFactory loadFileTaskFactory) {
         this.cyProperties = cyProperties;
         this.appManager = appManager;
         this.networkManager = networkManager;
         this.viewManager = viewManager;
         this.taskManager = taskManager;
         this.cxReaderFactory = cxReaderFactory;
+        this.loadFileTaskFactory = loadFileTaskFactory;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -265,7 +270,69 @@ public class LoadNetworkViewTool {
     }
 
     private CallToolResult handleNetworkFileImport(CallToolRequest request) {
-        return error("source='network-file' is not yet implemented. (Coming in Task 7)");
+        String filePath = extractString(request, "file_path");
+        if (filePath == null) {
+            return error("'file_path' is required when source='network-file'."
+                    + " Provide the absolute path to a network file"
+                    + " (.sif, .gml, .xgmml, .cx, .cx2, .graphml, .sbml, .owl, .biopax).");
+        }
+
+        File file = new File(filePath);
+        if (!file.exists() || !file.isFile()) {
+            return error("File not found: " + filePath);
+        }
+
+        LOGGER.info("Loading network from file: {}", filePath);
+
+        try {
+            executeFileLoad(file);
+        } catch (Exception e) {
+            LOGGER.error("Error loading network from file {}", filePath, e);
+            return error("Failed to load network from file: " + filePath
+                    + ", error: " + e.getMessage());
+        }
+
+        CyNetwork loadedNetwork = appManager.getCurrentNetwork();
+        if (loadedNetwork == null) {
+            return error("No network was created after loading file: " + filePath);
+        }
+
+        return buildSuccessResponse(loadedNetwork, file.getName());
+    }
+
+    private void executeFileLoad(File file) {
+        TaskIterator ti = loadFileTaskFactory.createTaskIterator(file);
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<FinishStatus> completionStatus = new AtomicReference<>();
+
+        taskManager.execute(
+                ti,
+                new TaskObserver() {
+                    @Override
+                    public void taskFinished(ObservableTask task) {}
+
+                    @Override
+                    public void allFinished(FinishStatus finishStatus) {
+                        completionStatus.set(finishStatus);
+                        latch.countDown();
+                    }
+                });
+
+        try {
+            if (!latch.await(120, TimeUnit.SECONDS)) {
+                throw new RuntimeException("Network file load timed out after 120 seconds");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Network file load interrupted", e);
+        }
+
+        FinishStatus status = completionStatus.get();
+        if (status != null && status.getType() == FinishStatus.Type.FAILED) {
+            Exception cause = status.getException();
+            throw new RuntimeException(
+                    cause != null ? cause.getMessage() : "Network file load task failed", cause);
+        }
     }
 
     private CallToolResult handleTabularImport(CallToolRequest request) {

@@ -1,6 +1,7 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Collections;
@@ -33,6 +34,7 @@ import org.cytoscape.model.CyNetwork;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.model.CyRow;
 import org.cytoscape.property.CyProperty;
+import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.work.FinishStatus;
@@ -71,6 +73,7 @@ public class LoadNetworkViewToolTest {
     @Mock private CyNetworkViewManager viewManager;
     @Mock private TaskManager<?, ?> taskManager;
     @Mock private InputStreamTaskFactory cxReaderFactory;
+    @Mock private LoadNetworkFileTaskFactory loadFileTaskFactory;
     @Mock private CyNetworkReader networkReader;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView networkView;
@@ -96,7 +99,8 @@ public class LoadNetworkViewToolTest {
                                 networkManager,
                                 viewManager,
                                 taskManager,
-                                cxReaderFactory));
+                                cxReaderFactory,
+                                loadFileTaskFactory));
 
         // Prevent real HTTP connections — return an empty stream for any URL
         try {
@@ -233,23 +237,121 @@ public class LoadNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
-    // Failure — stub handlers for unimplemented sources
+    // Success — network-file source
     // -----------------------------------------------------------------------
 
     @Test
-    public void networkFileSource_returnsNotImplemented() throws Exception {
+    public void networkFileLoad_success() throws Exception {
+        File tempFile = stubSuccessfulFileLoad("Yeast SIF");
+
         String response =
                 callToolRaw(
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"network-file\","
-                                + "\"file_path\":\"/tmp/test.sif\"}}}");
+                                + "\"file_path\":\"" + tempFile.getAbsolutePath() + "\"}}}");
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Response should contain status success",
+                response.contains("\\\"status\\\":\\\"success\\\""));
+        assertTrue("Response should contain network_name",
+                response.contains("\\\"network_name\\\":\\\"Yeast SIF\\\""));
+        assertTrue("Response should contain network_suid",
+                response.contains("\\\"network_suid\\\":200"));
+        assertTrue("Response should contain node_count",
+                response.contains("\\\"node_count\\\":30"));
+        assertTrue("Response should contain edge_count",
+                response.contains("\\\"edge_count\\\":45"));
+    }
+
+    @Test
+    public void networkFileLoad_missingFilePath() throws Exception {
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"network-file\"}}}");
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
-        assertTrue("Should mention not yet implemented",
-                response.contains("not yet implemented"));
-        verify(networkManager, never()).addNetwork(any());
+        assertTrue("Should mention file_path", response.contains("file_path"));
     }
+
+    @Test
+    public void networkFileLoad_fileNotFound() throws Exception {
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"network-file\","
+                                + "\"file_path\":\"/nonexistent/path/test.sif\"}}}");
+
+        assertTrue("Should be an error", response.contains("\"isError\":true"));
+        assertTrue("Should mention File not found", response.contains("File not found"));
+    }
+
+    @Test
+    public void networkFileLoad_taskFails() throws Exception {
+        File tempFile = File.createTempFile("test-network", ".sif");
+        tempFile.deleteOnExit();
+
+        when(loadFileTaskFactory.createTaskIterator(any(File.class)))
+                .thenReturn(new TaskIterator((Task) networkReader));
+
+        doAnswer(
+                        invocation -> {
+                            TaskObserver observer = invocation.getArgument(1);
+                            observer.allFinished(
+                                    FinishStatus.newFailed(
+                                            null, new RuntimeException("Corrupt SIF file")));
+                            return null;
+                        })
+                .when(taskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"network-file\","
+                                + "\"file_path\":\"" + tempFile.getAbsolutePath() + "\"}}}");
+
+        assertTrue("Should be an error", response.contains("\"isError\":true"));
+        assertTrue("Should surface the error message",
+                response.contains("Corrupt SIF file"));
+    }
+
+    @Test
+    public void networkFileLoad_noNetworkAfterLoad() throws Exception {
+        File tempFile = File.createTempFile("test-network", ".sif");
+        tempFile.deleteOnExit();
+
+        when(loadFileTaskFactory.createTaskIterator(any(File.class)))
+                .thenReturn(new TaskIterator((Task) networkReader));
+        when(appManager.getCurrentNetwork()).thenReturn(null);
+
+        doAnswer(
+                        invocation -> {
+                            TaskObserver observer = invocation.getArgument(1);
+                            observer.allFinished(FinishStatus.getSucceeded());
+                            return null;
+                        })
+                .when(taskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"network-file\","
+                                + "\"file_path\":\"" + tempFile.getAbsolutePath() + "\"}}}");
+
+        assertTrue("Should be an error", response.contains("\"isError\":true"));
+        assertTrue("Should mention No network", response.contains("No network"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Failure — stub handlers for unimplemented sources
+    // -----------------------------------------------------------------------
 
     @Test
     public void tabularFileSource_returnsNotImplemented() throws Exception {
@@ -322,6 +424,37 @@ public class LoadNetworkViewToolTest {
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
+
+    /**
+     * Stubs mocks for a successful network file load via LoadNetworkFileTaskFactory.
+     * Creates a real temp file so that file.exists() passes. Returns the temp file
+     * for embedding in the JSON-RPC call.
+     */
+    private File stubSuccessfulFileLoad(String networkName) throws Exception {
+        File tempFile = File.createTempFile("test-network", ".sif");
+        tempFile.deleteOnExit();
+
+        when(loadFileTaskFactory.createTaskIterator(any(File.class)))
+                .thenReturn(new TaskIterator((Task) networkReader));
+        when(appManager.getCurrentNetwork()).thenReturn(network);
+
+        when(network.getRow(network)).thenReturn(networkRow);
+        when(network.getSUID()).thenReturn(200L);
+        when(network.getNodeCount()).thenReturn(30);
+        when(network.getEdgeCount()).thenReturn(45);
+        when(networkRow.get(CyNetwork.NAME, String.class)).thenReturn(networkName);
+
+        doAnswer(
+                        invocation -> {
+                            TaskObserver observer = invocation.getArgument(1);
+                            observer.allFinished(FinishStatus.getSucceeded());
+                            return null;
+                        })
+                .when(taskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
+
+        return tempFile;
+    }
 
     /** Stubs mocks for a successful network load via CyNetworkReaderManager. */
     private void stubSuccessfulLoad(String networkName) {

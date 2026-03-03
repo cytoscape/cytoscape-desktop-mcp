@@ -252,7 +252,7 @@ public class CyActivator extends AbstractCyActivator {
                         .jsonMapper(new JacksonMcpJsonMapper(objectMapper))
                         .jsonSchemaValidator(new DefaultJsonSchemaValidator(objectMapper))
                         .build();
-        LOGGER.info("MCP sync server built — setSessionFactory should have been called above");
+        LOGGER.info("MCP sync server built");
 
         // Register MCP tools.
         LoadNetworkViewTool loadTool =
@@ -262,7 +262,8 @@ public class CyActivator extends AbstractCyActivator {
                         networkManager,
                         viewManager,
                         taskManager,
-                        cxReaderFactory);
+                        cxReaderFactory,
+                        loadFileTaskFactory);
         mcpServer.addTool(loadTool.toSpec());
 
         GetLoadedNetworkViewsTool getLoadedNetworkViewsTool =
