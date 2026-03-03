@@ -16,8 +16,18 @@ Streamable HTTP uses a single `POST /mcp` endpoint:
 - **Initialize** — returns `Content-Type: application/json` with the server's capabilities
 - **Tool calls / notifications** — returns `Content-Type: text/event-stream`; each JSON-RPC message is written as an event line. This `text/event-stream` wire format within a single HTTP response is mandated by the MCP 2025-03-26 spec and is distinct from the deprecated SSE transport mechanism.
 - **Session termination** — `DELETE /mcp` with `mcp-session-id` header
+- **Health check** — `GET /mcp/health`; stateless, no session required (see below)
 
 Clients must include `Accept: application/json, text/event-stream` on every `POST`.
+
+## Health endpoint
+
+`GET /mcp/health` is a stateless endpoint that requires no `mcp-session-id` and creates no session state. It returns:
+
+- `200 {"status":"ok","transport":"mcp-streamable-http"}` — server is running
+- `503` — server is in the process of shutting down
+
+This is the endpoint used by `McpLivenessProbe` to drive the green/red toolbar button in the Cytoscape status bar. Using a dedicated health endpoint avoids the session churn that would result from polling via a real `initialize` / `tools/list` / `DELETE` cycle every 5 seconds.
 
 ## JAX-RS endpoint registration via publisher-5.3
 
@@ -26,8 +36,6 @@ Clients must include `Accept: application/json, text/event-stream` on every `POS
 **Critical constraint — no `@Context` injection:** `McpEndpoint` uses only `@HeaderParam` (String) and `InputStream` for all request data. It has zero `@Context` field or parameter injections. This is intentional:
 
 When a JAX-RS singleton with `@Context HttpServletRequest` or `@Context HttpServletResponse` fields is registered, Jersey triggers HK2 proxy generation during `ServletContainer.init()`. In CyREST's publisher-5.3 environment this init runs on a background `ScheduledExecutorService` thread — if it throws a `ServletException`, the exception is silently swallowed by the thread's `UncaughtExceptionHandler` and the `isJerseyReady` flag never becomes `true`. The result is **all** CyREST endpoints returning 503 permanently.
-
-Neither `diffusion` nor `cy-ndex-2` (the reference Cytoscape JAX-RS apps) use `@Context` injection. MCP streaming does not require it: `InputStream` carries the POST body, `@HeaderParam` carries `Accept` and `mcp-session-id`, and `StreamingOutput` handles the response stream.
 
 ## McpTransportProvider — why it's a port of the SDK transport
 
@@ -52,14 +60,14 @@ This is correct because:
 
 ## SDK version pinning
 
-v0.12.1 is pinned via `io.modelcontextprotocol.sdk:mcp-bom:0.12.1`. The latest releases are v1.0.0+.
+`io.modelcontextprotocol.sdk:mcp-bom:1.0.0` is used, with the two required split modules:
 
-Reasons to stay on v0.12.1:
-- v1.0.0 restructures modules: `mcp` was split into `mcp-core`, `mcp-json-jackson2`, `mcp-json-jackson3`. BOM artifact name and coordinates change.
-- v1.0.0 removes deprecated APIs (commit `4c1c3d8`).
-- The `McpStreamableServerTransportProvider` interface is stable across versions (moved from `mcp/spec/` to `mcp-core/spec/` but API unchanged).
+```
+io.modelcontextprotocol.sdk:mcp-core
+io.modelcontextprotocol.sdk:mcp-json-jackson2
+```
 
-Upgrade to v1.0.0 is feasible as a separate task once the current implementation is validated.
+`mcp-json-jackson3` is not used (Cytoscape ships Jackson 2.x).
 
 ## Request flow
 
@@ -75,10 +83,39 @@ HTTP POST /mcp
           -> result written back via StreamingOutput / Response
 ```
 
+## Tools package
+
+All MCP tools live in:
+
+```
+src/main/java/edu/ucsd/idekerlab/cytoscapemcp/tools/
+```
+
+Each class in this package implements one MCP tool. Tools are registered individually in `CyActivator` via `mcpServer.addTool(tool.toSpec())`. Adding a new tool means adding a single class to this package and one `addTool` call in `CyActivator` — no other wiring is required.
+
+## Product specs
+
+Feature behaviour and agent conversation flows are specified in:
+
+```
+docs/harness/product-specs/
+```
+
+| Spec file | Feature |
+|-----------|---------|
+| [00-shared-reference.md](product-specs/00-shared-reference.md) | Shared vocabulary and conventions used across all specs |
+| [01-network-wizard-prompt.md](product-specs/01-network-wizard-prompt.md) | Network import wizard — full agent prompt and conversation script |
+| [02-default-styling-prompt.md](product-specs/02-default-styling-prompt.md) | Default visual style inspector and editor — agent prompt |
+| [03-mapping-styling-prompt.md](product-specs/03-mapping-styling-prompt.md) | Column-to-visual-property mapping — agent prompt |
+
+Specs define the canonical `Say:` / `Ask:` / `Capture:` / `Call tool:` directives that drive agent behaviour. Tool schemas in Section 4 of each spec are the source of truth for the corresponding tool implementations in the `tools` package.
+
 ## Key classes
 
 | Class | Role |
 |-------|------|
-| `McpEndpoint` | JAX-RS `@Path("/mcp")` resource; `@POST`/`@DELETE`; zero `@Context` |
-| `McpTransportProvider` | MCP Streamable HTTP wire protocol; uses JAX-RS `Response`/`StreamingOutput`/`InputStream` |
-| `CyActivator` | OSGi activator; wires transport → server → tools; registers `McpEndpoint` as OSGi service |
+| `CyActivator` | OSGi activator — wires transport → server → tools; registers `McpEndpoint` as OSGi service |
+| `McpEndpoint` | JAX-RS `@Path("/mcp")` resource; `@POST`, `@DELETE`, `@GET /health`; zero `@Context` |
+| `McpTransportProvider` | MCP Streamable HTTP wire protocol — session lifecycle, JAX-RS `Response`/`StreamingOutput`/`InputStream` |
+| `McpStatusPanel` | Swing toolbar button — polls `McpLivenessProbe` every 5 s, shows green/red server status |
+| `McpLivenessProbe` | Stateless health checker — single `GET /mcp/health`, no session created or torn down |
