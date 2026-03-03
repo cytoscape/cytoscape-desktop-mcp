@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -14,6 +15,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.CyNetworkReader;
@@ -42,8 +46,9 @@ import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 
 /**
- * MCP tool that loads a biological network from NDEx into Cytoscape Desktop and sets it as the
- * current active network view.
+ * MCP tool that loads a network into Cytoscape from NDEx (by UUID), a native network format file,
+ * or a tabular data file with column mapping. Creates a new network collection and view, and sets
+ * it as the current network.
  */
 public class LoadNetworkViewTool {
 
@@ -52,29 +57,25 @@ public class LoadNetworkViewTool {
     private static final String TOOL_NAME = "load_cytoscape_network_view";
 
     private static final String TOOL_DESCRIPTION =
-            "Loads a biological network from NDEx (https://www.ndexbio.org) into Cytoscape Desktop"
-                    + " and sets it as the current active network view.\n\n"
-                    + "The `network-id` parameter is REQUIRED and must be provided by the user —"
-                    + " it is the UUID of the network on NDEx"
-                    + " (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\").\n\n"
-                    + "If the user has not provided a network ID, ask them for it before calling"
-                    + " this tool. Network IDs can be found on the NDEx website by searching for a"
-                    + " network and copying the UUID from the network's detail page URL.";
+            "Load a network into Cytoscape from NDEx (by UUID), a native network format file,"
+                    + " or a tabular data file with column mapping. Creates a new network collection"
+                    + " and view, and sets it as the current network.";
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
-                    + "Example 1 — Load a network by UUID (most common):\n"
-                    + "{\"network-id\": \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\"}\n\n"
-                    + "Example 2 — Load a different network (minimal):\n"
-                    + "{\"network-id\": \"f3b72e5a-2d8c-4f1b-9e6a-8c7d5f4e3b2a\"}";
+                    + "Example 1 — Load from NDEx:\n"
+                    + "{\"source\": \"ndex\", \"network_id\":"
+                    + " \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\"}\n\n"
+                    + "Example 2 — Load a native format file:\n"
+                    + "{\"source\": \"network-file\", \"file_path\":"
+                    + " \"/path/to/network.sif\"}\n\n"
+                    + "Example 3 — Load tabular data:\n"
+                    + "{\"source\": \"tabular-file\", \"file_path\":"
+                    + " \"/path/to/data.csv\", \"source_column\": \"Gene_A\","
+                    + " \"target_column\": \"Gene_B\", \"delimiter_char_code\": 44,"
+                    + " \"use_header_row\": true}";
 
-    private static final String NETWORK_ID_DESCRIPTION =
-            "The UUID of the network on NDEx"
-                    + " (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\")."
-                    + " This value is required and must be requested from the user."
-                    + " It can typically be obtained from the NDEx website at"
-                    + " https://www.ndexbio.org by searching for a network and copying the UUID"
-                    + " from the network's detail page URL.";
+    private final ObjectMapper mapper = new ObjectMapper();
 
     private final CyProperty<Properties> cyProperties;
     private final CyApplicationManager appManager;
@@ -100,6 +101,82 @@ public class LoadNetworkViewTool {
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
+        Map<String, Object> properties = new LinkedHashMap<>();
+
+        properties.put("source", Map.of(
+                "type", "string",
+                "description", "The data source type. Must be one of: 'ndex', 'network-file',"
+                        + " 'tabular-file'.",
+                "enum", List.of("ndex", "network-file", "tabular-file")));
+
+        properties.put("network_id", Map.of(
+                "type", "string",
+                "description", "The UUID of the network on NDEx"
+                        + " (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\")."
+                        + " Required when source='ndex'."));
+
+        properties.put("file_path", Map.of(
+                "type", "string",
+                "description", "Absolute path to the file to import."
+                        + " Required when source='network-file' or 'tabular-file'."));
+
+        properties.put("source_column", Map.of(
+                "type", "string",
+                "description", "Column name for the source node."
+                        + " Required when source='tabular-file'."));
+
+        properties.put("target_column", Map.of(
+                "type", "string",
+                "description", "Column name for the target node."
+                        + " Required when source='tabular-file'."));
+
+        properties.put("interaction_column", Map.of(
+                "type", "string",
+                "description", "Column name for the edge interaction type."
+                        + " Optional for source='tabular-file'."));
+
+        properties.put("delimiter_char_code", Map.of(
+                "type", "integer",
+                "description", "ASCII character code of the column delimiter"
+                        + " (e.g. 44 for comma, 9 for tab)."
+                        + " Required for non-Excel tabular files."));
+
+        properties.put("use_header_row", Map.of(
+                "type", "boolean",
+                "description", "Whether the first row of the file contains column headers."
+                        + " Required when source='tabular-file'."));
+
+        properties.put("excel_sheet", Map.of(
+                "type", "string",
+                "description", "Name of the Excel sheet containing the network data."
+                        + " Required for Excel tabular files."));
+
+        properties.put("node_attributes_sheet", Map.of(
+                "type", "string",
+                "description", "Name of an Excel sheet containing node attribute data."
+                        + " Optional for Excel tabular files."));
+
+        properties.put("node_attributes_key_column", Map.of(
+                "type", "string",
+                "description", "Column name in the node attributes sheet that contains the node"
+                        + " ID for joining. Used with node_attributes_sheet."));
+
+        Map<String, Object> stringArrayItems = Map.of("type", "string");
+
+        Map<String, Object> sourceColsProp = new LinkedHashMap<>();
+        sourceColsProp.put("type", "array");
+        sourceColsProp.put("items", stringArrayItems);
+        sourceColsProp.put("description", "Array of column names from the node attributes sheet"
+                + " to map as source node properties.");
+        properties.put("node_attributes_source_columns", sourceColsProp);
+
+        Map<String, Object> targetColsProp = new LinkedHashMap<>();
+        targetColsProp.put("type", "array");
+        targetColsProp.put("items", stringArrayItems);
+        targetColsProp.put("description", "Array of column names from the node attributes sheet"
+                + " to map as target node properties.");
+        properties.put("node_attributes_target_columns", targetColsProp);
+
         Tool toolDef =
                 Tool.builder()
                         .name(TOOL_NAME)
@@ -107,14 +184,8 @@ public class LoadNetworkViewTool {
                         .inputSchema(
                                 new JsonSchema(
                                         "object",
-                                        Map.of(
-                                                "network-id",
-                                                Map.of(
-                                                        "type",
-                                                        "string",
-                                                        "description",
-                                                        NETWORK_ID_DESCRIPTION)),
-                                        List.of("network-id"),
+                                        properties,
+                                        List.of("source"),
                                         null,
                                         null,
                                         null))
@@ -130,18 +201,39 @@ public class LoadNetworkViewTool {
 
     private CallToolResult handle(McpSyncServerExchange exchange, CallToolRequest request) {
         LOGGER.info("Tool call received: {} params={}", TOOL_NAME, request.arguments());
-        String networkId = extractNetworkId(request);
+        String source = extractString(request, "source");
+        if (source == null) {
+            return error("'source' is required. Must be 'ndex', 'network-file',"
+                    + " or 'tabular-file'.");
+        }
+        switch (source) {
+            case "ndex":
+                return handleNdexImport(request);
+            case "network-file":
+                return handleNetworkFileImport(request);
+            case "tabular-file":
+                return handleTabularImport(request);
+            default:
+                return error("Invalid source: '" + source + "'. Must be 'ndex',"
+                        + " 'network-file', or 'tabular-file'.");
+        }
+    }
+
+    // -- Source handlers -------------------------------------------------------
+
+    private CallToolResult handleNdexImport(CallToolRequest request) {
+        String networkId = extractString(request, "network_id");
         if (networkId == null) {
             return error(
-                    "network-id is required. Please provide an NDEx network UUID"
-                            + " (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\").");
+                    "'network_id' is required when source='ndex'. Please provide an NDEx"
+                            + " network UUID (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\").");
         }
 
         URL ndexUrl;
         try {
             ndexUrl = buildNdexUrl(networkId);
         } catch (MalformedURLException e) {
-            return error("Invalid network-id or NDEx base URL. network-id: \"" + networkId + "\"");
+            return error("Invalid network_id or NDEx base URL. network_id: \"" + networkId + "\"");
         }
 
         LOGGER.info("Loading NDEx network {} from {}", networkId, ndexUrl);
@@ -153,7 +245,7 @@ public class LoadNetworkViewTool {
             LOGGER.error("Error loading NDEx network {}", networkId, e);
             return error(
                     "Failed to load network from NDEx. The network may not exist or the NDEx"
-                            + " server may be unreachable. network-id: \""
+                            + " server may be unreachable. network_id: \""
                             + networkId
                             + "\", error: "
                             + e.getMessage());
@@ -169,24 +261,26 @@ public class LoadNetworkViewTool {
         setCollectionName(loadedNetwork);
         activateNetwork(loadedNetwork);
 
-        String displayName = getDisplayName(loadedNetwork, networkId);
-        LOGGER.info("Successfully loaded and activated network \"{}\"", displayName);
-        return success(
-                "Successfully loaded network \""
-                        + displayName
-                        + "\" from NDEx into"
-                        + " Cytoscape and set it as the current network view.");
+        return buildSuccessResponse(loadedNetwork, networkId);
+    }
+
+    private CallToolResult handleNetworkFileImport(CallToolRequest request) {
+        return error("source='network-file' is not yet implemented. (Coming in Task 7)");
+    }
+
+    private CallToolResult handleTabularImport(CallToolRequest request) {
+        return error("source='tabular-file' is not yet implemented. (Coming in Task 9)");
     }
 
     // -- Steps ----------------------------------------------------------------
 
-    private String extractNetworkId(CallToolRequest request) {
-        Object value = request.arguments().get("network-id");
+    private String extractString(CallToolRequest request, String key) {
+        Object value = request.arguments().get(key);
         if (!(value instanceof String)) {
             return null;
         }
-        String id = ((String) value).trim();
-        return id.isEmpty() ? null : id;
+        String s = ((String) value).trim();
+        return s.isEmpty() ? null : s;
     }
 
     private URL buildNdexUrl(String networkId) throws MalformedURLException {
@@ -304,6 +398,21 @@ public class LoadNetworkViewTool {
     }
 
     // -- Result helpers -------------------------------------------------------
+
+    private CallToolResult buildSuccessResponse(CyNetwork network, String fallbackName) {
+        try {
+            String networkName = getDisplayName(network, fallbackName);
+            ObjectNode result = mapper.createObjectNode();
+            result.put("status", "success");
+            result.put("network_suid", network.getSUID());
+            result.put("node_count", network.getNodeCount());
+            result.put("edge_count", network.getEdgeCount());
+            result.put("network_name", networkName);
+            return success(mapper.writeValueAsString(result));
+        } catch (Exception e) {
+            return success("Network loaded successfully.");
+        }
+    }
 
     private static CallToolResult success(String message) {
         return CallToolResult.builder().content(List.of(new TextContent(message))).build();

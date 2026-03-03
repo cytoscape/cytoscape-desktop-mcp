@@ -41,28 +41,6 @@ import org.cytoscape.work.TaskIterator;
 import org.cytoscape.work.TaskManager;
 import org.cytoscape.work.TaskObserver;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 /**
  * Exercises {@link LoadNetworkViewTool} through its public interface ({@code toSpec()}) by
  * registering it on a real {@link io.modelcontextprotocol.server.McpSyncServer} backed by {@link
@@ -136,18 +114,26 @@ public class LoadNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
-    // Success — basic load
+    // Success — basic load (NDEx)
     // -----------------------------------------------------------------------
 
     @Test
-    public void successfulLoad_returnsNetworkName() throws Exception {
+    public void successfulLoad_returnsJsonWithNetworkName() throws Exception {
         stubSuccessfulLoad("Human PPI");
 
         String response = callTool(VALID_UUID);
 
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
-        assertTrue("Response should mention network name", response.contains("Human PPI"));
-        assertTrue("Response should mention NDEx", response.contains("NDEx"));
+        assertTrue("Response should contain status success",
+                response.contains("\\\"status\\\":\\\"success\\\""));
+        assertTrue("Response should contain network_name",
+                response.contains("\\\"network_name\\\":\\\"Human PPI\\\""));
+        assertTrue("Response should contain network_suid",
+                response.contains("\\\"network_suid\\\":100"));
+        assertTrue("Response should contain node_count",
+                response.contains("\\\"node_count\\\":50"));
+        assertTrue("Response should contain edge_count",
+                response.contains("\\\"edge_count\\\":75"));
         verify(networkManager).addNetwork(network);
         verify(viewManager).addNetworkView(networkView);
         verify(appManager).setCurrentNetwork(network);
@@ -173,7 +159,8 @@ public class LoadNetworkViewToolTest {
         String response = callTool(VALID_UUID);
 
         assertFalse(response.contains("\"isError\":true"));
-        assertTrue("Should fall back to UUID", response.contains(VALID_UUID));
+        assertTrue("Should fall back to UUID in network_name",
+                response.contains("\\\"network_name\\\":\\\"" + VALID_UUID + "\\\""));
     }
 
     @Test
@@ -184,7 +171,8 @@ public class LoadNetworkViewToolTest {
         String response = callTool(VALID_UUID);
 
         assertFalse(response.contains("\"isError\":true"));
-        assertTrue("Response should mention network name", response.contains("Internal Net"));
+        assertTrue("Response should contain network name",
+                response.contains("\\\"network_name\\\":\\\"Internal Net\\\""));
     }
 
     // -----------------------------------------------------------------------
@@ -192,7 +180,7 @@ public class LoadNetworkViewToolTest {
     // -----------------------------------------------------------------------
 
     @Test
-    public void missingNetworkId_returnsError() throws Exception {
+    public void missingSource_returnsError() throws Exception {
         String response =
                 callToolRaw(
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
@@ -200,15 +188,85 @@ public class LoadNetworkViewToolTest {
                                 + "\"arguments\":{}}}");
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
-        assertTrue("Should mention network-id", response.contains("network-id"));
+        assertTrue("Should mention source", response.contains("source"));
+        verify(networkManager, never()).addNetwork(any());
+    }
+
+    @Test
+    public void invalidSource_returnsError() throws Exception {
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"ftp\"}}}");
+
+        assertTrue("Should be an error", response.contains("\"isError\":true"));
+        assertTrue("Should mention invalid source", response.contains("ftp"));
+        assertTrue("Should list valid sources", response.contains("ndex"));
+        verify(networkManager, never()).addNetwork(any());
+    }
+
+    @Test
+    public void missingNetworkId_returnsError() throws Exception {
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"ndex\"}}}");
+
+        assertTrue("Should be an error", response.contains("\"isError\":true"));
+        assertTrue("Should mention network_id", response.contains("network_id"));
         verify(networkManager, never()).addNetwork(any());
     }
 
     @Test
     public void blankNetworkId_returnsError() throws Exception {
-        String response = callTool("   ");
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"ndex\","
+                                + "\"network_id\":\"   \"}}}");
 
         assertTrue(response.contains("\"isError\":true"));
+        verify(networkManager, never()).addNetwork(any());
+    }
+
+    // -----------------------------------------------------------------------
+    // Failure — stub handlers for unimplemented sources
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void networkFileSource_returnsNotImplemented() throws Exception {
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"network-file\","
+                                + "\"file_path\":\"/tmp/test.sif\"}}}");
+
+        assertTrue("Should be an error", response.contains("\"isError\":true"));
+        assertTrue("Should mention not yet implemented",
+                response.contains("not yet implemented"));
+        verify(networkManager, never()).addNetwork(any());
+    }
+
+    @Test
+    public void tabularFileSource_returnsNotImplemented() throws Exception {
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\"/tmp/test.csv\","
+                                + "\"source_column\":\"A\","
+                                + "\"target_column\":\"B\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":true}}}");
+
+        assertTrue("Should be an error", response.contains("\"isError\":true"));
+        assertTrue("Should mention not yet implemented",
+                response.contains("not yet implemented"));
         verify(networkManager, never()).addNetwork(any());
     }
 
@@ -273,6 +331,9 @@ public class LoadNetworkViewToolTest {
         when(networkReader.buildCyNetworkView(network)).thenReturn(networkView);
 
         when(network.getRow(network)).thenReturn(networkRow);
+        when(network.getSUID()).thenReturn(100L);
+        when(network.getNodeCount()).thenReturn(50);
+        when(network.getEdgeCount()).thenReturn(75);
         when(networkRow.get(CyNetwork.NAME, String.class)).thenReturn(networkName);
 
         when(viewManager.getNetworkViews(network))
@@ -291,14 +352,14 @@ public class LoadNetworkViewToolTest {
     private String buildToolCall(String networkId) {
         return "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
-                + "\"arguments\":{\"network-id\":\""
+                + "\"arguments\":{\"source\":\"ndex\",\"network_id\":\""
                 + networkId
                 + "\"}}}";
     }
 
     /**
      * Sends the MCP init handshake + a {@code tools/call} for load_cytoscape_network_view with the
-     * given network-id, and returns the raw server output.
+     * given network_id, and returns the raw server output.
      */
     private String callTool(String networkId) throws Exception {
         return callToolRaw(buildToolCall(networkId));
