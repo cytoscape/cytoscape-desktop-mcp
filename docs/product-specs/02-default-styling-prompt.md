@@ -111,6 +111,10 @@ Which property would you like to change? (enter the number, name, or type 'done'
 
 Capture: $selected_property (the property the user wants to change)
 
+Note: Properties with valueType NodeShape, ArrowShape, or LineType include an "allowedValues"
+array in the tool response listing all valid choices. Use this data when constructing the
+STEP 2 prompt for discrete-typed properties.
+
 ═══════════════════════════════════════════════════════════════
 STEP 2 — Prompt for new value (type-specific)
 ═══════════════════════════════════════════════════════════════
@@ -123,18 +127,7 @@ Say: "The current {property_name} is {current_hex_color}.
 
 You can enter a new color as:
 - A hex code (e.g., #FF6600)
-- A color name (e.g., red, steelblue, coral)
-- Or pick from these presets:
-  1. White (#FFFFFF)
-  2. Black (#000000)
-  3. Red (#FF0000)
-  4. Blue (#0000FF)
-  5. Green (#00CC00)
-  6. Yellow (#FFFF00)
-  7. Orange (#FF6600)
-  8. Purple (#9900CC)
-  9. Gray (#999999)
-  10. Light Blue (#89D0F5)
+- A common color name (e.g., red, steelblue, coral)
 
 Enter your choice:"
 
@@ -165,15 +158,7 @@ Capture: $new_integer
 Say: "The current {property_name} is {current_shape}.
 
 Available shapes:
-1. Ellipse
-2. Rectangle
-3. Round Rectangle
-4. Triangle
-5. Diamond
-6. Hexagon
-7. Octagon
-8. Parallelogram
-9. Vee
+{numbered list from $selected_property.allowedValues}
 
 Enter the number or name:"
 
@@ -184,14 +169,7 @@ Capture: $new_shape
 Say: "The current {property_name} is {current_shape}.
 
 Available arrow shapes:
-1. None
-2. Arrow
-3. Delta
-4. Diamond
-5. Circle
-6. T
-7. Half Top
-8. Half Bottom
+{numbered list from $selected_property.allowedValues}
 
 Enter the number or name (use 'None' to remove the arrow):"
 
@@ -202,11 +180,7 @@ Capture: $new_arrow
 Say: "The current {property_name} is {current_line_type}.
 
 Available line types:
-1. Solid
-2. Long Dash
-3. Equal Dash
-4. Dash Dot
-5. Dots
+{numbered list from $selected_property.allowedValues}
 
 Enter the number or name:"
 
@@ -302,7 +276,7 @@ START → STEP 1 (get defaults) → STEP 1b (pick property)
 ```json
 {
   "name": "get_visual_style_defaults",
-  "description": "Get the current default values for all node and edge visual properties in the active visual style. Returns properties grouped by category with their IDs, display names, value types, and current default values.",
+  "description": "Get the current default values for all node and edge visual properties in the active visual style. Returns properties grouped by category with their IDs, display names, value types, and current default values. Discrete-typed properties (NodeShape, ArrowShape, LineType) include an 'allowedValues' array listing all valid choices.",
   "inputSchema": {
     "type": "object",
     "properties": {},
@@ -316,7 +290,7 @@ START → STEP 1 (get defaults) → STEP 1b (pick property)
 {
   "content": [{
     "type": "text",
-    "text": "{\"style_name\":\"default\",\"node_properties\":[{\"id\":\"NODE_FILL_COLOR\",\"displayName\":\"Node Fill Color\",\"valueType\":\"Paint\",\"currentValue\":\"#89D0F5\"},{\"id\":\"NODE_BORDER_PAINT\",\"displayName\":\"Node Border Paint\",\"valueType\":\"Paint\",\"currentValue\":\"#333333\"},{\"id\":\"NODE_BORDER_WIDTH\",\"displayName\":\"Node Border Width\",\"valueType\":\"Double\",\"currentValue\":2.0},{\"id\":\"NODE_SIZE\",\"displayName\":\"Node Size\",\"valueType\":\"Double\",\"currentValue\":35.0},{\"id\":\"NODE_SHAPE\",\"displayName\":\"Node Shape\",\"valueType\":\"NodeShape\",\"currentValue\":\"Ellipse\"},{\"id\":\"NODE_TRANSPARENCY\",\"displayName\":\"Node Transparency\",\"valueType\":\"Integer\",\"currentValue\":255},{\"id\":\"NODE_LABEL_COLOR\",\"displayName\":\"Node Label Color\",\"valueType\":\"Paint\",\"currentValue\":\"#000000\"},{\"id\":\"NODE_LABEL_FONT_SIZE\",\"displayName\":\"Node Label Font Size\",\"valueType\":\"Integer\",\"currentValue\":12},{\"id\":\"NODE_LABEL_FONT_FACE\",\"displayName\":\"Node Label Font Face\",\"valueType\":\"Font\",\"currentValue\":\"SansSerif-Plain-12\"}],\"edge_properties\":[{\"id\":\"EDGE_STROKE_UNSELECTED_PAINT\",\"displayName\":\"Edge Stroke Color (Unselected)\",\"valueType\":\"Paint\",\"currentValue\":\"#666666\"},{\"id\":\"EDGE_WIDTH\",\"displayName\":\"Edge Width\",\"valueType\":\"Double\",\"currentValue\":2.0},{\"id\":\"EDGE_LINE_TYPE\",\"displayName\":\"Edge Line Type\",\"valueType\":\"LineType\",\"currentValue\":\"Solid\"},{\"id\":\"EDGE_TRANSPARENCY\",\"displayName\":\"Edge Transparency\",\"valueType\":\"Integer\",\"currentValue\":255},{\"id\":\"EDGE_TARGET_ARROW_SHAPE\",\"displayName\":\"Target Arrow Shape\",\"valueType\":\"ArrowShape\",\"currentValue\":\"None\"},{\"id\":\"EDGE_SOURCE_ARROW_SHAPE\",\"displayName\":\"Source Arrow Shape\",\"valueType\":\"ArrowShape\",\"currentValue\":\"None\"}]}"
+    "text": "{\"style_name\":\"default\",\"node_properties\":[{\"id\":\"NODE_FILL_COLOR\",\"displayName\":\"Node Fill Color\",\"valueType\":\"Paint\",\"currentValue\":\"#89D0F5\"},{\"id\":\"NODE_BORDER_PAINT\",\"displayName\":\"Node Border Paint\",\"valueType\":\"Paint\",\"currentValue\":\"#333333\"},{\"id\":\"NODE_BORDER_WIDTH\",\"displayName\":\"Node Border Width\",\"valueType\":\"Double\",\"currentValue\":2.0},{\"id\":\"NODE_SIZE\",\"displayName\":\"Node Size\",\"valueType\":\"Double\",\"currentValue\":35.0},{\"id\":\"NODE_SHAPE\",\"displayName\":\"Node Shape\",\"valueType\":\"NodeShape\",\"currentValue\":\"Ellipse\",\"allowedValues\":[\"Diamond\",\"Ellipse\",\"Hexagon\",\"Octagon\",\"Parallelogram\",\"Rectangle\",\"Round Rectangle\",\"Triangle\",\"Vee\"]},{\"id\":\"NODE_TRANSPARENCY\",\"displayName\":\"Node Transparency\",\"valueType\":\"Integer\",\"currentValue\":255},{\"id\":\"NODE_LABEL_COLOR\",\"displayName\":\"Node Label Color\",\"valueType\":\"Paint\",\"currentValue\":\"#000000\"},{\"id\":\"NODE_LABEL_FONT_SIZE\",\"displayName\":\"Node Label Font Size\",\"valueType\":\"Integer\",\"currentValue\":12},{\"id\":\"NODE_LABEL_FONT_FACE\",\"displayName\":\"Node Label Font Face\",\"valueType\":\"Font\",\"currentValue\":\"SansSerif-Plain-12\"}],\"edge_properties\":[{\"id\":\"EDGE_STROKE_UNSELECTED_PAINT\",\"displayName\":\"Edge Stroke Color (Unselected)\",\"valueType\":\"Paint\",\"currentValue\":\"#666666\"},{\"id\":\"EDGE_WIDTH\",\"displayName\":\"Edge Width\",\"valueType\":\"Double\",\"currentValue\":2.0},{\"id\":\"EDGE_LINE_TYPE\",\"displayName\":\"Edge Line Type\",\"valueType\":\"LineType\",\"currentValue\":\"Solid\",\"allowedValues\":[\"Backward Slash\",\"Contiguous Arrow\",\"Dash Dot\",\"Dots\",\"Equal Dash\",\"Forward Slash\",\"Long Dash\",\"Parallel Lines\",\"Separate Arrow\",\"Sine Wave\",\"Solid\",\"Vertical Slash\",\"Zigzag\"]},{\"id\":\"EDGE_TRANSPARENCY\",\"displayName\":\"Edge Transparency\",\"valueType\":\"Integer\",\"currentValue\":255},{\"id\":\"EDGE_TARGET_ARROW_SHAPE\",\"displayName\":\"Target Arrow Shape\",\"valueType\":\"ArrowShape\",\"currentValue\":\"None\",\"allowedValues\":[\"Arrow\",\"Arrow Short\",\"Circle\",\"Cross Delta\",\"Cross Open Delta\",\"Delta\",\"Delta Short 1\",\"Delta Short 2\",\"Diamond\",\"Diamond Short 1\",\"Diamond Short 2\",\"Half Bottom\",\"Half Top\",\"None\",\"T\"]},{\"id\":\"EDGE_SOURCE_ARROW_SHAPE\",\"displayName\":\"Source Arrow Shape\",\"valueType\":\"ArrowShape\",\"currentValue\":\"None\",\"allowedValues\":[\"Arrow\",\"Arrow Short\",\"Circle\",\"Cross Delta\",\"Cross Open Delta\",\"Delta\",\"Delta Short 1\",\"Delta Short 2\",\"Diamond\",\"Diamond Short 1\",\"Diamond Short 2\",\"Half Bottom\",\"Half Top\",\"None\",\"T\"]}]}"
   }],
   "isError": false
 }
@@ -368,7 +342,7 @@ START → STEP 1 (get defaults) → STEP 1b (pick property)
 **Error response:**
 ```json
 {
-  "content": [{ "type": "text", "text": "Invalid value for NODE_SHAPE: 'Pentagon' is not a recognized node shape. Valid shapes: Ellipse, Rectangle, Round Rectangle, Triangle, Diamond, Hexagon, Octagon, Parallelogram, Vee" }],
+  "content": [{ "type": "text", "text": "Invalid value for NODE_SHAPE: 'Pentagon' is not a recognized node shape. Valid shapes: Diamond, Ellipse, Hexagon, Octagon, Parallelogram, Rectangle, Round Rectangle, Triangle, Vee" }],
   "isError": true
 }
 ```
@@ -395,12 +369,14 @@ public CallToolResult handle(McpSyncServerExchange exchange, CallToolRequest req
     for (VisualProperty<?> vp : nodeVPs) {
         if (!isSupported(vp)) continue;
         Object defaultVal = style.getDefaultValue(vp);
-        nodeProps.add(Map.of(
-            "id", vp.getIdString(),
-            "displayName", vp.getDisplayName(),
-            "valueType", getTypeName(vp.getRange()),
-            "currentValue", formatValue(defaultVal)
-        ));
+        Map<String, Object> propMap = new LinkedHashMap<>();
+        propMap.put("id", vp.getIdString());
+        propMap.put("displayName", vp.getDisplayName());
+        propMap.put("valueType", getTypeName(vp.getRange()));
+        propMap.put("currentValue", formatValue(defaultVal));
+        List<String> allowed = getAllowedValues(vp);
+        if (allowed != null) propMap.put("allowedValues", allowed);
+        nodeProps.add(propMap);
     }
 
     // Enumerate edge properties (same pattern)
@@ -409,12 +385,14 @@ public CallToolResult handle(McpSyncServerExchange exchange, CallToolRequest req
     for (VisualProperty<?> vp : edgeVPs) {
         if (!isSupported(vp)) continue;
         Object defaultVal = style.getDefaultValue(vp);
-        edgeProps.add(Map.of(
-            "id", vp.getIdString(),
-            "displayName", vp.getDisplayName(),
-            "valueType", getTypeName(vp.getRange()),
-            "currentValue", formatValue(defaultVal)
-        ));
+        Map<String, Object> propMap = new LinkedHashMap<>();
+        propMap.put("id", vp.getIdString());
+        propMap.put("displayName", vp.getDisplayName());
+        propMap.put("valueType", getTypeName(vp.getRange()));
+        propMap.put("currentValue", formatValue(defaultVal));
+        List<String> allowed = getAllowedValues(vp);
+        if (allowed != null) propMap.put("allowedValues", allowed);
+        edgeProps.add(propMap);
     }
 
     // Build JSON response
@@ -456,6 +434,20 @@ private String getTypeName(Range<?> range) {
     if (type == String.class) return "String";
     if (type == Boolean.class) return "Boolean";
     return type.getSimpleName();
+}
+
+// Helper: get allowed values for discrete-typed properties (NodeShape, ArrowShape, LineType)
+// Note: This will be implemented as a public method on VisualPropertyService when Task 12 is built.
+private List<String> getAllowedValues(VisualProperty<?> vp) {
+    Range<?> range = vp.getRange();
+    if (!(range instanceof DiscreteRange<?>)) return null;
+    DiscreteRange<?> discrete = (DiscreteRange<?>) range;
+    return discrete.values().stream()
+        .map(v -> v instanceof VisualPropertyValue
+            ? ((VisualPropertyValue) v).getDisplayName()
+            : String.valueOf(v))
+        .sorted()
+        .collect(Collectors.toList());
 }
 ```
 
@@ -594,7 +586,7 @@ private NodeShape parseNodeShape(String name) {
 ### 6.4 Invalid Shape/Enum Name
 
 - **Trigger**: User enters a shape name that doesn't match any enum value.
-- **Tool behavior**: `set_visual_default` returns error listing valid options.
+- **Tool behavior**: `set_visual_default` returns error listing valid options. The valid-values list in the error message is generated dynamically by `VisualPropertyService.parseDiscreteValue()` at runtime (alphabetically sorted), not hardcoded.
 - **Agent script**: Present the error message from the tool, which includes the list of valid values.
 
 ### 6.5 No Network View

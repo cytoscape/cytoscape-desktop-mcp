@@ -87,6 +87,12 @@ All visual properties are defined in `org.cytoscape.view.presentation.property.B
 
 ## 2. Enum Value Tables
 
+> **Developer Reference Only — Do Not Hardcode in System Prompts**
+> These tables are for developer orientation. At runtime, valid values must be read via
+> `DiscreteRange.values()`. MCP system prompts MUST NOT hardcode these lists — the
+> `get_visual_style_defaults` tool response includes an `allowedValues` array for each
+> discrete-typed property, derived from `DiscreteRange.values()` at call time.
+
 These enums are the discrete domain values for shape/line-type/arrow visual properties.
 
 ### 2.1 NodeShape (`org.cytoscape.view.presentation.property.NodeShapeVisualProperty`)
