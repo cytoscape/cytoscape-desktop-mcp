@@ -133,8 +133,6 @@ Say: "Let's load a network into Cytoscape. Where is your network?
 1. NDEx (Network Data Exchange) — load by UUID
 2. Local file — load from your filesystem
 
-Supported file formats: SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX, CSV, TSV, Excel (.xlsx/.xls)"
-
 Capture: $source_type ("ndex" or "file")
 
 If user picks NDEx → go to STEP 1a-NDEx.
@@ -161,20 +159,22 @@ If success → Say: "Network loaded from NDEx! Your network has {node_count} nod
 
 STEP 1a-File — Ask for file path:
 
-Say: "Is this a raw tabular data file with delimeters or is it expresed as a network formatted file typically with extensions like sif, .gml, .xgmml, .cx, .cx2, .graphml, .sbml, .owl, .biopax?"
+Say: "Is this a raw tabular data file with delimeters or is it expresed as a network formatted file that captures source and target nodes and relationships(edges)?"
 
-Present two choices for the user to choose on prompt: 1 - 'Tabular, delimited data', 2 - 'Network formatted data' 
+Ask: '1 - Tabular, delimited data', '2 - Network formatted data' 
 
-Capture: $file_format_type
+Capture: $file_format_type as integer 1 or 2
 
 Say: "Please provide the path to your network file on your local machine."
 
 Capture: $file_path (the path provided by the user)
 
-- If $file_format_type=network → go to STEP 1d
-- If $file_format_type=tabular → Say: "Next step is to identify the delimiter, node, and edge columns from the tabular data file", go to STEP 1b (column mapping)
+- If $file_format_type=2 (network) → go to STEP 1-LOAD
+- If $file_format_type=1 (tabular) → go to STEP 1b (column mapping)
 
 STEP 1b — Column mapping for tabular files:
+
+Say: "Next step is to identify the delimiter, node, and edge columns from the tabular data file"
 
 Mcp performs an inspection on $file_path, attempts to open it with poi sdk to determine if it is an excel formatted file. 
 
@@ -191,32 +191,14 @@ Capture: $sheets (array of excel sheet names present)
 
 if $sheets is empty, tell user invalid file.
 
-if $sheets has only one name then:
-Capture: $excel_sheet = $sheets[0]
-
-Say: The following sheets were present: {numbered list of $sheets}
-
-Ask: "Which sheet should be used for source/target network data?"
-
-Capture: $excel_sheet = name of sheet for number user selected.
-
-Ask: "Which sheet contains additional **node attributes**? (enter the number for sheet name or type 'skip' if there isn't one)"
-
-Capture: $node_attributes_sheet (or null if skipped)
-
-If user skips, go to Step 1c:
-
-Mcp uses poi sdk to get list of columns on $node_attributes_sheet:
-
-Capture: $node_attribs_sheet_columns (array of column names)
-
-Say: The following columns are present: {numbered list of $node_attribs_sheet_columns}
-
-Ask: "Which column on $node_attributes_sheet in the Excel file contains the key for node ID? (enter the number for column name or type 'skip' if there isn't one)"
-
-Capture: $node_attributes_key_column (or null if skipped)
-
-Say: "Importing additional edge attributes is more complex to perform at this point during network load and will therefore not be addressed. You can accomplish this after netowork creation directly in Cytoscape. the idiomatic approach is to export the edge table from a loaded network and then annotate the file and then re-import to apply via File → Import → Table from File"
+if $sheets has only one then:
+    Capture: $excel_sheet = $sheets[0]
+else:
+    Need to ask the user to choose from multiple sheets avaialbe.
+    Say: The following sheets were present: {numbered list of $sheets}
+    Ask: "Which sheet should be used for source/target network data?"
+    Capture: $excel_sheet = name of sheet for number user selected.
+endif    
 
 Go to Step 1b3
 
@@ -263,16 +245,42 @@ Ask: "Which column contains the **interaction/relationship type**? (enter the nu
 
 Capture: $interaction_column (or null if skipped)
 
-Say: "The remainder of data columns will be added as edge properties."\
-go to Step 1c.
+Ask: "Do you want to map properties for Nodes from the file columns at this time? You can always do this later as well. By default columns get mapped as edge attributes "
+if user answers yes: 
+  if $is_excel
+    if $sheets has only one then:
+      Capture: $node_attributes_sheet = $sheets[0] 
+    else:
+      Need to ask the user to choose from multiple sheets avaialbe.
+      Say: "The following sheets were present: {numbered list of $sheets and a Skip option}"
+      Ask: "Which sheet should be used for Node properties?"
+      Capture: $node_attributes_sheet = name of sheet user chose or null if user chose Skip
+    endif 
+    Mcp uses poi sdk to get list of columns on $node_attributes_sheet:
+    Capture: $node_attribs_columns (array of column names from poi)
+  else
+    Mcp sets the list of columns to all columns avaialble on current data file
+    Capture: $node_attribs_columns = $columns 
+  endif  
 
-STEP 1c — Tabular Config wrap up
+  Say: The following columns are present: {numbered list of $node_attribs_columns and Skip as an option}
 
-At this point all config aspects of laoding a loca file are known, proceed to STEP 1-LOAD.
+  Ask: "Which column contains the key for node ID? (enter the number for column name or type 'Skip' to not import node attributes at this time)"
+  Capture: $node_attributes_key_column (or null if skipped)
+  if User chose 'Skip':
+    go to STEP 1-LOAD 
+  endif
 
-STEP 1d — Network format file:
+  Ask: "Which columns do you want mapped as properties to the Source Node( {$source_column}). Enter number of each column separated by a comma. Leave blank for none."
+  Capture: $node_attributes_source_columns (or null if skipped)
 
-Proceed directly to STEP 1-LOAD.
+  Ask: "Which columns do you want mapped as properties to the Target Node( {$target_column}). Enter number of each column separated by a comma. Leave blank for none."
+  Capture: $node_attributes_target_columns (or null if skipped)
+
+  Say: "Any remaining columns not mapped for Node properties will be an edge property"
+endif
+
+go to STEP 1-LOAD.
 
 STEP 1-LOAD — Load the network from file:
 
@@ -291,8 +299,13 @@ If user chose type=tabular format:
     "interaction_column": $interaction_column,     // omit if null
     "node_attributes_sheet": $node_attributes_sheet,         // omit if null
     "node_attributes_key_column": $node_attributes_key_column,  // omit if null
+    "node_attributes_source_columns" $node_attributes_source_columns // omit if empty
+    "node_attributes_target_columns" $node_attributes_target_columns // omit if empty
   }
-  ** note the load_cytoscape_network_view will check for presence of node_atttributes_sheet and node_attributes_key_column, if they are both non-null, it will perform a secondary table from file upload using the app sdk to apply the attributes from that sheet onto the network also.
+  ** note the load_cytoscape_network_view will check for presence of nnode_attributes_key_column, if present and node_attributes_sheet is null, it will load node properties based on columns from file otherwise if "node_attributes_sheet" is also non-null, it will use poi to load node properties from columns on that excel sheet. 
+  
+  it will use the app sdk to ensure the node table is updated from these attribute column parameters, whether that is accomplished directly by specifying them at load network sdk call or through a secondary call to load data table sdk call.
+endif
 
 If tool returns error → Say: "Failed to load the network: {error}. Would you like to try a different file?" → return to STEP 1a-File.
 
@@ -409,19 +422,20 @@ This section provides a structured reference of every step for implementation an
 | 1a-NDEx | "Provide the NDEx UUID" | UUID string | `$network_id` | `load_cytoscape_network_view` | Not found → retry; unreachable → retry or switch to file |
 | 1a-File | "Is this tabular data or network formatted?" | 1 or 2 | `$file_format_type` | — | — |
 | 1a-File.2 | "Provide the path to your network file" | File path string | `$file_path` | — | — |
-| 1d (network) | _(pass-through to 1-LOAD)_ | — | — | — | — |
 | 1b | _(inspect file)_ | — | `$is_excel`, `$sheets`, `$detected_extension` | `inspect_tabular_file` | File unreadable → return to 1a-File |
-| 1b1 (Excel) | "Which sheet for network data?" | Sheet number | `$excel_sheet` | — | — |
-| 1b1.2 | "Which sheet for node attributes? (or skip)" | Sheet number or "skip" | `$node_attributes_sheet` | — | — |
-| 1b1.3 | _(if node attr sheet selected: get columns)_ | — | `$node_attribs_sheet_columns` | `get_file_columns` | — |
-| 1b1.4 | "Which column is the node ID key? (or skip)" | Column name/number or "skip" | `$node_attributes_key_column` | — | — |
+| 1b1 (Excel) | "Which sheet for network data?" (auto-selects if single sheet) | Sheet number | `$excel_sheet` | — | — |
 | 1b2 (non-Excel) | "Choose delimiter: comma, tab, space, other" | Choice | `$delimiter_char_code` | — | Invalid input → re-ask |
 | 1b3 | "Does first row contain column headers?" | Yes or No | `$use_header_row` | — | — |
 | 1b3.2 | _(read columns)_ | — | `$columns` | `get_file_columns` | "Can't read headers" → return to 1a-File |
 | 1b3.3 | "Which column is the source node?" | Column name/number | `$source_column` | — | — |
 | 1b3.4 | "Which column is the target node?" | Column name/number | `$target_column` | — | — |
 | 1b3.5 | "Which column is the interaction type? (or skip)" | Column name/number or "skip" | `$interaction_column` | — | — |
-| 1c | _(wrap-up, proceed to load)_ | — | — | — | — |
+| 1b3.6 | "Map node properties from file columns?" | Yes or No | — | — | — |
+| 1b3.7 (Excel) | "Which sheet for node properties?" (auto-selects if single sheet) | Sheet number or "skip" | `$node_attributes_sheet` | — | — |
+| 1b3.8 | _(get node attr columns: Excel via `get_file_columns`; non-Excel uses `$columns`)_ | — | `$node_attribs_columns` | `get_file_columns` (Excel) | — |
+| 1b3.9 | "Which column is the node ID key? (or skip)" | Column name/number or "skip" | `$node_attributes_key_column` | — | — |
+| 1b3.10 | "Which columns for source node properties?" | Column numbers (comma-sep) | `$node_attributes_source_columns` | — | — |
+| 1b3.11 | "Which columns for target node properties?" | Column numbers (comma-sep) | `$node_attributes_target_columns` | — | — |
 | 1-LOAD | — | — | `$node_count`, `$edge_count` | `load_cytoscape_network_view` | "Failed to load" → retry |
 
 ### Phase 2: Analyze Network
@@ -508,7 +522,17 @@ Delegated to `03-mapping-styling-prompt.md` conversation script.
       },
       "node_attributes_key_column": {
         "type": "string",
-        "description": "Column name in node_attributes_sheet that contains the node ID key for joining. Required if node_attributes_sheet is provided. Omit otherwise."
+        "description": "Column name containing the node ID key for joining node attributes. When provided without node_attributes_sheet, node properties are loaded from the same file's columns. When provided with node_attributes_sheet, node properties are loaded from that Excel sheet. Omit if no node attribute mapping is needed."
+      },
+      "node_attributes_source_columns": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Column names to map as properties to the source node. Optional; only applicable when source='tabular-file' and node_attributes_key_column is provided. Omit if empty."
+      },
+      "node_attributes_target_columns": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Column names to map as properties to the target node. Optional; only applicable when source='tabular-file' and node_attributes_key_column is provided. Omit if empty."
       }
     },
     "required": ["source"]
@@ -579,7 +603,7 @@ Delegated to `03-mapping-styling-prompt.md` conversation script.
 }
 ```
 
-> **Note:** The agent may call this tool multiple times for Excel files — once for the network data sheet (Step 1b3) and optionally again for the node-attributes sheet (Step 1b1) to enumerate its columns for the key-column prompt.
+> **Note:** The agent may call this tool multiple times for Excel files — once for the network data sheet (Step 1b3) and optionally again for the node-attributes sheet (after Step 1b3.5, if user opts in to node attribute mapping) to enumerate its columns for the key-column prompt.
 
 **Success response:**
 ```json
@@ -942,14 +966,22 @@ private CallToolResult handleTabularImport(CallToolRequest request) {
 
     CyNetwork network = appManager.getCurrentNetwork();
 
-    // Secondary node attribute import (Excel only)
+    // Secondary node attribute import (Excel or non-Excel)
     String nodeAttrSheet = (String) request.arguments().get("node_attributes_sheet");
     String nodeAttrKeyCol = (String) request.arguments().get("node_attributes_key_column");
+    List<String> nodeAttrSourceCols = (List<String>) request.arguments().get("node_attributes_source_columns");
+    List<String> nodeAttrTargetCols = (List<String>) request.arguments().get("node_attributes_target_columns");
     boolean nodeAttrsImported = false;
-    if (nodeAttrSheet != null && nodeAttrKeyCol != null) {
-        // Open workbook, read nodeAttrSheet, import rows into node table
-        // joining on nodeAttrKeyCol == node name
-        importNodeAttributes(file, nodeAttrSheet, nodeAttrKeyCol, network);
+    if (nodeAttrKeyCol != null) {
+        if (nodeAttrSheet != null) {
+            // Excel: load node properties from the specified Excel sheet
+            importNodeAttributes(file, nodeAttrSheet, nodeAttrKeyCol,
+                    nodeAttrSourceCols, nodeAttrTargetCols, network);
+        } else {
+            // Non-Excel: load node properties from columns in the same file
+            importNodeAttributesFromFile(file, nodeAttrKeyCol,
+                    nodeAttrSourceCols, nodeAttrTargetCols, network);
+        }
         nodeAttrsImported = true;
     }
 
@@ -1356,7 +1388,7 @@ public CallToolResult handle(McpSyncServerExchange exchange, CallToolRequest req
 
 ### 6.7d Node Attributes Key Column Mismatch
 
-- **Trigger**: `load_cytoscape_network_view` secondary import finds 0 matching node IDs between the key column and the network.
+- **Trigger**: `load_cytoscape_network_view` secondary import (Excel sheet or same-file columns) finds 0 matching node IDs between the key column and the network.
 - **Tool behavior**: Returns success for the primary network load but includes a warning: `"node_attributes_imported": false, "warning": "No matching node IDs found"`.
 - **Agent script**: "The network was loaded, but I couldn't match any node attributes — the key column values didn't match the node IDs in the network. You can try importing attributes manually via File -> Import -> Table from File."
 
