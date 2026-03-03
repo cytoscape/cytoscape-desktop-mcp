@@ -4,7 +4,7 @@
 
 The product specs (01 through 03, plus 00 shared reference) define a **Network Setup and Styling Wizard** delivered as MCP prompts and tools. The wizard orchestrates 6 phases: select/create network view (Phase 0), load network (Phase 1), analyze (Phase 2), layout (Phase 3), default styling (Phase 4, delegated to 02 spec), mapping styling (Phase 5, delegated to 03 spec), and wrap-up (Phase 6).
 
-First review these docs to understand the network wizard feature spec, they are all located in `docs/product-sepcs/` and keep in mind the [app developer cookbook](https://wikiold.cytoscape.org/Cytoscape_3/AppDeveloper/Cytoscape_3_App_Cookbook), it will be a good referecne when you are trying to understand how to accomplish any app ui sdk concerns. 
+First review these docs to understand the network wizard feature spec, they are all located in `docs/harness/product-specs/` and keep in mind the [app developer cookbook](https://wikiold.cytoscape.org/Cytoscape_3/AppDeveloper/Cytoscape_3_App_Cookbook), it will be a good referecne when you are trying to understand how to accomplish any app ui sdk concerns. 
 
 This document captures the bottoms-up DFS traversal of the spec hierarchy (01 → phases → sub-steps → leaf tools, with cross-references into 02 and 03 specs) and produces an ordered list of implementation tasks.
 
