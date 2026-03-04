@@ -1,5 +1,6 @@
 package edu.ucsd.idekerlab.cytoscapemcp;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import javax.ws.rs.Consumes;
@@ -77,5 +78,33 @@ public class McpEndpoint {
     @Produces(MediaType.APPLICATION_JSON)
     public Response handleHealth() {
         return transportProvider.handleHealth();
+    }
+
+    /**
+     * Returns the pre-generated API manifest as Markdown.
+     *
+     * <p>The file {@code MCPManifest.md} is generated during the Gradle build by {@link
+     * MCPManifest#main} and bundled as a classpath resource at {@code /MCPManifest.md}. This
+     * endpoint serves it as-is with content-type {@code text/markdown}.
+     */
+    @GET
+    @Path("manifest")
+    @Produces("text/markdown")
+    public Response handleManifest() {
+        try (InputStream is = McpEndpoint.class.getResourceAsStream("/MCPManifest.md")) {
+            if (is == null) {
+                logger.warn("MCPManifest.md not found on classpath");
+                return Response.status(Response.Status.NOT_FOUND)
+                        .entity("MCPManifest.md not found on classpath")
+                        .build();
+            }
+            byte[] bytes = is.readAllBytes();
+            return Response.ok(bytes).type("text/markdown").build();
+        } catch (IOException e) {
+            logger.error("Failed to read MCPManifest.md", e);
+            return Response.serverError()
+                    .entity("Failed to read manifest: " + e.getMessage())
+                    .build();
+        }
     }
 }

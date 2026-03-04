@@ -17,13 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.ucsd.idekerlab.cytoscapemcp.prompts.GuidelinePrompt;
-import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
-import edu.ucsd.idekerlab.cytoscapemcp.tools.GetFileColumnsTool;
-import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
-import edu.ucsd.idekerlab.cytoscapemcp.tools.InspectTabularFileTool;
-import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
-import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.ui.McpStatusPanel;
 
 import org.cytoscape.app.event.AppsFinishedStartingEvent;
@@ -45,11 +38,7 @@ import org.cytoscape.view.vizmap.VisualMappingManager;
 import org.cytoscape.work.SynchronousTaskManager;
 import org.cytoscape.work.TaskManager;
 
-import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
-import io.modelcontextprotocol.json.schema.jackson2.DefaultJsonSchemaValidator;
-import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
 
 public class CyActivator extends AbstractCyActivator {
 
@@ -242,55 +231,29 @@ public class CyActivator extends AbstractCyActivator {
 
         // Build the MCP server. Version is read from the OSGi bundle manifest
         // at runtime so it stays in sync with the Gradle build version automatically.
-        // Explicitly supply jsonMapper and jsonSchemaValidator to bypass McpJsonDefaults,
-        // which uses ServiceLoader with the Thread context classloader — that classloader
-        // cannot find META-INF/services inside our bundle in OSGi/Karaf/Felix.
         String bundleVersion = bundleContext.getBundle().getVersion().toString();
         LOGGER.info("Building MCP sync server (bundle version {})...", bundleVersion);
-        ObjectMapper objectMapper = new ObjectMapper();
         mcpServer =
-                McpServer.sync(transportProvider)
-                        .serverInfo("cytoscape-mcp", bundleVersion)
-                        .capabilities(
-                                ServerCapabilities.builder().tools(false).prompts(false).build())
-                        .jsonMapper(new JacksonMcpJsonMapper(objectMapper))
-                        .jsonSchemaValidator(new DefaultJsonSchemaValidator(objectMapper))
-                        .build();
-        LOGGER.info("MCP sync server built");
-
-        // Register MCP tools.
-        LoadNetworkViewTool loadTool =
-                new LoadNetworkViewTool(
+                McpServerFactory.create(
+                        transportProvider,
+                        new ObjectMapper(),
+                        bundleVersion,
                         cyProperties,
                         appManager,
                         networkManager,
                         viewManager,
                         taskManager,
                         cxReaderFactory,
-                        loadFileTaskFactory);
-        mcpServer.addTool(loadTool.toSpec());
-
-        GetLoadedNetworkViewsTool getLoadedNetworkViewsTool =
-                new GetLoadedNetworkViewsTool(networkManager, viewManager);
-        mcpServer.addTool(getLoadedNetworkViewsTool.toSpec());
-
-        SetCurrentNetworkViewTool setCurrentNetworkViewTool =
-                new SetCurrentNetworkViewTool(appManager, networkManager, viewManager);
-        mcpServer.addTool(setCurrentNetworkViewTool.toSpec());
-
-        CreateNetworkViewTool createNetworkViewTool =
-                new CreateNetworkViewTool(
-                        appManager, networkManager, viewManager, networkViewFactory);
-        mcpServer.addTool(createNetworkViewTool.toSpec());
-
-        InspectTabularFileTool inspectTabularFileTool = new InspectTabularFileTool();
-        mcpServer.addTool(inspectTabularFileTool.toSpec());
-
-        GetFileColumnsTool getFileColumnsTool = new GetFileColumnsTool();
-        mcpServer.addTool(getFileColumnsTool.toSpec());
-
-        // Register MCP prompts.
-        mcpServer.addPrompt(new GuidelinePrompt().toSpec());
+                        vmmManager,
+                        renderingEngineManager,
+                        continuousMappingFactory,
+                        discreteMappingFactory,
+                        passthroughMappingFactory,
+                        layoutManager,
+                        loadFileTaskFactory,
+                        networkViewFactory,
+                        syncTaskManager);
+        LOGGER.info("MCP sync server built");
 
         // Register McpEndpoint as an OSGi service under its concrete class type.
         // publisher-5.3's ResourceTracker discovers the @Path("/mcp") annotation on the class

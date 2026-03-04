@@ -188,6 +188,29 @@ processResources {
     }
 }
 
+// Generate MCPManifest.md by running MCPManifest.main() after compilation.
+// Output goes to build/generated/manifest/ (a separate dir to avoid Gradle task
+// ordering conflicts with build/resources/main). The jar task then includes it
+// at the JAR root so it is accessible as classpath resource /MCPManifest.md.
+tasks.register('generateManifest', JavaExec) {
+    dependsOn compileJava, processResources
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
+    mainClass = 'edu.ucsd.idekerlab.cytoscapemcp.MCPManifest'
+    def outputDir = layout.buildDirectory.dir('generated/manifest').get().asFile
+    args outputDir.absolutePath
+    outputs.dir(layout.buildDirectory.dir('generated/manifest'))
+    inputs.files(sourceSets.main.output.classesDirs)
+    inputs.file('src/main/resources/manifest_template.md')
+}
+
+// Ensure MCPManifest.md is generated before the JAR is assembled.
+tasks.named('jar') {
+    dependsOn generateManifest
+    from(layout.buildDirectory.dir('generated/manifest')) {
+        include 'MCPManifest.md'
+    }
+}
+
 publishing {
     publications {
         maven(MavenPublication) {
