@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.ucsd.idekerlab.cytoscapemcp.prompts.GuidelinePrompt;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetFileColumnsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.InspectTabularFileTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
@@ -284,6 +285,9 @@ public class CyActivator extends AbstractCyActivator {
 
         InspectTabularFileTool inspectTabularFileTool = new InspectTabularFileTool();
         mcpServer.addTool(inspectTabularFileTool.toSpec());
+
+        GetFileColumnsTool getFileColumnsTool = new GetFileColumnsTool();
+        mcpServer.addTool(getFileColumnsTool.toSpec());
 
         // Register MCP prompts.
         mcpServer.addPrompt(new GuidelinePrompt().toSpec());
