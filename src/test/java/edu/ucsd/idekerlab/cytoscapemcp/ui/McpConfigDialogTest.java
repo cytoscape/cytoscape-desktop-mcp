@@ -166,9 +166,7 @@ public class McpConfigDialogTest {
         JEditorPane editorPane = findEditorPane(dialog);
         assertNotNull("Editor pane should exist", editorPane);
         String content = editorPane.getText();
-        assertFalse(
-                "Placeholder {rest.port} should be replaced",
-                content.contains("{rest.port}"));
+        assertFalse("Placeholder {rest.port} should be replaced", content.contains("{rest.port}"));
         assertTrue(
                 "Rendered content should contain the actual port number",
                 content.contains(String.valueOf(testPort)));

@@ -43,6 +43,28 @@ import org.cytoscape.work.TaskIterator;
 import org.cytoscape.work.TaskManager;
 import org.cytoscape.work.TaskObserver;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 /**
  * Exercises {@link LoadNetworkViewTool} through its public interface ({@code toSpec()}) by
  * registering it on a real {@link io.modelcontextprotocol.server.McpSyncServer} backed by {@link
@@ -128,16 +150,19 @@ public class LoadNetworkViewToolTest {
         String response = callTool(VALID_UUID);
 
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
-        assertTrue("Response should contain status success",
+        assertTrue(
+                "Response should contain status success",
                 response.contains("\\\"status\\\":\\\"success\\\""));
-        assertTrue("Response should contain network_name",
+        assertTrue(
+                "Response should contain network_name",
                 response.contains("\\\"network_name\\\":\\\"Human PPI\\\""));
-        assertTrue("Response should contain network_suid",
+        assertTrue(
+                "Response should contain network_suid",
                 response.contains("\\\"network_suid\\\":100"));
-        assertTrue("Response should contain node_count",
-                response.contains("\\\"node_count\\\":50"));
-        assertTrue("Response should contain edge_count",
-                response.contains("\\\"edge_count\\\":75"));
+        assertTrue(
+                "Response should contain node_count", response.contains("\\\"node_count\\\":50"));
+        assertTrue(
+                "Response should contain edge_count", response.contains("\\\"edge_count\\\":75"));
         verify(networkManager).addNetwork(network);
         verify(viewManager).addNetworkView(networkView);
         verify(appManager).setCurrentNetwork(network);
@@ -163,7 +188,8 @@ public class LoadNetworkViewToolTest {
         String response = callTool(VALID_UUID);
 
         assertFalse(response.contains("\"isError\":true"));
-        assertTrue("Should fall back to UUID in network_name",
+        assertTrue(
+                "Should fall back to UUID in network_name",
                 response.contains("\\\"network_name\\\":\\\"" + VALID_UUID + "\\\""));
     }
 
@@ -175,7 +201,8 @@ public class LoadNetworkViewToolTest {
         String response = callTool(VALID_UUID);
 
         assertFalse(response.contains("\"isError\":true"));
-        assertTrue("Response should contain network name",
+        assertTrue(
+                "Response should contain network name",
                 response.contains("\\\"network_name\\\":\\\"Internal Net\\\""));
     }
 
@@ -249,19 +276,24 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"network-file\","
-                                + "\"file_path\":\"" + tempFile.getAbsolutePath() + "\"}}}");
+                                + "\"file_path\":\""
+                                + tempFile.getAbsolutePath()
+                                + "\"}}}");
 
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
-        assertTrue("Response should contain status success",
+        assertTrue(
+                "Response should contain status success",
                 response.contains("\\\"status\\\":\\\"success\\\""));
-        assertTrue("Response should contain network_name",
+        assertTrue(
+                "Response should contain network_name",
                 response.contains("\\\"network_name\\\":\\\"Yeast SIF\\\""));
-        assertTrue("Response should contain network_suid",
+        assertTrue(
+                "Response should contain network_suid",
                 response.contains("\\\"network_suid\\\":200"));
-        assertTrue("Response should contain node_count",
-                response.contains("\\\"node_count\\\":30"));
-        assertTrue("Response should contain edge_count",
-                response.contains("\\\"edge_count\\\":45"));
+        assertTrue(
+                "Response should contain node_count", response.contains("\\\"node_count\\\":30"));
+        assertTrue(
+                "Response should contain edge_count", response.contains("\\\"edge_count\\\":45"));
     }
 
     @Test
@@ -313,11 +345,12 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"network-file\","
-                                + "\"file_path\":\"" + tempFile.getAbsolutePath() + "\"}}}");
+                                + "\"file_path\":\""
+                                + tempFile.getAbsolutePath()
+                                + "\"}}}");
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
-        assertTrue("Should surface the error message",
-                response.contains("Corrupt SIF file"));
+        assertTrue("Should surface the error message", response.contains("Corrupt SIF file"));
     }
 
     @Test
@@ -343,7 +376,9 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"network-file\","
-                                + "\"file_path\":\"" + tempFile.getAbsolutePath() + "\"}}}");
+                                + "\"file_path\":\""
+                                + tempFile.getAbsolutePath()
+                                + "\"}}}");
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
         assertTrue("Should mention No network", response.contains("No network"));
@@ -367,8 +402,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"use_header_row\":true}}}");
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
-        assertTrue("Should mention not yet implemented",
-                response.contains("not yet implemented"));
+        assertTrue("Should mention not yet implemented", response.contains("not yet implemented"));
         verify(networkManager, never()).addNetwork(any());
     }
 
@@ -426,9 +460,9 @@ public class LoadNetworkViewToolTest {
     // -----------------------------------------------------------------------
 
     /**
-     * Stubs mocks for a successful network file load via LoadNetworkFileTaskFactory.
-     * Creates a real temp file so that file.exists() passes. Returns the temp file
-     * for embedding in the JSON-RPC call.
+     * Stubs mocks for a successful network file load via LoadNetworkFileTaskFactory. Creates a real
+     * temp file so that file.exists() passes. Returns the temp file for embedding in the JSON-RPC
+     * call.
      */
     private File stubSuccessfulFileLoad(String networkName) throws Exception {
         File tempFile = File.createTempFile("test-network", ".sif");

@@ -83,6 +83,10 @@ dependencies {
     // === commonmark — Markdown-to-HTML for the MCP config dialog ===
     embed 'org.commonmark:commonmark:0.21.0'
 
+    // === Apache POI — Excel file reading for tabular file inspection/import ===
+    embed 'org.apache.poi:poi:5.2.5'
+    embed 'org.apache.poi:poi-ooxml:5.2.5'
+
     // === Test ===
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.mockito:mockito-core:4.11.0"
@@ -104,6 +108,14 @@ dependencies {
     testImplementation "javax.ws.rs:javax.ws.rs-api:2.0"
     // Jersey common provides RuntimeDelegateImpl needed to build javax.ws.rs.core.Response in tests
     testImplementation "org.glassfish.jersey.core:jersey-common:2.23"
+    testImplementation 'org.apache.poi:poi:5.2.5'
+    testImplementation 'org.apache.poi:poi-ooxml:5.2.5'
+}
+
+// Run spotlessCheck before every compile so formatting violations are caught
+// early — before tests or JAR packaging.
+tasks.withType(JavaCompile).configureEach {
+    dependsOn tasks.named('spotlessCheck')
 }
 
 // Ensure tests pass before building the JAR — mirrors Maven's lifecycle

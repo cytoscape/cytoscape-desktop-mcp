@@ -108,78 +108,127 @@ public class LoadNetworkViewTool {
     public McpServerFeatures.SyncToolSpecification toSpec() {
         Map<String, Object> properties = new LinkedHashMap<>();
 
-        properties.put("source", Map.of(
-                "type", "string",
-                "description", "The data source type. Must be one of: 'ndex', 'network-file',"
-                        + " 'tabular-file'.",
-                "enum", List.of("ndex", "network-file", "tabular-file")));
+        properties.put(
+                "source",
+                Map.of(
+                        "type",
+                        "string",
+                        "description",
+                        "The data source type. Must be one of: 'ndex', 'network-file',"
+                                + " 'tabular-file'.",
+                        "enum",
+                        List.of("ndex", "network-file", "tabular-file")));
 
-        properties.put("network_id", Map.of(
-                "type", "string",
-                "description", "The UUID of the network on NDEx"
-                        + " (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\")."
-                        + " Required when source='ndex'."));
+        properties.put(
+                "network_id",
+                Map.of(
+                        "type",
+                        "string",
+                        "description",
+                        "The UUID of the network on NDEx"
+                                + " (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\")."
+                                + " Required when source='ndex'."));
 
-        properties.put("file_path", Map.of(
-                "type", "string",
-                "description", "Absolute path to the file to import."
-                        + " Required when source='network-file' or 'tabular-file'."));
+        properties.put(
+                "file_path",
+                Map.of(
+                        "type",
+                        "string",
+                        "description",
+                        "Absolute path to the file to import."
+                                + " Required when source='network-file' or 'tabular-file'."));
 
-        properties.put("source_column", Map.of(
-                "type", "string",
-                "description", "Column name for the source node."
-                        + " Required when source='tabular-file'."));
+        properties.put(
+                "source_column",
+                Map.of(
+                        "type",
+                        "string",
+                        "description",
+                        "Column name for the source node."
+                                + " Required when source='tabular-file'."));
 
-        properties.put("target_column", Map.of(
-                "type", "string",
-                "description", "Column name for the target node."
-                        + " Required when source='tabular-file'."));
+        properties.put(
+                "target_column",
+                Map.of(
+                        "type",
+                        "string",
+                        "description",
+                        "Column name for the target node."
+                                + " Required when source='tabular-file'."));
 
-        properties.put("interaction_column", Map.of(
-                "type", "string",
-                "description", "Column name for the edge interaction type."
-                        + " Optional for source='tabular-file'."));
+        properties.put(
+                "interaction_column",
+                Map.of(
+                        "type",
+                        "string",
+                        "description",
+                        "Column name for the edge interaction type."
+                                + " Optional for source='tabular-file'."));
 
-        properties.put("delimiter_char_code", Map.of(
-                "type", "integer",
-                "description", "ASCII character code of the column delimiter"
-                        + " (e.g. 44 for comma, 9 for tab)."
-                        + " Required for non-Excel tabular files."));
+        properties.put(
+                "delimiter_char_code",
+                Map.of(
+                        "type",
+                        "integer",
+                        "description",
+                        "ASCII character code of the column delimiter"
+                                + " (e.g. 44 for comma, 9 for tab)."
+                                + " Required for non-Excel tabular files."));
 
-        properties.put("use_header_row", Map.of(
-                "type", "boolean",
-                "description", "Whether the first row of the file contains column headers."
-                        + " Required when source='tabular-file'."));
+        properties.put(
+                "use_header_row",
+                Map.of(
+                        "type",
+                        "boolean",
+                        "description",
+                        "Whether the first row of the file contains column headers."
+                                + " Required when source='tabular-file'."));
 
-        properties.put("excel_sheet", Map.of(
-                "type", "string",
-                "description", "Name of the Excel sheet containing the network data."
-                        + " Required for Excel tabular files."));
+        properties.put(
+                "excel_sheet",
+                Map.of(
+                        "type",
+                        "string",
+                        "description",
+                        "Name of the Excel sheet containing the network data."
+                                + " Required for Excel tabular files."));
 
-        properties.put("node_attributes_sheet", Map.of(
-                "type", "string",
-                "description", "Name of an Excel sheet containing node attribute data."
-                        + " Optional for Excel tabular files."));
+        properties.put(
+                "node_attributes_sheet",
+                Map.of(
+                        "type",
+                        "string",
+                        "description",
+                        "Name of an Excel sheet containing node attribute data."
+                                + " Optional for Excel tabular files."));
 
-        properties.put("node_attributes_key_column", Map.of(
-                "type", "string",
-                "description", "Column name in the node attributes sheet that contains the node"
-                        + " ID for joining. Used with node_attributes_sheet."));
+        properties.put(
+                "node_attributes_key_column",
+                Map.of(
+                        "type",
+                        "string",
+                        "description",
+                        "Column name in the node attributes sheet that contains the node"
+                                + " ID for joining. Used with node_attributes_sheet."));
 
         Map<String, Object> stringArrayItems = Map.of("type", "string");
 
         Map<String, Object> sourceColsProp = new LinkedHashMap<>();
         sourceColsProp.put("type", "array");
         sourceColsProp.put("items", stringArrayItems);
-        sourceColsProp.put("description", "Array of column names from the node attributes sheet"
-                + " to map as source node properties.");
+        sourceColsProp.put(
+                "description",
+                "Array of column names from the node attributes sheet"
+                        + " to map as source node properties.");
         properties.put("node_attributes_source_columns", sourceColsProp);
 
         Map<String, Object> targetColsProp = new LinkedHashMap<>();
         targetColsProp.put("type", "array");
         targetColsProp.put("items", stringArrayItems);
-        targetColsProp.put("description", "Array of column names from the node attributes sheet"
-                + " to map as target node properties.");
+        targetColsProp.put(
+                "description",
+                "Array of column names from the node attributes sheet"
+                        + " to map as target node properties.");
         properties.put("node_attributes_target_columns", targetColsProp);
 
         Tool toolDef =
@@ -188,12 +237,7 @@ public class LoadNetworkViewTool {
                         .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                         .inputSchema(
                                 new JsonSchema(
-                                        "object",
-                                        properties,
-                                        List.of("source"),
-                                        null,
-                                        null,
-                                        null))
+                                        "object", properties, List.of("source"), null, null, null))
                         .build();
 
         return McpServerFeatures.SyncToolSpecification.builder()
@@ -208,8 +252,9 @@ public class LoadNetworkViewTool {
         LOGGER.info("Tool call received: {} params={}", TOOL_NAME, request.arguments());
         String source = extractString(request, "source");
         if (source == null) {
-            return error("'source' is required. Must be 'ndex', 'network-file',"
-                    + " or 'tabular-file'.");
+            return error(
+                    "'source' is required. Must be 'ndex', 'network-file',"
+                            + " or 'tabular-file'.");
         }
         switch (source) {
             case "ndex":
@@ -219,8 +264,11 @@ public class LoadNetworkViewTool {
             case "tabular-file":
                 return handleTabularImport(request);
             default:
-                return error("Invalid source: '" + source + "'. Must be 'ndex',"
-                        + " 'network-file', or 'tabular-file'.");
+                return error(
+                        "Invalid source: '"
+                                + source
+                                + "'. Must be 'ndex',"
+                                + " 'network-file', or 'tabular-file'.");
         }
     }
 
@@ -272,9 +320,10 @@ public class LoadNetworkViewTool {
     private CallToolResult handleNetworkFileImport(CallToolRequest request) {
         String filePath = extractString(request, "file_path");
         if (filePath == null) {
-            return error("'file_path' is required when source='network-file'."
-                    + " Provide the absolute path to a network file"
-                    + " (.sif, .gml, .xgmml, .cx, .cx2, .graphml, .sbml, .owl, .biopax).");
+            return error(
+                    "'file_path' is required when source='network-file'."
+                            + " Provide the absolute path to a network file"
+                            + " (.sif, .gml, .xgmml, .cx, .cx2, .graphml, .sbml, .owl, .biopax).");
         }
 
         File file = new File(filePath);
@@ -288,8 +337,8 @@ public class LoadNetworkViewTool {
             executeFileLoad(file);
         } catch (Exception e) {
             LOGGER.error("Error loading network from file {}", filePath, e);
-            return error("Failed to load network from file: " + filePath
-                    + ", error: " + e.getMessage());
+            return error(
+                    "Failed to load network from file: " + filePath + ", error: " + e.getMessage());
         }
 
         CyNetwork loadedNetwork = appManager.getCurrentNetwork();

@@ -12,10 +12,9 @@ import io.modelcontextprotocol.spec.McpSchema.TextContent;
 /**
  * MCP prompt that communicates Cytoscape-wide guidelines to the agent.
  *
- * <p>Registered as the {@code cytoscape-guidelines} prompt. Agents that call
- * {@code prompts/get} with this name receive behavioral rules that apply globally to all
- * Cytoscape tool interactions — in particular, how to handle connectivity failures when
- * Cytoscape Desktop is not running.
+ * <p>Registered as the {@code cytoscape-guidelines} prompt. Agents that call {@code prompts/get}
+ * with this name receive behavioral rules that apply globally to all Cytoscape tool interactions —
+ * in particular, how to handle connectivity failures when Cytoscape Desktop is not running.
  */
 public class GuidelinePrompt {
 
@@ -56,8 +55,7 @@ public class GuidelinePrompt {
             confirm the server is operational.'
             """;
 
-    private static final Prompt PROMPT =
-            new Prompt(PROMPT_NAME, PROMPT_DESCRIPTION, List.of());
+    private static final Prompt PROMPT = new Prompt(PROMPT_NAME, PROMPT_DESCRIPTION, List.of());
 
     public McpServerFeatures.SyncPromptSpecification toSpec() {
         return new McpServerFeatures.SyncPromptSpecification(
@@ -67,7 +65,6 @@ public class GuidelinePrompt {
                                 PROMPT_DESCRIPTION,
                                 List.of(
                                         new PromptMessage(
-                                                Role.USER,
-                                                new TextContent(GUIDELINE_TEXT)))));
+                                                Role.USER, new TextContent(GUIDELINE_TEXT)))));
     }
 }

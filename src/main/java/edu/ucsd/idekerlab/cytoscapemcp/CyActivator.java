@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsd.idekerlab.cytoscapemcp.prompts.GuidelinePrompt;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.InspectTabularFileTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.ui.McpStatusPanel;
@@ -249,7 +250,8 @@ public class CyActivator extends AbstractCyActivator {
         mcpServer =
                 McpServer.sync(transportProvider)
                         .serverInfo("cytoscape-mcp", bundleVersion)
-                        .capabilities(ServerCapabilities.builder().tools(false).prompts(false).build())
+                        .capabilities(
+                                ServerCapabilities.builder().tools(false).prompts(false).build())
                         .jsonMapper(new JacksonMcpJsonMapper(objectMapper))
                         .jsonSchemaValidator(new DefaultJsonSchemaValidator(objectMapper))
                         .build();
@@ -279,6 +281,9 @@ public class CyActivator extends AbstractCyActivator {
                 new CreateNetworkViewTool(
                         appManager, networkManager, viewManager, networkViewFactory);
         mcpServer.addTool(createNetworkViewTool.toSpec());
+
+        InspectTabularFileTool inspectTabularFileTool = new InspectTabularFileTool();
+        mcpServer.addTool(inspectTabularFileTool.toSpec());
 
         // Register MCP prompts.
         mcpServer.addPrompt(new GuidelinePrompt().toSpec());
