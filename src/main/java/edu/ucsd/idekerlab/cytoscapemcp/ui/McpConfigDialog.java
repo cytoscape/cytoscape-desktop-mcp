@@ -138,7 +138,7 @@ public class McpConfigDialog extends JDialog {
                         + "</html>";
             }
             String md = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            md = md.replace("{mcp.http_port}", String.valueOf(port));
+            md = md.replace("{rest.port}", String.valueOf(port));
             Parser parser = Parser.builder().build();
             HtmlRenderer renderer = HtmlRenderer.builder().build();
             Node doc = parser.parse(md);

@@ -1,8 +1,8 @@
 # Connecting an Agent to the Cytoscape MCP Server
 
-**MCP URL:** `http://localhost:{mcp.http_port}/mcp`
+**MCP URL:** `http://localhost:{rest.port}/mcp`
 
-Cytoscape must be running with this app installed. The port defaults to 9998 and can be changed under Edit > Preferences > Properties > cytoscapemcp.
+Cytoscape must be running with this app installed. The app will run an mcp server that runs under the existing Cyrest port.
 
 Multiple agents can connect simultaneously. Cytoscape is a single-user application — concurrent agents may issue conflicting commands.
 
@@ -15,7 +15,7 @@ If your agent is not listed below, consult its documentation for configuring an 
 Open Claude Desktop and go to **Settings > Connectors**. Click **Add custom connector**. Enter the URL and save — active immediately, no restart needed.
 
 ```
-http://localhost:{mcp.http_port}/mcp
+http://localhost:{rest.port}/mcp
 ```
 
 To verify: click the **+** button in the chat input and select **Connectors**.
@@ -25,7 +25,7 @@ To verify: click the **+** button in the chat input and select **Connectors**.
 ## Claude Code
 
 ```
-claude mcp add --transport http cytoscape-mcp http://localhost:{mcp.http_port}/mcp
+claude mcp add --transport http cytoscape-mcp http://localhost:{rest.port}/mcp
 ```
 
 To verify:
@@ -41,13 +41,13 @@ claude mcp list
 **Option A — Command Palette:** Open Command Palette (Cmd+Shift+P / Ctrl+Shift+P), run **MCP: Add Server**, choose HTTP, enter the URL below, name it `cytoscape-mcp`.
 
 ```
-http://localhost:{mcp.http_port}/mcp
+http://localhost:{rest.port}/mcp
 ```
 
 **Option B — CLI:**
 
 ```
-code --add-mcp '{"name":"cytoscape-mcp","type":"http","url":"http://localhost:{mcp.http_port}/mcp"}'
+code --add-mcp '{"name":"cytoscape-mcp","type":"http","url":"http://localhost:{rest.port}/mcp"}'
 ```
 
 ---
@@ -58,7 +58,7 @@ Inside a Copilot CLI interactive session, run `/mcp add` and fill in the form (T
 
 **Server Name:** `cytoscape-mcp`
 **Server Type:** SSE
-**URL:** `http://localhost:{mcp.http_port}/mcp`
+**URL:** `http://localhost:{rest.port}/mcp`
 **HTTP Headers:** leave blank
 
 To verify: run `/mcp show` inside the session.
@@ -68,7 +68,7 @@ To verify: run `/mcp show` inside the session.
 ## OpenAI Codex CLI
 
 ```
-codex mcp add cytoscape-mcp --http-url http://localhost:{mcp.http_port}/mcp
+codex mcp add cytoscape-mcp --http-url http://localhost:{rest.port}/mcp
 ```
 
 To verify: run `codex mcp list` or type `/mcp` inside the Codex TUI.
@@ -80,7 +80,7 @@ To verify: run `codex mcp list` or type `/mcp` inside the Codex TUI.
 To interrogate the MCP server directly, install [cli-mcp](https://lobehub.com/mcp/zueai-cli-mcp):
 
 ```
-uvx cli-mcp direct list --url http://localhost:{mcp.http_port}/mcp
+uvx cli-mcp direct list --url http://localhost:{rest.port}/mcp
 ```
 
 Install uv first if needed:

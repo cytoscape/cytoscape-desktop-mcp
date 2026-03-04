@@ -15,18 +15,19 @@ An embedded [Model Context Protocol (MCP)][mcp] server for [Cytoscape Desktop][c
 
 ## How It Works
 
-Once installed, the app starts a Jetty HTTP server inside Cytoscape on startup. AI clients connect to the MCP Streamable HTTP endpoint and call MCP tools that interact with Cytoscape's Java API. The server runs entirely within the Cytoscape process.
+Once installed, the app publishes an MCP endpoint inside Cytoscape's existing CyREST HTTP server — AI clients connect to the MCP endpoint with Streamable HTTP transport and call MCP tools which drive activity on the Cytoscape desktop display. 
 
 The app also adds two visual indicators to the Cytoscape Desktop UI:
 
-- **MCP toolbar button** — a bold **MCP** button in the bottom-left status bar. The label is green when the MCP server is running and red when it is not (e.g. port conflict on startup). Clicking it opens the Agent Configuration dialog with connection instructions for all supported agents.
+- **MCP toolbar button** — a bold **MCP** button in the bottom-left status bar. The label is green when the MCP server is running and red when it is not. Clicking it opens the Agent Configuration dialog with connection instructions for all supported agents.
 - **Task History entries** — every MCP tool invocation is recorded in Cytoscape's Task History panel (**View > Show Task History**), so you can see exactly which tools an agent called and when.
 
 ```
-Claude Desktop ──HTTP──► http://localhost:9998/mcp ──► Cytoscape Desktop
-                                                           └── load network from NDEx
-                                                           └── set current network view
-                                                           └── (more tools coming)
+AI Agent──► HTTP──► http://localhost:{rest.port}/mcp ──► Cytoscape Desktop
+                                                               └── load network from NDEx or file
+                                                               └── get loaded network views
+                                                               └── set current network view
+                                                               └── create network view
 ```
 
 ## Requirements
@@ -34,44 +35,6 @@ Claude Desktop ──HTTP──► http://localhost:9998/mcp ──► Cytoscape
 * [Cytoscape][cytoscape] 3.10 or above
 * Internet connection (for loading networks from [NDEx][ndex])
 * An MCP-compatible AI client that also supports the Streamable HTTP transport(not SSE which is [deprecated as of 02/2025](https://auth0.com/blog/mcp-streamable-http/)) (e.g. Claude Desktop)
-
-## Installation
-
-1. Download the latest `cytoscape-mcp-<VERSION>.jar` from the [Releases](../../releases) page.
-2. Open Cytoscape Desktop.
-3. Navigate to **Apps > App Manager > Install from File**.
-4. Select the downloaded JAR and restart Cytoscape if prompted.
-
-After startup, the MCP server endpoint:
-```
-Cytoscape MCP Server started on port 9998
-MCP endpoint:     http://localhost:9998/mcp
-```
-
-## Connecting to an Agent
-
-See **[docs/AgentConfiguration.md](docs/AgentConfiguration.md)** for step-by-step setup instructions for Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
-
-## Available Cytoscape Desktop MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `load_cytoscape_network_view` | Loads a network from [NDEx][ndex] by UUID and sets it as the current view in Cytoscape |
-
-
-**Example prompt** — after connecting your agent, try this to load the Yeast ergosterol network:
-
-> Load the NDEx network 63836e7b-ca44-11f0-a218-005056ae3c32 into Cytoscape
-
-
-## Configuration
-
-Properties are editable at runtime via **Edit > Preferences > Properties > cytoscapemcp**:
-
-| Property | Default | Description |
-|----------|---------|-------------|
-| `mcp.http_port` | `9998` | TCP port the MCP server listens on (restart required) |
-| `mcp.ndexbaseurl` | `https://www.ndexbio.org` | NDEx base URL (takes effect immediately) |
 
 ## Building from Source
 
@@ -92,6 +55,50 @@ For a full list of build targets:
 ```bash
 make help
 ```
+
+## Installation
+
+1. Get the mcp app jar:
+    * Download the latest `cytoscape-mcp-<VERSION>.jar` from the [Releases](../../releases) page.
+    * [Build](#building-from-source) the jar 
+2. Open Cytoscape Desktop.
+3. Navigate to **Apps > App Manager > Install from File**.
+4. Select the file path to the MCP App JAR and restart Cytoscape if prompted.
+
+After startup, the MCP endpoint is available at:
+```
+http://localhost:{rest.port}/mcp
+```
+where `{rest.port}` is Cytoscape's CyREST port (default 1234). The current port is shown in the Agent Configuration dialog (click the **MCP** button in the status bar).
+
+Refer to [Diagnostics](docs/AgentConfiguration.md#diagnostics) for more information on how to manually inspect and verify the Mcp server.
+
+## Connecting an Agent to Cytoscape Desktop
+
+See **[docs/AgentConfiguration.md](docs/AgentConfiguration.md)** for step-by-step setup instructions for Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
+
+## Available Cytoscape Desktop MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `load_cytoscape_network_view` | Loads a network from [NDEx][ndex] by UUID, a network-format file, or a tabular data file and sets it as the current view |
+| `get_loaded_network_views` | Returns all networks and views currently loaded in Cytoscape |
+| `set_current_network_view` | Sets the active network view by network or view ID |
+| `create_network_view` | Creates a new view for an existing network that has no view |
+
+
+**Example activation prompts** — after connecting your agent, try this to load the Yeast ergosterol network:
+
+> Load the NDEx network 63836e7b-ca44-11f0-a218-005056ae3c32 into Cytoscape
+
+
+## Desktop Configuration
+
+Properties are editable at runtime via **Edit > Preferences > Properties > cytoscapemcp**:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `mcp.ndexbaseurl` | `https://www.ndexbio.org` | NDEx base URL (takes effect immediately) |
 
 ## Documentation
 

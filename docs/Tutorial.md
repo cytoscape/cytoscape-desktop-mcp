@@ -16,15 +16,15 @@ This tutorial walks through the complete workflow of connecting Claude Desktop t
 After Cytoscape starts, look at the **bottom-left corner** of the Cytoscape window. You should see a bold **MCP** button:
 
 - **Green label** — the server started successfully and is ready.
-- **Red label** — the server failed to start (usually a port conflict). Change `mcp.http_port` under **Edit > Preferences > Properties > cytoscapemcp** and restart Cytoscape.
+- **Red label** — the server is not responding. Check that CyREST is active and the `mcp.http_port` setting in **Edit > Preferences > Properties > cytoscapemcp** matches Cytoscape's actual CyREST port.
 
 You can also confirm via `curl`:
 
 ```bash
-curl http://localhost:9998/mcp
+curl http://localhost:{rest.port}/mcp/health
 ```
 
-A 400 or 405 HTTP response confirms the server is listening. A "connection refused" error means the server is not running.
+Replace `{rest.port}` with the CyREST port shown in the Agent Configuration dialog. A `{"status":"ok"}` response confirms the server is ready. A "connection refused" error means Cytoscape is not running.
 
 ---
 
@@ -75,4 +75,9 @@ If you are using a custom NDEx instance, update the base URL via **Edit > Prefer
 
 ## What's Next?
 
-Additional MCP tools for Cytoscape (querying network data, applying visual styles, running layouts, etc.) can be added by extending the app. See the source code in `src/main/java/edu/ucsd/idekerlab/cytoscapemcp/tools/` for the tool implementation pattern.
+Explore the other available tools — ask your agent to:
+- List all networks currently loaded in Cytoscape
+- Switch the active network view to a different network
+- Create a new view for a network that has no view
+
+Additional tools can be added by extending the app. See `src/main/java/edu/ucsd/idekerlab/cytoscapemcp/tools/` for the implementation pattern.

@@ -18,7 +18,11 @@ The UUID is `a7e43e3d-c7f8-11ec-8d17-005056ae23aa`.
 
 ### What port does the server use?
 
-Default is **9998**. You can change it via **Edit > Preferences > Properties > cytoscapemcp** (`mcp.http_port`). A Cytoscape restart is required for port changes to take effect.
+The MCP server runs inside Cytoscape's existing **CyREST** HTTP server — no separate port is opened. The MCP endpoint is at:
+```
+http://localhost:{rest.port}/mcp
+```
+where `{rest.port}` is Cytoscape's CyREST port (default varies by Cytoscape version). The current endpoint URL is shown in the Agent Configuration dialog — click the **MCP** button in the status bar.
 
 ---
 
@@ -38,9 +42,9 @@ Only when the `load_cytoscape_network_view` tool is called — it fetches the ne
 
 Run the following from a terminal while Cytoscape is open:
 ```bash
-curl http://localhost:9998/mcp
+curl http://localhost:{rest.port}/mcp/health
 ```
-You should see an HTTP response (a 400 or 405 error is expected — it confirms the server is listening). A "connection refused" error means the server is not running.
+Replace `{rest.port}` with Cytoscape's CyREST port (shown in the Agent Configuration dialog). You should see `{"status":"ok","transport":"mcp-streamable-http"}`. A "connection refused" error means Cytoscape is not running or the port is wrong.
 
 ---
 
@@ -55,7 +59,7 @@ You should see an HTTP response (a 400 or 405 error is expected — it confirms 
 
 ### What happens when Cytoscape shuts down?
 
-The MCP server stops cleanly. The OSGi framework calls the app's `shutDown()` callback, which stops Jetty and the MCP server before the JVM exits.
+The MCP server stops cleanly. The OSGi framework calls the app's `shutDown()` callback, which deregisters the MCP endpoint before the JVM exits.
 
 ---
 

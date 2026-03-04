@@ -4,7 +4,7 @@
 
 The Cytoscape MCP Server app exposes [Cytoscape Desktop](https://cytoscape.org) as an MCP (Model Context Protocol) server, allowing AI clients such as Claude Desktop to control Cytoscape directly through natural language.
 
-Once installed, the app starts an HTTP server inside Cytoscape that AI clients connect to over HTTP. Clients can discover and call tools that load networks, manipulate views, and query the active session.
+Once installed, the app registers an MCP endpoint inside Cytoscape's existing CyREST HTTP server. No separate server process or port is started. AI clients connect to the MCP Streamable HTTP endpoint and call tools that load networks, manipulate views, and query the active session.
 
 ---
 
@@ -16,11 +16,7 @@ Once installed, the app starts an HTTP server inside Cytoscape that AI clients c
 4. Click **Install from File** and select the downloaded JAR.
 5. Restart Cytoscape if prompted.
 
-After startup the app logs:
-```
-Cytoscape MCP Server started on port 9998 (version X.Y.Z)
-MCP endpoint:     http://localhost:9998/mcp
-```
+After startup the MCP endpoint is available at `http://localhost:{rest.port}/mcp` where `{rest.port}` is Cytoscape's CyREST port. The current endpoint URL is shown in the Agent Configuration dialog (click the **MCP** button in the status bar).
 
 ---
 
@@ -33,7 +29,7 @@ The app adds two visual indicators to the Cytoscape Desktop interface:
 A bold **MCP** button appears in the bottom-left status bar next to the other status buttons. The label color reflects the current server state:
 
 - **Green** — MCP server is running and ready to accept connections.
-- **Red** — MCP server failed to start (e.g. the configured port is already in use by another process). Check `mcp.http_port` in Preferences and restart Cytoscape.
+- **Red** — MCP server is not responding. Verify that Cytoscape is running and CyREST is active.
 
 Click the button to open the **Agent Configuration** dialog, which shows the current endpoint URL and step-by-step connection instructions for all supported agents.
 
@@ -49,10 +45,9 @@ Properties are editable at runtime via **Edit > Preferences > Properties > cytos
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `mcp.http_port` | `9998` | TCP port the MCP HTTP server listens on |
 | `mcp.ndexbaseurl` | `https://www.ndexbio.org` | Base URL of the NDEx server to load networks from |
 
-Changes to `mcp.ndexbaseurl` take effect immediately (tool calls read it at invocation time). Port changes require a Cytoscape restart.
+Changes to `mcp.ndexbaseurl` take effect immediately (tool calls read it at invocation time).
 
 ---
 
@@ -60,21 +55,48 @@ Changes to `mcp.ndexbaseurl` take effect immediately (tool calls read it at invo
 
 ### `load_cytoscape_network_view`
 
-Loads a biological network from [NDEx](https://www.ndexbio.org) into Cytoscape Desktop and sets it as the current active network view.
+Loads a network into Cytoscape Desktop from NDEx (by UUID), a network-format file, or a tabular data file, and sets it as the current active network view.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `network-id` | string | Yes | UUID of the network on NDEx (e.g. `a7e43e3d-c7f8-11ec-8d17-005056ae23aa`) |
+| `network-id` | string | Yes | NDEx UUID, file path, or URL of the network to load |
 
-**Returns:** A confirmation message with the loaded network name, or an error description if the network was not found.
+**Returns:** Confirmation with the loaded network name, or an error description.
 
-**Network IDs** can be found by browsing [NDEx](https://www.ndexbio.org), searching for the network of interest, and copying the UUID from the URL of the network's detail page.
+---
 
-**Example prompt** — after connecting your agent, try this to load the Yeast ergosterol network:
+### `get_loaded_network_views`
 
-> Load the NDEx network 63836e7b-ca44-11f0-a218-005056ae3c32 into Cytoscape
+Returns all networks and views currently loaded in Cytoscape.
+
+**Returns:** A list of network names, network SUIDs, and their associated view SUIDs.
+
+---
+
+### `set_current_network_view`
+
+Sets the active network view in Cytoscape by network or view ID.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `network-suid` | string | No | SUID of the network to activate |
+| `view-suid` | string | No | SUID of the specific view to activate |
+
+---
+
+### `create_network_view`
+
+Creates a new view for an existing network that currently has no view.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `network-suid` | string | Yes | SUID of the network to create a view for |
 
 ---
 
@@ -86,8 +108,6 @@ See **[AgentConfiguration.md](AgentConfiguration.md)** for step-by-step setup in
 
 ## Troubleshooting
 
-**Port already in use:** If another process is on port 9998, change `mcp.http_port` in Preferences and restart Cytoscape.
-
-**Tool call fails with "not found":** Verify the NDEx network UUID is correct and that the NDEx server at `mcp.ndexbaseurl` is reachable from your machine.
+**MCP button is red:** The MCP server had a startup failure or sever runtime failure. Run `curl http://localhost:{rest.port}/mcp/health` to confirm.
 
 **App does not appear in Preferences:** Confirm the JAR was installed through App Manager and Cytoscape was restarted.

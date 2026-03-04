@@ -167,8 +167,8 @@ public class McpConfigDialogTest {
         assertNotNull("Editor pane should exist", editorPane);
         String content = editorPane.getText();
         assertFalse(
-                "Placeholder {mcp.http_port} should be replaced",
-                content.contains("{mcp.http_port}"));
+                "Placeholder {rest.port} should be replaced",
+                content.contains("{rest.port}"));
         assertTrue(
                 "Rendered content should contain the actual port number",
                 content.contains(String.valueOf(testPort)));
