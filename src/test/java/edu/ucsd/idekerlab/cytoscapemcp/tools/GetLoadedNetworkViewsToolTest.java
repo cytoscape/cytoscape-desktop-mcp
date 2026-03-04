@@ -11,7 +11,12 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -25,11 +30,15 @@ import org.cytoscape.model.subnetwork.CySubNetwork;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewManager;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +48,8 @@ import static org.mockito.Mockito.when;
  * InMemoryTransport}. Cytoscape services are Mockito stubs.
  */
 public class GetLoadedNetworkViewsToolTest {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     // --- JSON-RPC protocol messages ----------------------------------------
 
@@ -264,5 +275,39 @@ public class GetLoadedNetworkViewsToolTest {
             idx += substring.length();
         }
         return count;
+    }
+
+    // -----------------------------------------------------------------------
+    // Schema tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void inputSchema_isValidJson() throws Exception {
+        JsonNode schema = MAPPER.readTree(GetLoadedNetworkViewsTool.INPUT_SCHEMA);
+        assertNotNull(schema);
+        assertTrue(schema.isObject());
+    }
+
+    @Test
+    public void inputSchema_typeIsObject() throws Exception {
+        JsonNode schema = MAPPER.readTree(GetLoadedNetworkViewsTool.INPUT_SCHEMA);
+        assertEquals("object", schema.get("type").asText());
+    }
+
+    @Test
+    public void inputSchema_requiredIsEmpty() throws Exception {
+        JsonNode required = MAPPER.readTree(GetLoadedNetworkViewsTool.INPUT_SCHEMA).get("required");
+        assertNotNull(required);
+        assertTrue(required.isArray());
+        assertEquals(0, required.size());
+    }
+
+    @Test
+    public void inputSchema_propertiesIsEmptyObject() throws Exception {
+        JsonNode schema = MAPPER.readTree(GetLoadedNetworkViewsTool.INPUT_SCHEMA);
+        JsonNode props = schema.get("properties");
+        assertNotNull(props);
+        assertTrue(props.isObject());
+        assertEquals(0, props.size());
     }
 }
