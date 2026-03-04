@@ -2,7 +2,7 @@
 
 ## Context
 
-The product specs (01 through 03, plus 00 shared reference) define a **Network Setup and Styling Wizard** delivered as MCP prompts and tools. The wizard orchestrates 6 phases: select/create network view (Phase 0), load network (Phase 1), analyze (Phase 2), layout (Phase 3), default styling (Phase 4, delegated to 02 spec), mapping styling (Phase 5, delegated to 03 spec), and wrap-up (Phase 6).
+The product specs (01 through 04, plus 00 shared reference) define a **Network Setup and Styling Wizard** delivered as MCP prompts and tools. The wizard orchestrates 6 phases: select/create network view (Phase 0), load network (Phase 1, delegated to 04 spec), analyze (Phase 2), layout (Phase 3), default styling (Phase 4, delegated to 02 spec), mapping styling (Phase 5, delegated to 03 spec), and wrap-up (Phase 6).
 
 First review these docs to understand the network wizard feature spec, they are all located in `docs/harness/product-specs/` and keep in mind the [app developer cookbook](https://wikiold.cytoscape.org/Cytoscape_3/AppDeveloper/Cytoscape_3_App_Cookbook), it will be a good referecne when you are trying to understand how to accomplish any app ui sdk concerns. 
 
@@ -18,7 +18,7 @@ This document captures the bottoms-up DFS traversal of the spec hierarchy (01 �
 │   ├── get_loaded_network_views tool
 │   ├── set_current_network_view tool
 │   └── create_network_view tool
-├── Phase 1: Load Network
+├── Phase 1: Load Network → delegates to 04-load-network-prompt
 │   ├── load_cytoscape_network_view (refactor existing, add source param)
 │   │   ├── NDEx path (already exists — adapt to new schema)
 │   │   ├── Native file format path (new — LoadNetworkFileTaskFactory)
@@ -99,52 +99,140 @@ Each task is an independent, committable unit with unit tests. Tasks are ordered
 
 ---
 
-| 6 | **Refactor `load_cytoscape_network_view` — add `source` dispatch and NDEx adapter** | Modify `LoadNetworkViewTool` input schema: add `source` (enum: ndex/network-file/tabular-file), rename `network-id` to `network_id`, add `file_path`/`source_column`/`target_column`/`interaction_column`/`node_attributes_source_columns`/`node_attributes_target_columns` fields. Add `source` dispatch in handler. Adapt existing NDEx loading to the `source=ndex` branch (logic stays same, just gated on source). Update tool description. Return JSON response `{status, network_suid, node_count, edge_count, network_name}` instead of plain text. Update existing tests for new schema. | 01 §4.1, 01 §5.1, 01 §5.1.1 |
-| 7 | **`load_cytoscape_network_view` — network file format support** | Add dispatch to `handleFileImport()` when `source=network-file` — the agent sets this based on the user's explicit STEP 1a choice of "Network formatted data"; no extension-based auto-detection or unrecognized-extension fallback is needed. Loads via `LoadNetworkFileTaskFactory` for formats Cytoscape parses natively (.sif, .gml, .xgmml, .cx, .cx2, .graphml, .sbml, .owl, .biopax). File existence validation, timeout handling (120s), error responses. Tests: mock `LoadNetworkFileTaskFactory`, verify file loading flow, file-not-found error. | 01 §5.1.2 |
-| 7b | **Implement `inspect_tabular_file` tool** | New tool class that inspects a tabular data file to determine if it is Excel format and, if so, enumerate its sheets. This tool bridges the gap between the user selecting "Tabular data" (STEP 1a) and the agent knowing which sub-flow to follow (Step 1b1 Excel vs Step 1b2 non-Excel). Input schema: `{ "file_path": string }`. Behavior: attempts to open the file with Apache POI (`WorkbookFactory.create(file)`) — if POI succeeds, it is Excel: iterate all sheets via `workbook.getNumberOfSheets()` / `workbook.getSheetName(i)` and return them. If POI throws `InvalidFormatException` or `IOException`, treat as non-Excel: parse the file extension from the path. Returns JSON: `{ "is_excel": boolean, "sheets": [string] (present only when is_excel=true), "detected_extension": string (present only when is_excel=false, e.g. ".csv", ".tsv", ".txt") }`. The agent uses `is_excel` to route to Step 1b1 (Excel sheet selection) or Step 1b2 (delimiter selection), and uses `sheets` to present the sheet list without a second round-trip. File-not-found and unreadable-file errors return `isError=true` with a human-readable message. Tests: valid `.xlsx` with 3 sheets (verify sheet names + order), valid `.xls` legacy format, non-Excel `.csv` (verify `detected_extension=".csv"`), non-Excel `.tsv`, file-not-found error, corrupt/empty file error. | 01 §Step 1b, 01 §Step 1b1 |
-| 8 | **Implement `get_file_columns` tool** | New tool class that reads column headers from tabular data files. Depends on Task 7b — the agent calls `inspect_tabular_file` first to determine Excel vs non-Excel and (for Excel) to get the sheet list; those results feed into this tool's parameters. Input schema: `{ "file_path": string, "delimiter_char_code": integer (nullable), "use_header_row": boolean, "excel_sheet": string (nullable) }`. For Excel (.xls/.xlsx) via Apache POI (`WorkbookFactory.create(file)`): open workbook, read columns from the sheet named by `excel_sheet`; `delimiter_char_code` is ignored for Excel. For non-Excel text files: split lines using `delimiter_char_code` (ASCII integer) — the agent confirms the delimiter with the user in STEP 1b2 before calling this tool; no extension-based auto-detection in the tool itself. `use_header_row=false`: generate ordinal column names "Column 1", "Column 2", etc. instead of reading the first row as headers. Note: the agent calls this tool twice for Excel when a node-attributes sheet is selected — first for the network data sheet (Step 1b3), then again with the node-attributes sheet name (after Step 1b3.5, if user opts in to node attribute mapping) to enumerate its columns for the key-column prompt. Tests: CSV comma (code 44), TSV tab (code 9), custom/pipe (code 124), Excel with explicit `excel_sheet` param, multi-sheet Excel second call with different sheet name, `use_header_row=false` ordinal naming. | 01 §4.2, 01 §5.2 |
-| 9 | **`load_cytoscape_network_view` — tabular file import with column mapping** | Add dispatch to `handleTabularImport()` when `source=tabular-file`. Extend the tool input schema (also update Task 6 schema for these new fields): `delimiter_char_code` (integer, required for non-Excel text files), `use_header_row` (boolean), `excel_sheet` (string, nullable — which Excel sheet holds the source/target network edge data), `node_attributes_sheet` (string, nullable), `node_attributes_key_column` (string, nullable), `node_attributes_source_columns` (array of strings, nullable — columns to map as source node properties), `node_attributes_target_columns` (array of strings, nullable — columns to map as target node properties). Primary network import: uses Cytoscape's command API (`CommandExecutorTaskFactory`) or equivalent task factory, passing `delimiter_char_code`, `use_header_row`, `excel_sheet`, and source/target/interaction column mapping. Secondary node attribute import: when `node_attributes_key_column` is non-null, import node properties. If `node_attributes_sheet` is also non-null (Excel path where user selected a node attribute sheet after STEP 1b3.5), use Apache POI to read that sheet and import into the node table joining on the key column. If `node_attributes_sheet` is null (non-Excel path), load node properties from the same file's columns. In both cases, `node_attributes_source_columns` and `node_attributes_target_columns` specify which columns map to source/target node properties respectively; remaining unmapped columns become edge properties. Skip secondary import entirely if `node_attributes_key_column` is null. Tests: non-Excel with delimiter + `use_header_row`; Excel with `excel_sheet`; non-Excel node-attribute import (same file, key column + source/target column lists); Excel node-attribute import from separate sheet; verify secondary import triggered when `node_attributes_key_column` is non-null; verify secondary import skipped when `node_attributes_key_column` is null; verify node table merge uses correct key column; verify source/target column routing. | 01 §5.1.3 |
+| 6 | **Refactor `load_cytoscape_network_view` — add `source` dispatch and NDEx adapter** | Modify `LoadNetworkViewTool` input schema: add `source` (enum: ndex/network-file/tabular-file), rename `network-id` to `network_id`, add `file_path`/`source_column`/`target_column`/`interaction_column`/`node_attributes_source_columns`/`node_attributes_target_columns` fields. Add `source` dispatch in handler. Adapt existing NDEx loading to the `source=ndex` branch (logic stays same, just gated on source). Update tool description. Return JSON response `{status, network_suid, node_count, edge_count, network_name}` instead of plain text. Update existing tests for new schema. | 04 §4.1, 04 §5.1, 04 §5.1.1 |
+| 7 | **`load_cytoscape_network_view` — network file format support** | Add dispatch to `handleFileImport()` when `source=network-file` — the agent sets this based on the user's explicit STEP 1a choice of "Network formatted data"; no extension-based auto-detection or unrecognized-extension fallback is needed. Loads via `LoadNetworkFileTaskFactory` for formats Cytoscape parses natively (.sif, .gml, .xgmml, .cx, .cx2, .graphml, .sbml, .owl, .biopax). File existence validation, timeout handling (120s), error responses. Tests: mock `LoadNetworkFileTaskFactory`, verify file loading flow, file-not-found error. | 04 §5.1.2 |
+| 7b | **Implement `inspect_tabular_file` tool** | New tool class that inspects a tabular data file to determine if it is Excel format and, if so, enumerate its sheets. This tool bridges the gap between the user selecting "Tabular data" (STEP 1a) and the agent knowing which sub-flow to follow (Step 1b1 Excel vs Step 1b2 non-Excel). Input schema: `{ "file_path": string }`. Behavior: attempts to open the file with Apache POI (`WorkbookFactory.create(file)`) — if POI succeeds, it is Excel: iterate all sheets via `workbook.getNumberOfSheets()` / `workbook.getSheetName(i)` and return them. If POI throws `InvalidFormatException` or `IOException`, treat as non-Excel: parse the file extension from the path. Returns JSON: `{ "is_excel": boolean, "sheets": [string] (present only when is_excel=true), "detected_extension": string (present only when is_excel=false, e.g. ".csv", ".tsv", ".txt") }`. The agent uses `is_excel` to route to Step 1b1 (Excel sheet selection) or Step 1b2 (delimiter selection), and uses `sheets` to present the sheet list without a second round-trip. File-not-found and unreadable-file errors return `isError=true` with a human-readable message. Tests: valid `.xlsx` with 3 sheets (verify sheet names + order), valid `.xls` legacy format, non-Excel `.csv` (verify `detected_extension=".csv"`), non-Excel `.tsv`, file-not-found error, corrupt/empty file error. | 04 §2, 04 §3 |
+| 8 | **Implement `get_file_columns` tool** | New tool class that reads column headers from tabular data files. Depends on Task 7b — the agent calls `inspect_tabular_file` first to determine Excel vs non-Excel and (for Excel) to get the sheet list; those results feed into this tool's parameters. Input schema: `{ "file_path": string, "delimiter_char_code": integer (nullable), "use_header_row": boolean, "excel_sheet": string (nullable) }`. For Excel (.xls/.xlsx) via Apache POI (`WorkbookFactory.create(file)`): open workbook, read columns from the sheet named by `excel_sheet`; `delimiter_char_code` is ignored for Excel. For non-Excel text files: split lines using `delimiter_char_code` (ASCII integer) — the agent confirms the delimiter with the user in STEP 1b2 before calling this tool; no extension-based auto-detection in the tool itself. `use_header_row=false`: generate ordinal column names "Column 1", "Column 2", etc. instead of reading the first row as headers. Note: the agent calls this tool twice for Excel when a node-attributes sheet is selected — first for the network data sheet (Step 1b3), then again with the node-attributes sheet name (after Step 1b3.5, if user opts in to node attribute mapping) to enumerate its columns for the key-column prompt. Tests: CSV comma (code 44), TSV tab (code 9), custom/pipe (code 124), Excel with explicit `excel_sheet` param, multi-sheet Excel second call with different sheet name, `use_header_row=false` ordinal naming. | 04 §4.2, 04 §5.2 |
+| 9 | **`load_cytoscape_network_view` — tabular file import with column mapping** | Add dispatch to `handleTabularImport()` when `source=tabular-file`. Extend the tool input schema (also update Task 6 schema for these new fields): `delimiter_char_code` (integer, required for non-Excel text files), `use_header_row` (boolean), `excel_sheet` (string, nullable — which Excel sheet holds the source/target network edge data), `node_attributes_sheet` (string, nullable), `node_attributes_key_column` (string, nullable), `node_attributes_source_columns` (array of strings, nullable — columns to map as source node properties), `node_attributes_target_columns` (array of strings, nullable — columns to map as target node properties). Primary network import: uses Cytoscape's command API (`CommandExecutorTaskFactory`) or equivalent task factory, passing `delimiter_char_code`, `use_header_row`, `excel_sheet`, and source/target/interaction column mapping. Secondary node attribute import: when `node_attributes_key_column` is non-null, import node properties. If `node_attributes_sheet` is also non-null (Excel path where user selected a node attribute sheet after STEP 1b3.5), use Apache POI to read that sheet and import into the node table joining on the key column. If `node_attributes_sheet` is null (non-Excel path), load node properties from the same file's columns. In both cases, `node_attributes_source_columns` and `node_attributes_target_columns` specify which columns map to source/target node properties respectively; remaining unmapped columns become edge properties. Skip secondary import entirely if `node_attributes_key_column` is null. Tests: non-Excel with delimiter + `use_header_row`; Excel with `excel_sheet`; non-Excel node-attribute import (same file, key column + source/target column lists); Excel node-attribute import from separate sheet; verify secondary import triggered when `node_attributes_key_column` is non-null; verify secondary import skipped when `node_attributes_key_column` is null; verify node table merge uses correct key column; verify source/target column routing. | 04 §5.1.3 |
 | 10 | **Implement `analyze_network` tool** | New tool class that runs NetworkAnalyzer on the current network. Takes `directed` boolean. Compares node table columns before/after to report newly added columns. Uses Cytoscape command API (`analyzer analyze`). Handles "analyzer not available" gracefully. Tests: mock command execution, verify directed param, verify column diff detection. | 01 §4.6, 01 §5.6 |
 | 11 | **Implement `get_layout_algorithms` and `apply_layout` tools** | Two tool classes. `get_layout_algorithms`: enumerate `CyLayoutAlgorithmManager.getAllLayouts()`, return JSON array of {name, displayName}. `apply_layout`: look up algorithm by name, create task iterator with default context, execute via `SynchronousTaskManager`, call `view.fitContent()` + `view.updateView()`. Register both in CyActivator. Tests: mock layout manager, verify algorithm listing; mock layout execution, verify fitContent called. | 01 §4.7-4.8, 01 §5.7-5.8 |
+| 12 | **Implement `load_network` MCP prompt** | New prompt class. Constructs the system prompt text from 04 spec §2 (the full conversation script: STEP 1, STEP 1a-NDEx, STEP 1a-File, STEP 1b, Step 1b1, Step 1b2, Step 1b3, STEP 1-LOAD). Registers as `SyncPromptSpecification` with name="load_network", title="Load Network", no arguments. Tests: verify prompt name/title, verify system prompt text includes all Phase 1 steps (STEP 1 through STEP 1-LOAD), verify GetPromptResult structure. | 04 §1, 04 §2 |
 
-### 🚩 MILESTONE 2 — "Load + Analyze + Layout Pipeline" (after Task 11)
+### 🚩 MILESTONE 2 — "Load + Analyze + Layout Pipeline" (after Task 12)
 
-> **Gate rule**: This milestone MUST pass before any Task 12+ work begins.
+> **Gate rule**: This milestone MUST pass before any Task 13+ work begins.
 
-**Prerequisite tasks**: Tasks 1–11 complete, M1 passed, all unit tests passing.
+**Prerequisite tasks**: Tasks 1–12 complete, M1 passed, all unit tests passing.
 
 **Deploy & connect**: Same as M1.
 
 **Agent test script**:
-1. Ask agent: *"Load the NDEx network a420ade1-56e6-11ef-bca1-005056ae23aa"* → agent calls refactored `load_cytoscape_network_view` with `source=ndex` → returns JSON `{status: "success", network_suid, node_count, edge_count, network_name}`
-2. Prepare a small `.sif` file on disk (e.g., `echo "A interacts B\nB interacts C" > /tmp/test.sif`)
-3. Ask agent: *"Load the network from file /tmp/test.sif"* → agent calls `load_cytoscape_network_view` with `source=network-file, file_path=/tmp/test.sif` → network appears in Cytoscape
-4. Ask agent: *"Analyze the current network"* → agent calls `analyze_network` → returns list of newly added analysis columns (e.g., Degree, BetweennessCentrality)
-5. Ask agent: *"What layout algorithms are available?"* → agent calls `get_layout_algorithms` → returns JSON array of layout names
-6. Ask agent: *"Apply the force-directed layout"* → agent calls `apply_layout` → network visually rearranges in Cytoscape, view fits to content
+
+Verify `load_network` appears in `prompts/list` before running scenarios.
+
+---
+
+**Scenario A — NDEx**
+
+1. Type: *"i want to load a network into cytoscape"*
+2. > *"Let's load a network into Cytoscape. Where is your network? 1. NDEx (Network Data Exchange) — load by UUID  2. Local file — load from your filesystem"*  
+   → type `1`
+3. > *"Please provide the NDEx network UUID (you can find this in the NDEx URL or network details)."*  
+   → enter `a420ade1-56e6-11ef-bca1-005056ae23aa`
+4. > *"Network loaded from NDEx! Your network has N nodes and M edges."*  
+   ✓ Network appears in Cytoscape
+
+---
+
+**Scenario B — Network-formatted file (.sif)**
+
+1. Type: *"i want to load a network into cytoscape"*
+2. > *"Let's load a network into Cytoscape. Where is your network? 1. NDEx (Network Data Exchange) — load by UUID  2. Local file — load from your filesystem"*  
+   → type `2`
+3. > *"Is this a raw tabular data file with delimiters or is it expressed as a network formatted file that captures source and target nodes and relationships (edges)?  1 - Tabular, delimited data  2 - Network formatted data"*  
+   → type `2`
+4. > *"Please provide the path to your network file on your local machine."*  
+   → for test purpose only, agent uses its local file search tools to resolve the absolute path of `src/test/resources/fixture/test_export.sif`, then enter the resolved path
+5. > *"Network loaded…X nodes and Y edges."*  
+   ✓ Network appears in Cytoscape
+
+---
+
+**Scenario C — CSV tabular file (genes_comma.csv)**
+
+1. Type: *"i want to load a network into cytoscape"*
+2. > *"Let's load a network into Cytoscape. Where is your network? 1. NDEx (Network Data Exchange) — load by UUID  2. Local file — load from your filesystem"*  
+   → type `2`
+3. > *"Is this a raw tabular data file with delimiters or is it expressed as a network formatted file…?  1 - Tabular, delimited data  2 - Network formatted data"*  
+   → type `1`
+4. > *"Please provide the path to your network file on your local machine."*  
+   → for test purpose only, agent uses its local file search tools to resolve the absolute path of `src/test/resources/fixture/genes_comma.csv`, then enter the resolved path
+5. > *"Next step is to identify the delimiter, node, and edge columns from the tabular data file."*  
+   > *"Choose which delimiter character is used for separation of columnar data:  1 - comma [pre-selected]  2 - tab  3 - space  4 - Other"*  
+   → type `1`
+6. > *"Does first row of data contain header of column names? If no, then default ordinal names will be created like 'Column 1', 'Column 2', etc.  1 - Yes  2 - No"*  
+   → type `1`
+7. > *"The following columns were detected in your file:  1. Gene1  2. Gene2  3. Score"*  
+   > *"Which column contains the source (from) node?"*  
+   → enter `Gene1`
+8. > *"Which column contains the target (to) node?"*  
+   → enter `Gene2`
+9. > *"Which column contains the interaction/relationship type? (enter the number for column or type 'skip' if there isn't one)"*  
+   → type `skip`
+10. > *"Do you want to map properties for Nodes from the file columns at this time?"*  
+    → type `no`
+11. > *"Network loaded…X nodes and Y edges."*  
+    ✓ Network appears in Cytoscape
+
+---
+
+**Scenario D — Excel tabular file (network_data.xlsx)**
+
+1. Type: *"i want to load a network into cytoscape"*
+2. > *"Let's load a network into Cytoscape. Where is your network? 1. NDEx (Network Data Exchange) — load by UUID  2. Local file — load from your filesystem"*  
+   → type `2`
+3. > *"Is this a raw tabular data file with delimiters or is it expressed as a network formatted file…?  1 - Tabular, delimited data  2 - Network formatted data"*  
+   → type `1`
+4. > *"Please provide the path to your network file on your local machine."*  
+   → ufor test purpose only, agent uses its local file search tools to resolve the absolute path of `src/test/resources/fixture/network_data.xlsx`, then enter the resolved path
+5. > *"The following sheets were present:  1. Sheet1  2. Interactions"*  
+   > *"Which sheet should be used for source/target network data?"*  
+   → type `1`
+6. > *"Does first row of data contain header of column names?  1 - Yes  2 - No"*  
+   → type `1`
+7. > *"The following columns were detected in your file:  1. Gene1  2. Gene2  3. Score"*  
+   > *"Which column contains the source (from) node?"*  
+   → enter `Gene1`
+8. > *"Which column contains the target (to) node?"*  
+   → enter `Gene2`
+9. > *"Which column contains the interaction/relationship type? (enter the number for column or type 'skip' if there isn't one)"*  
+   → type `skip`
+10. > *"Do you want to map properties for Nodes from the file columns at this time?"*  
+    → type `no`
+11. > *"Network loaded…X nodes and Y edges."*  
+    ✓ Network appears in Cytoscape
+
+---
+
+**Analyze + Layout**
+
+1. Type: *"Analyze the current network"* → prompt responds with list of newly computed columns added to the node table (e.g., Degree, BetweennessCentrality)
+2. Type: *"Apply the force-directed layout"* → nodes visibly rearrange in the Cytoscape canvas and the view fits to content
 
 **Pass criteria**:
-- Refactored NDEx loading still works (no regression from Task 6 schema changes)
-- Native file import via `LoadNetworkFileTaskFactory` loads a `.sif` file
-- `analyze_network` runs NetworkAnalyzer without errors and reports new columns
-- `get_layout_algorithms` returns non-empty list
-- `apply_layout` visibly rearranges nodes in the Cytoscape canvas
+- `load_network` prompt appears in `prompts/list`
+- **Scenario A**: prompt presents numbered source menu → asks for UUID → responds with "Network loaded from NDEx! N nodes M edges" confirmation
+- **Scenario B**: prompt presents format menu → asks for file path → responds with load confirmation
+- **Scenario C**: prompt presents format menu → asks for file path → presents delimiter menu with comma pre-selected → asks header row question → lists columns `[Gene1, Gene2, Score]` → asks for source, target, interaction, and node-property choices → responds with load confirmation
+- **Scenario D**: prompt presents format menu → asks for file path → presents sheet selection listing `Sheet1` and `Interactions` → asks header row question → lists columns `[Gene1, Gene2, Score]` → asks for source, target, interaction, and node-property choices → responds with load confirmation
+- Analyze response lists newly added analysis columns
+- Layout visibly rearranges nodes in the Cytoscape canvas
 
 **Runtime risks caught**: `LoadNetworkFileTaskFactory` OSGi lookup, `CommandExecutorTaskFactory` for analyzer, `CyLayoutAlgorithmManager` service resolution, `SynchronousTaskManager` thread safety during layout execution.
 
 ---
 
-| 12 | **Implement `get_visual_style_defaults` tool** | New tool class using `VisualPropertyService`. Gets current `VisualStyle` from `VisualMappingManager`, enumerates node/edge VPs from `VisualLexicon.getAllDescendants()`, reads default values via `style.getDefaultValue()`, returns grouped JSON. For discrete-typed properties (NodeShape, ArrowShape, LineType), include an `allowedValues` array populated via new `VisualPropertyService.getAllowedValues(vp)` method (reads `DiscreteRange.values()`, maps to display names, sorts alphabetically). Paint/Double/Integer/Font/String/Boolean properties omit `allowedValues`. Tests: mock style with known defaults, verify JSON structure and value formatting; verify `allowedValues` present and alphabetically sorted for discrete types (NodeShape, ArrowShape, LineType); verify `allowedValues` absent for continuous types (Paint, Double, Integer). | 02 §4.1, 02 §5.1 |
-| 13 | **Implement `set_visual_default` tool** | New tool class using `VisualPropertyService`. Takes property_id + value, finds VP by id, parses value by type, captures old value, sets new default via `style.setDefaultValue()` on EDT (`SwingUtilities.invokeAndWait`), applies to current view. Tests: mock style, verify each type (color, shape, double, integer, font, line type, arrow shape), verify error for invalid values. | 02 §4.2, 02 §5.2 |
-| 14 | **Implement `get_mappable_properties` tool** | New tool class using `VisualPropertyService`. Like `get_visual_style_defaults` but also includes `continuousSubType` (color-gradient / continuous / discrete / null) and `currentMapping` info (type, column, summary) for each VP. Tests: mock style with existing mappings, verify currentMapping serialization. | 03 §4.1, 03 §5.1 |
-| 15 | **Implement `get_compatible_columns` tool** | New tool class. Takes property_id, determines if node/edge property from lexicon hierarchy, enumerates table columns (excluding SUID, selected, List types), computes `supportsMapping` (continuous/discrete/passthrough) per column based on column type × VP type compatibility matrix (00 §4). Returns JSON with sample values. Tests: mock table with various column types, verify compatibility flags. | 03 §4.2, 03 §5.2 |
-| 16 | **Implement `get_column_range` and `get_column_distinct_values` tools** | Two tool classes. `get_column_range`: takes column_name + table (node/edge), computes min/max/mean/count for numeric columns. `get_column_distinct_values`: takes column_name + table, counts occurrences of each distinct value, sorts by count descending. Tests: mock table rows, verify statistics; verify distinct counting and sort order. | 03 §4.3-4.4, 03 §5.3-5.4 |
+| 13 | **Implement `get_visual_style_defaults` tool** | New tool class using `VisualPropertyService`. Gets current `VisualStyle` from `VisualMappingManager`, enumerates node/edge VPs from `VisualLexicon.getAllDescendants()`, reads default values via `style.getDefaultValue()`, returns grouped JSON. For discrete-typed properties (NodeShape, ArrowShape, LineType), include an `allowedValues` array populated via new `VisualPropertyService.getAllowedValues(vp)` method (reads `DiscreteRange.values()`, maps to display names, sorts alphabetically). Paint/Double/Integer/Font/String/Boolean properties omit `allowedValues`. Tests: mock style with known defaults, verify JSON structure and value formatting; verify `allowedValues` present and alphabetically sorted for discrete types (NodeShape, ArrowShape, LineType); verify `allowedValues` absent for continuous types (Paint, Double, Integer). | 02 §4.1, 02 §5.1 |
+| 14 | **Implement `set_visual_default` tool** | New tool class using `VisualPropertyService`. Takes property_id + value, finds VP by id, parses value by type, captures old value, sets new default via `style.setDefaultValue()` on EDT (`SwingUtilities.invokeAndWait`), applies to current view. Tests: mock style, verify each type (color, shape, double, integer, font, line type, arrow shape), verify error for invalid values. | 02 §4.2, 02 §5.2 |
+| 15 | **Implement `get_mappable_properties` tool** | New tool class using `VisualPropertyService`. Like `get_visual_style_defaults` but also includes `continuousSubType` (color-gradient / continuous / discrete / null) and `currentMapping` info (type, column, summary) for each VP. Tests: mock style with existing mappings, verify currentMapping serialization. | 03 §4.1, 03 §5.1 |
+| 16 | **Implement `get_compatible_columns` tool** | New tool class. Takes property_id, determines if node/edge property from lexicon hierarchy, enumerates table columns (excluding SUID, selected, List types), computes `supportsMapping` (continuous/discrete/passthrough) per column based on column type × VP type compatibility matrix (00 §4). Returns JSON with sample values. Tests: mock table with various column types, verify compatibility flags. | 03 §4.2, 03 §5.2 |
+| 17 | **Implement `get_column_range` and `get_column_distinct_values` tools** | Two tool classes. `get_column_range`: takes column_name + table (node/edge), computes min/max/mean/count for numeric columns. `get_column_distinct_values`: takes column_name + table, counts occurrences of each distinct value, sorts by count descending. Tests: mock table rows, verify statistics; verify distinct counting and sort order. | 03 §4.3-4.4, 03 §5.3-5.4 |
 
-### 🚩 MILESTONE 3 — "Visual Style Read/Write + Column Inspection" (after Task 16)
+### 🚩 MILESTONE 3 — "Visual Style Read/Write + Column Inspection" (after Task 17)
 
-> **Gate rule**: This milestone MUST pass before any Task 17+ work begins.
+> **Gate rule**: This milestone MUST pass before any Task 18+ work begins.
 
-**Prerequisite tasks**: Tasks 1–16 complete, M1+M2 passed, all unit tests passing. Ensure a network is loaded with a view before testing.
+**Prerequisite tasks**: Tasks 1–17 complete, M1+M2 passed, all unit tests passing. Ensure a network is loaded with a view before testing.
 
 **Deploy & connect**: Same as M1.
 
@@ -168,19 +256,19 @@ Each task is an independent, committable unit with unit tests. Tasks are ordered
 
 ---
 
-| 17 | **Implement `create_continuous_mapping` tool** | New tool class using `VisualPropertyService`. Takes property_id, column_name, column_type, points (breakpoints array). Creates `ContinuousMapping` via factory, adds `BoundaryRangeValues` for each point, removes existing mapping, adds new one, applies to view on EDT. Tests: mock factory, verify breakpoint creation for numeric and color types, verify point ordering validation. | 03 §4.5, 03 §5.5 |
-| 18 | **Implement `create_discrete_mapping` tool** | New tool class using `VisualPropertyService`. Takes property_id, column_name, column_type, entries (map of value→property_value). Creates `DiscreteMapping` via factory, converts column keys via `resolveColumnType`/`convertColumnValue`, parses property values, calls `mapping.putAll()`, applies on EDT. Tests: mock factory, verify entry mapping for string and integer column types. | 03 §4.6, 03 §5.6 |
-| 19 | **Implement `create_passthrough_mapping` tool** | New tool class. Takes property_id, column_name, column_type. Creates `PassthroughMapping` via factory, removes existing, adds new, applies on EDT. Simpler than continuous/discrete — no entries to configure. Tests: mock factory, verify mapping creation and application. | 03 §4.7, 03 §5.7 |
-| 20 | **Implement `create_discrete_mapping_generated` tool** | New tool class. Takes property_id, column_name, column_type, generator (rainbow/random/brewer_sequential/shape_cycle/numeric_range), generator_params. Gets distinct values from table, generates property values per algorithm, creates discrete mapping with generated entries. Tests: verify each generator algorithm (rainbow produces evenly-spaced hues, random is seeded, numeric_range interpolates, shape_cycle cycles). | 03 §4.8, 03 §5.8 |
-| 21 | **Implement `default_styling` MCP prompt** | New prompt class. Constructs the system prompt text from 02 spec §2 (the full conversation script). Registers as `SyncPromptSpecification` with name="default_styling", title="Change Default Visual Style Properties", no arguments. Tests: verify prompt name/title, verify system prompt text includes all steps (STEP 1-4), verify GetPromptResult structure. | 02 §1, 02 §2 |
-| 22 | **Implement `mapping_styling` MCP prompt** | New prompt class. Constructs the system prompt text from 03 spec §2 (the full conversation script including all sub-types 4a-i through 4c). Registers as `SyncPromptSpecification` with name="mapping_styling", title="Create Data-Driven Visual Mappings", no arguments. Tests: verify prompt name/title, verify system prompt includes all mapping type steps. | 03 §1, 03 §2 |
-| 23 | **Implement `network_wizard` MCP prompt and final CyActivator integration** | New prompt class. Constructs the full orchestrator system prompt from 01 spec §2 (Phases 0-6, referencing all tools and delegating Phase 4/5 to sub-specs). Registers as `SyncPromptSpecification` with name="network_wizard". Update `CyActivator.startMcpServer()` to register all 3 prompts via `mcpServer.addPrompt()`. Update `ServerCapabilities` to include `prompts(false)`. Verify all tools registered. Tests: verify prompt content includes all phases, verify CyActivator registers correct tool/prompt count. | 01 §1, 01 §2, 00 §7.2, 00 §9.1 |
+| 18 | **Implement `create_continuous_mapping` tool** | New tool class using `VisualPropertyService`. Takes property_id, column_name, column_type, points (breakpoints array). Creates `ContinuousMapping` via factory, adds `BoundaryRangeValues` for each point, removes existing mapping, adds new one, applies to view on EDT. Tests: mock factory, verify breakpoint creation for numeric and color types, verify point ordering validation. | 03 §4.5, 03 §5.5 |
+| 19 | **Implement `create_discrete_mapping` tool** | New tool class using `VisualPropertyService`. Takes property_id, column_name, column_type, entries (map of value→property_value). Creates `DiscreteMapping` via factory, converts column keys via `resolveColumnType`/`convertColumnValue`, parses property values, calls `mapping.putAll()`, applies on EDT. Tests: mock factory, verify entry mapping for string and integer column types. | 03 §4.6, 03 §5.6 |
+| 20 | **Implement `create_passthrough_mapping` tool** | New tool class. Takes property_id, column_name, column_type. Creates `PassthroughMapping` via factory, removes existing, adds new, applies on EDT. Simpler than continuous/discrete — no entries to configure. Tests: mock factory, verify mapping creation and application. | 03 §4.7, 03 §5.7 |
+| 21 | **Implement `create_discrete_mapping_generated` tool** | New tool class. Takes property_id, column_name, column_type, generator (rainbow/random/brewer_sequential/shape_cycle/numeric_range), generator_params. Gets distinct values from table, generates property values per algorithm, creates discrete mapping with generated entries. Tests: verify each generator algorithm (rainbow produces evenly-spaced hues, random is seeded, numeric_range interpolates, shape_cycle cycles). | 03 §4.8, 03 §5.8 |
+| 22 | **Implement `default_styling` MCP prompt** | New prompt class. Constructs the system prompt text from 02 spec §2 (the full conversation script). Registers as `SyncPromptSpecification` with name="default_styling", title="Change Default Visual Style Properties", no arguments. Tests: verify prompt name/title, verify system prompt text includes all steps (STEP 1-4), verify GetPromptResult structure. | 02 §1, 02 §2 |
+| 23 | **Implement `mapping_styling` MCP prompt** | New prompt class. Constructs the system prompt text from 03 spec §2 (the full conversation script including all sub-types 4a-i through 4c). Registers as `SyncPromptSpecification` with name="mapping_styling", title="Create Data-Driven Visual Mappings", no arguments. Tests: verify prompt name/title, verify system prompt includes all mapping type steps. | 03 §1, 03 §2 |
+| 24 | **Implement `network_wizard` MCP prompt and final CyActivator integration** | New prompt class. Constructs the full orchestrator system prompt from 01 spec §2 (Phases 0-6, delegating Phase 1 to 04 spec, Phase 4/5 to sub-specs). Registers as `SyncPromptSpecification` with name="network_wizard". Update `CyActivator.startMcpServer()` to register all 4 prompts via `mcpServer.addPrompt()`. Update `ServerCapabilities` to include `prompts(false)`. Verify all tools registered. Tests: verify prompt content includes all phases, verify CyActivator registers correct tool/prompt count. | 01 §1, 01 §2, 00 §7.2, 00 §9.1 |
 
-### 🚩 MILESTONE 4 — "Full Wizard: Mappings + Prompts" (after Task 23)
+### 🚩 MILESTONE 4 — "Full Wizard: Mappings + Prompts" (after Task 24)
 
 > **Gate rule**: All previous milestones (M1–M3) must have passed. This is the final acceptance gate.
 
-**Prerequisite tasks**: Tasks 1–23 complete, M1+M2+M3 passed, all unit tests passing. Ensure a network with analyzed columns is loaded.
+**Prerequisite tasks**: Tasks 1–24 complete, M1+M2+M3 passed, all unit tests passing. Ensure a network with analyzed columns is loaded.
 
 **Deploy & connect**: Same as M1.
 
@@ -191,7 +279,7 @@ Each task is an independent, committable unit with unit tests. Tasks are ordered
 4. Ask agent: *"Auto-generate a rainbow color mapping from the 'name' column to NODE_FILL_COLOR"* → agent calls `create_discrete_mapping_generated` with `generator=rainbow` → nodes get evenly-spaced hues
 
 **Agent test script — Prompts**:
-5. List available prompts via MCP `prompts/list` → should return 3 prompts: `network_wizard`, `default_styling`, `mapping_styling`
+5. List available prompts via MCP `prompts/list` → should return 4 prompts: `network_wizard`, `default_styling`, `mapping_styling`, `load_network`
 6. Select the `network_wizard` prompt → agent receives the full orchestrator system prompt → begin wizard conversation → agent walks through Phase 0–6 using all tools
 7. During wizard Phase 4, verify agent delegates to `default_styling` sub-prompt behavior
 8. During wizard Phase 5, verify agent delegates to `mapping_styling` sub-prompt behavior
@@ -201,7 +289,7 @@ Each task is an independent, committable unit with unit tests. Tasks are ordered
 - Continuous mapping produces visible size/color gradients
 - Discrete mapping assigns per-category values correctly
 - Generated discrete mapping (rainbow) produces visually distinct hues
-- All 3 prompts appear in `prompts/list`
+- All 4 prompts appear in `prompts/list`
 - `network_wizard` prompt orchestrates the full 7-phase flow
 - Sub-prompt delegation works (wizard hands off to `default_styling` and `mapping_styling`)
 

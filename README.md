@@ -11,6 +11,8 @@ Cytoscape MCP Server
 
 An embedded [Model Context Protocol (MCP)][mcp] server for [Cytoscape Desktop][cytoscape], packaged as a Cytoscape App. AI clients such as Claude Desktop connect to Cytoscape over HTTP and invoke tools that control the desktop application directly — loading networks, setting active views, and more.
 
+![Cytoscape MCP Desktop](docs/desktopmcp.png)
+
 **NOTE:** This app is experimental. The interface and available tools are subject to change.
 
 ## How It Works
@@ -83,15 +85,20 @@ Try some Prompts to chaange states on the Cytoscape Desktop from Agent.
 * `start cytoscape network wizard` - will trigger llm to request starting the cytoscape network wizard prompt sequence.
 
 
-## Available Cytoscape Desktop MCP Tools
+## Available Cytoscape Desktop MCP Artifacts
 
 | Tool | Description |
 |------|-------------|
-| `load_cytoscape_network_view` | Loads a network from [NDEx][ndex] by UUID, a network-format file, or a tabular data file and sets it as the current view |
-| `get_loaded_network_views` | Returns all networks and views currently loaded in Cytoscape |
-| `set_current_network_view` | Sets the active network view by network or view ID |
-| `create_network_view` | Creates a new view for an existing network that has no view |
+| `load_cytoscape_network_view` | Load a network into Cytoscape from [NDEx][ndex] (by UUID), a native network format file, or a tabular data file with column mapping. Creates a new network collection and view, and sets it as the current network |
+| `get_loaded_network_views` | Enumerate all network collections currently loaded in Cytoscape with their views, node counts, and edge counts. Read-only; does not modify state |
+| `set_current_network_view` | Set the specified network and view as the current (active) network and view in Cytoscape. Both `network_suid` and `view_suid` are required |
+| `create_network_view` | Create a visual view for a network that currently has no view. Sets the new view and its network as the current network and view |
+| `inspect_tabular_file` | Inspect a tabular data file to determine whether it is an Excel workbook (`.xls`/`.xlsx`). If Excel, returns the list of sheet names; if not, returns the detected file extension (e.g. `.csv`, `.tsv`) |
+| `get_file_columns` | Read column headers and up to three sample rows from a tabular file. For Excel files supply `excel_sheet`; for text files supply `delimiter_char_code` |
 
+| Prompt | Description |
+|------|-------------|
+| `cytoscape-guidelines` | General behavioral guidelines for all Cytoscape tool interactions — in particular, how to handle connectivity failures when Cytoscape Desktop is not running |
 
 **Example activation prompts** — after connecting your agent, try this to load the Yeast ergosterol network:
 
