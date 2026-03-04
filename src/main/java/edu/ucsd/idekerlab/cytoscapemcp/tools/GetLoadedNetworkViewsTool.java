@@ -2,7 +2,6 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -41,6 +40,15 @@ public class GetLoadedNetworkViewsTool {
             "Enumerate all network collections currently loaded in Cytoscape with their views,"
                     + " node counts, and edge counts. Read-only; does not modify state.";
 
+    static final String INPUT_SCHEMA =
+            """
+            {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+            """;
+
     private final ObjectMapper mapper = new ObjectMapper();
     private final CyNetworkManager networkManager;
     private final CyNetworkViewManager viewManager;
@@ -53,18 +61,20 @@ public class GetLoadedNetworkViewsTool {
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
-        Tool toolDef =
-                Tool.builder()
-                        .name(TOOL_NAME)
-                        .description(TOOL_DESCRIPTION)
-                        .inputSchema(
-                                new JsonSchema("object", Map.of(), List.of(), null, null, null))
-                        .build();
-
-        return McpServerFeatures.SyncToolSpecification.builder()
-                .tool(toolDef)
-                .callHandler(this::handle)
-                .build();
+        try {
+            Tool toolDef =
+                    Tool.builder()
+                            .name(TOOL_NAME)
+                            .description(TOOL_DESCRIPTION)
+                            .inputSchema(mapper.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .build();
+            return McpServerFeatures.SyncToolSpecification.builder()
+                    .tool(toolDef)
+                    .callHandler(this::handle)
+                    .build();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to parse INPUT_SCHEMA for " + TOOL_NAME, e);
+        }
     }
 
     // -- Handler --------------------------------------------------------------

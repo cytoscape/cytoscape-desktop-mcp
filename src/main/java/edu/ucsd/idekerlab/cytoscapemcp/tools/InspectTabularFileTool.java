@@ -2,7 +2,6 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,38 +38,38 @@ public class InspectTabularFileTool {
                     + " (.xls/.xlsx). If Excel, returns the list of sheet names. If not Excel,"
                     + " returns the detected file extension (e.g. '.csv', '.tsv').";
 
+    static final String INPUT_SCHEMA =
+            """
+            {
+              "type": "object",
+              "required": ["file_path"],
+              "properties": {
+                "file_path": {
+                  "type": "string",
+                  "description": "Absolute path to the tabular data file to inspect."
+                }
+              }
+            }
+            """;
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
-        Map<String, Object> properties = new LinkedHashMap<>();
-
-        properties.put(
-                "file_path",
-                Map.of(
-                        "type",
-                        "string",
-                        "description",
-                        "Absolute path to the tabular data file to inspect."));
-
-        Tool toolDef =
-                Tool.builder()
-                        .name(TOOL_NAME)
-                        .description(TOOL_DESCRIPTION)
-                        .inputSchema(
-                                new JsonSchema(
-                                        "object",
-                                        properties,
-                                        List.of("file_path"),
-                                        null,
-                                        null,
-                                        null))
-                        .build();
-
-        return McpServerFeatures.SyncToolSpecification.builder()
-                .tool(toolDef)
-                .callHandler(this::handle)
-                .build();
+        try {
+            Tool toolDef =
+                    Tool.builder()
+                            .name(TOOL_NAME)
+                            .description(TOOL_DESCRIPTION)
+                            .inputSchema(mapper.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .build();
+            return McpServerFeatures.SyncToolSpecification.builder()
+                    .tool(toolDef)
+                    .callHandler(this::handle)
+                    .build();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to parse INPUT_SCHEMA for " + TOOL_NAME, e);
+        }
     }
 
     // -- Handler --------------------------------------------------------------

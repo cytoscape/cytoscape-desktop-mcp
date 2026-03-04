@@ -2,7 +2,6 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +39,20 @@ public class CreateNetworkViewTool {
             "Create a visual view for a network that currently has no view. Sets the new view"
                     + " and its network as the current network and view.";
 
+    static final String INPUT_SCHEMA =
+            """
+            {
+              "type": "object",
+              "required": ["network_suid"],
+              "properties": {
+                "network_suid": {
+                  "type": "integer",
+                  "description": "SUID of the target network."
+                }
+              }
+            }
+            """;
+
     private final ObjectMapper mapper = new ObjectMapper();
     private final CyApplicationManager appManager;
     private final CyNetworkManager networkManager;
@@ -59,29 +72,20 @@ public class CreateNetworkViewTool {
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
-        Map<String, Object> networkSuidProp =
-                Map.of("type", "integer", "description", "SUID of the target network");
-
-        Map<String, Object> properties = Map.of("network_suid", networkSuidProp);
-
-        Tool toolDef =
-                Tool.builder()
-                        .name(TOOL_NAME)
-                        .description(TOOL_DESCRIPTION)
-                        .inputSchema(
-                                new JsonSchema(
-                                        "object",
-                                        properties,
-                                        List.of("network_suid"),
-                                        null,
-                                        null,
-                                        null))
-                        .build();
-
-        return McpServerFeatures.SyncToolSpecification.builder()
-                .tool(toolDef)
-                .callHandler(this::handle)
-                .build();
+        try {
+            Tool toolDef =
+                    Tool.builder()
+                            .name(TOOL_NAME)
+                            .description(TOOL_DESCRIPTION)
+                            .inputSchema(mapper.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .build();
+            return McpServerFeatures.SyncToolSpecification.builder()
+                    .tool(toolDef)
+                    .callHandler(this::handle)
+                    .build();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to parse INPUT_SCHEMA for " + TOOL_NAME, e);
+        }
     }
 
     // -- Handler --------------------------------------------------------------

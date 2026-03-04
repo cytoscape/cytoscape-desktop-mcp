@@ -19,8 +19,11 @@ Once installed, the app publishes an MCP endpoint inside Cytoscape's existing Cy
 
 The app also adds two visual indicators to the Cytoscape Desktop UI:
 
-- **MCP toolbar button** — a bold **MCP** button in the bottom-left status bar. The label is green when the MCP server is running and red when it is not. Clicking it opens the Agent Configuration dialog with connection instructions for all supported agents.
-- **Task History entries** — every MCP tool invocation is recorded in Cytoscape's Task History panel (**View > Show Task History**), so you can see exactly which tools an agent called and when.
+### MCP toolbar button
+a bold **MCP** button in the bottom-left status bar. The label is green when the MCP server is running and red when it is not. Clicking it opens the Agent Configuration dialog which displays the full MCP url and connection instructions for all supported agents.
+
+### Task History entries
+every MCP tool invocation is recorded in Cytoscape's Task History panel (**View > Show Task History**), so you can see exactly which tools an agent called and when.
 
 ```
 AI Agent──► HTTP──► http://localhost:{rest.port}/mcp ──► Cytoscape Desktop
@@ -36,7 +39,9 @@ AI Agent──► HTTP──► http://localhost:{rest.port}/mcp ──► Cytos
 * Internet connection (for loading networks from [NDEx][ndex])
 * An MCP-compatible AI client that also supports the Streamable HTTP transport(not SSE which is [deprecated as of 02/2025](https://auth0.com/blog/mcp-streamable-http/)) (e.g. Claude Desktop)
 
-## Building from Source
+## Try it! 
+
+### Build from Source
 
 Requirements:
 * [Java][java] 17 with JDK
@@ -55,27 +60,28 @@ For a full list of build targets:
 ```bash
 make help
 ```
-
-## Installation
+### Desktop Installation
 
 1. Get the mcp app jar:
     * Download the latest `cytoscape-mcp-<VERSION>.jar` from the [Releases](../../releases) page.
-    * [Build](#building-from-source) the jar 
+    * or [Build](#building-from-source) the jar 
 2. Open Cytoscape Desktop.
 3. Navigate to **Apps > App Manager > Install from File**.
 4. Select the file path to the MCP App JAR and restart Cytoscape if prompted.
 
-After startup, the MCP endpoint is available at:
-```
-http://localhost:{rest.port}/mcp
-```
-where `{rest.port}` is Cytoscape's CyREST port (default 1234). The current port is shown in the Agent Configuration dialog (click the **MCP** button in the status bar).
+After startup, the MCP status can be viewed via the [MCP button](#mcp-toolbar-button) in the status bar.
 
-Refer to [Diagnostics](docs/AgentConfiguration.md#diagnostics) for more information on how to manually inspect and verify the Mcp server.
+Refer to [Diagnostics](docs/AgentConfiguration.md#diagnostics) for more information on how to externally inspect and verify the Mcp server.
 
-## Connecting an Agent to Cytoscape Desktop
+### Connecting an Agent to Cytoscape Desktop
+See [docs/AgentConfiguration.md](docs/AgentConfiguration.md) for step-by-step setup instructions for Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
 
-See **[docs/AgentConfiguration.md](docs/AgentConfiguration.md)** for step-by-step setup instructions for Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
+### Activate the MCP server from Agent prompts:
+Try some Prompts to chaange states on the Cytoscape Desktop from Agent.
+* `load network id 63836e7b-ca44-11f0-a218-005056ae3c32 into cytoscape` - will load `Yeast ergosterol` network that resides on ndexbio.org.
+* `/cytoscape_network_wizard` - this will work on most agents that support mapping MCP prompts directly to 'slash' commands. It will start cytoscape network wizard interactive flow at agent prompt.
+* `start cytoscape network wizard` - will trigger llm to request starting the cytoscape network wizard prompt sequence.
+
 
 ## Available Cytoscape Desktop MCP Tools
 
@@ -92,7 +98,7 @@ See **[docs/AgentConfiguration.md](docs/AgentConfiguration.md)** for step-by-ste
 > Load the NDEx network 63836e7b-ca44-11f0-a218-005056ae3c32 into Cytoscape
 
 
-## Desktop Configuration
+## MCP Configuration properties
 
 Properties are editable at runtime via **Edit > Preferences > Properties > cytoscapemcp**:
 
