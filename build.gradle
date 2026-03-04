@@ -225,7 +225,7 @@ test {
 spotless {
     java {
         googleJavaFormat('1.17.0').aosp()
-        importOrder('java', 'javax', 'org', 'com', '\\#', 'edu.ucsd', 'org.cytoscape', '\\#', '\\#')
+        importOrder('java', 'javax', 'org', 'com', 'edu.ucsd', 'org.cytoscape', '\\#')
         removeUnusedImports()
     }
 }

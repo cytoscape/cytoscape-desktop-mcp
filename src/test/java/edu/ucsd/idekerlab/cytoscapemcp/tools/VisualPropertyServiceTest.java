@@ -8,9 +8,6 @@ import java.util.Set;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
 import org.cytoscape.view.model.ContinuousRange;
 import org.cytoscape.view.model.DiscreteRange;
 import org.cytoscape.view.model.VisualLexicon;
@@ -21,9 +18,6 @@ import org.cytoscape.view.presentation.property.LineTypeVisualProperty;
 import org.cytoscape.view.presentation.property.NodeShapeVisualProperty;
 import org.cytoscape.view.presentation.property.values.ArrowShape;
 import org.cytoscape.view.presentation.property.values.NodeShape;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
