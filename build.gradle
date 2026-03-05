@@ -25,8 +25,8 @@ group = 'edu.ucsd.idekerlab'
 version = '1.0.0-SNAPSHOT'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_15
-    targetCompatibility = JavaVersion.VERSION_15
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -79,6 +79,10 @@ dependencies {
     embed "com.fasterxml.jackson.core:jackson-databind:2.17.2"
     embed "com.fasterxml.jackson.core:jackson-core:2.17.2"
     embed "com.fasterxml.jackson.core:jackson-annotations:2.17.2"
+
+    // === victools JSON Schema Generator — derives JSON schema from annotated classes ===
+    embed 'com.github.victools:jsonschema-generator:4.38.0'
+    embed 'com.github.victools:jsonschema-module-jackson:4.38.0'
 
     // === commonmark — Markdown-to-HTML for the MCP config dialog ===
     embed 'org.commonmark:commonmark:0.21.0'
@@ -174,8 +178,8 @@ jar {
             Embed-Dependency: *;scope=!provided|test;groupId=!org.cytoscape
             Embed-Transitive: true
 
-            # Match open-cyweb: declare Java 11 compatibility for Cytoscape 3.10.x
-            Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=11))"
+            # Match open-cyweb: declare Java 17 compatibility for Cytoscape 3.10.x
+            Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=17))"
         '''
     }
 }

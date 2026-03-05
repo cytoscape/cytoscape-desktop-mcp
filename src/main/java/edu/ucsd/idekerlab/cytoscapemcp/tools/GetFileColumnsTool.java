@@ -17,9 +17,12 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import edu.ucsd.idekerlab.cytoscapemcp.McpSchema;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
@@ -53,33 +56,46 @@ public class GetFileColumnsTool {
                     + " For Excel files supply excel_sheet; for text files supply delimiter_char_code."
                     + " Returns {\"columns\":[...],\"sample_rows\":[[...],...]}.";
 
-    static final String INPUT_SCHEMA =
-            """
-            {
-              "type": "object",
-              "required": ["file_path", "use_header_row"],
-              "properties": {
-                "file_path": {
-                  "type": "string",
-                  "description": "Absolute path to the tabular file."
-                },
-                "delimiter_char_code": {
-                  "type": "integer",
-                  "description": "ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
-                },
-                "use_header_row": {
-                  "type": "boolean",
-                  "description": "If true, the first row is used as column headers. If false, ordinal names are generated: Column 1, Column 2, ..."
-                },
-                "excel_sheet": {
-                  "type": "string",
-                  "description": "Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
-                }
-              }
-            }
-            """;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    /** App response model — Jackson annotations also drive victools OUTPUT_SCHEMA generation. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record GetFileColumnsCallResult(
+            @JsonProperty("columns") List<String> columns,
+            @JsonProperty("sample_rows") List<List<String>> sampleRows) {}
+
+    static final String INPUT_SCHEMA =
+            McpSchema.toJson(
+                    McpSchema.InputSchema.builder()
+                            .required("file_path", "use_header_row")
+                            .property(
+                                    "file_path",
+                                    new McpSchema.InputProperty(
+                                            "string", "Absolute path to the tabular file."))
+                            .property(
+                                    "delimiter_char_code",
+                                    new McpSchema.InputProperty(
+                                            "integer",
+                                            "ASCII code of the delimiter character"
+                                                    + " (e.g. 44=comma, 9=tab, 124=pipe)."
+                                                    + " Required for non-Excel files. Ignored for Excel."))
+                            .property(
+                                    "use_header_row",
+                                    new McpSchema.InputProperty(
+                                            "boolean",
+                                            "If true, the first row is used as column headers."
+                                                    + " If false, ordinal names are generated:"
+                                                    + " Column 1, Column 2, ..."))
+                            .property(
+                                    "excel_sheet",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Name of the Excel sheet to read."
+                                                    + " Required when reading an Excel file."
+                                                    + " Ignored for text files."))
+                            .build());
+
+    static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(GetFileColumnsCallResult.class);
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
@@ -88,14 +104,18 @@ public class GetFileColumnsTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .description(TOOL_DESCRIPTION)
-                            .inputSchema(mapper.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .outputSchema(
+                                    MAPPER.readValue(
+                                            OUTPUT_SCHEMA,
+                                            new TypeReference<Map<String, Object>>() {}))
                             .build();
             return McpServerFeatures.SyncToolSpecification.builder()
                     .tool(toolDef)
                     .callHandler(this::handle)
                     .build();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to parse INPUT_SCHEMA for " + TOOL_NAME, e);
+            throw new IllegalStateException("Failed to build tool spec for " + TOOL_NAME, e);
         }
     }
 
@@ -239,24 +259,13 @@ public class GetFileColumnsTool {
         return list;
     }
 
-    private CallToolResult buildResult(List<String> columns, List<List<String>> sampleRows)
-            throws Exception {
-        ObjectNode result = mapper.createObjectNode();
-        ArrayNode colArray = result.putArray("columns");
-        for (String col : columns) colArray.add(col);
-        ArrayNode rowsArray = result.putArray("sample_rows");
-        for (List<String> row : sampleRows) {
-            ArrayNode rowNode = rowsArray.addArray();
-            for (String cell : row) rowNode.add(cell);
-        }
-        return success(mapper.writeValueAsString(result));
+    private CallToolResult buildResult(List<String> columns, List<List<String>> sampleRows) {
+        return CallToolResult.builder()
+                .structuredContent(new GetFileColumnsCallResult(columns, sampleRows))
+                .build();
     }
 
     // -- Result helpers -------------------------------------------------------
-
-    private static CallToolResult success(String message) {
-        return CallToolResult.builder().content(List.of(new TextContent(message))).build();
-    }
 
     private static CallToolResult error(String message) {
         return CallToolResult.builder()

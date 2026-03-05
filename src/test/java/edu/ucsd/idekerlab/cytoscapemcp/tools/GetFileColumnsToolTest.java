@@ -237,6 +237,31 @@ public class GetFileColumnsToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Output schema tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void outputSchema_isValidJson() throws Exception {
+        JsonNode schema = MAPPER.readTree(GetFileColumnsTool.OUTPUT_SCHEMA);
+        assertNotNull(schema);
+        assertTrue(schema.isObject());
+    }
+
+    @Test
+    public void outputSchema_hasColumnsProperty() throws Exception {
+        JsonNode props = MAPPER.readTree(GetFileColumnsTool.OUTPUT_SCHEMA).get("properties");
+        assertNotNull("properties node must exist", props);
+        assertFalse("columns property must exist", props.at("/columns").isMissingNode());
+    }
+
+    @Test
+    public void outputSchema_hasSampleRowsProperty() throws Exception {
+        JsonNode props = MAPPER.readTree(GetFileColumnsTool.OUTPUT_SCHEMA).get("properties");
+        assertNotNull("properties node must exist", props);
+        assertFalse("sample_rows property must exist", props.at("/sample_rows").isMissingNode());
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
@@ -282,7 +307,7 @@ public class GetFileColumnsToolTest {
         String[] lines = response.trim().split("\n");
         String lastLine = lines[lines.length - 1];
         JsonNode root = MAPPER.readTree(lastLine);
-        String text = root.at("/result/content/0/text").asText();
-        return MAPPER.readTree(text);
+        // structuredContent holds the GetFileColumnsCallResult object directly
+        return root.at("/result/structuredContent");
     }
 }
