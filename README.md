@@ -11,13 +11,13 @@ Cytoscape MCP Server
 
 An embedded [Model Context Protocol (MCP)][mcp] server for [Cytoscape Desktop][cytoscape], packaged as a Cytoscape App. AI clients such as Claude Desktop connect to Cytoscape over HTTP and invoke tools that control the desktop application directly — loading networks, setting active views, and more.
 
-Architecture: 
+**NOTE:** This app is experimental. The interface and available tools are subject to change.
+
+## Architecture
 ![Cytoscape MCP Desktop](docs/desktopmcp.png)
 
-MCP Protocol Design:
+## MCP Protocol Design:
 ![Cytoscape MCP Protocol](docs/desktop_mcp_proto.png)
-
-**NOTE:** This app is experimental. The interface and available tools are subject to change.
 
 ## How It Works
 
