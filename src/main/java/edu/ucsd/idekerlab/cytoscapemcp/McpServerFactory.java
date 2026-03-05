@@ -6,8 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.ucsd.idekerlab.cytoscapemcp.prompts.GuidelinePrompt;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.AnalyzeNetworkTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.ApplyLayoutTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetFileColumnsTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLayoutAlgorithmsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.InspectTabularFileTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
@@ -130,6 +132,8 @@ public final class McpServerFactory {
         server.addTool(
                 new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory)
                         .toSpec());
+        server.addTool(new GetLayoutAlgorithmsTool(layoutManager).toSpec());
+        server.addTool(new ApplyLayoutTool(appManager, layoutManager, syncTaskManager).toSpec());
 
         // Register prompts.
         server.addPrompt(new GuidelinePrompt().toSpec());
