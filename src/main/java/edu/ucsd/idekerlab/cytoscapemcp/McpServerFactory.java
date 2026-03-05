@@ -5,6 +5,7 @@ import java.util.Properties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.ucsd.idekerlab.cytoscapemcp.prompts.GuidelinePrompt;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.AnalyzeNetworkTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetFileColumnsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
@@ -13,6 +14,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 
 import org.cytoscape.application.CyApplicationManager;
+import org.cytoscape.command.CommandExecutorTaskFactory;
 import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
@@ -66,6 +68,8 @@ public final class McpServerFactory {
      *     (nullable)
      * @param networkViewFactory Cytoscape network-view factory (nullable)
      * @param syncTaskManager synchronous task manager (nullable)
+     * @param commandExecutorTaskFactory command executor for invoking registered app commands
+     *     (nullable)
      */
     public static McpSyncServer create(
             McpTransportProvider transportProvider,
@@ -86,7 +90,8 @@ public final class McpServerFactory {
             LoadNetworkFileTaskFactory loadFileTaskFactory,
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
-            SynchronousTaskManager<?> syncTaskManager) {
+            SynchronousTaskManager<?> syncTaskManager,
+            CommandExecutorTaskFactory commandExecutorTaskFactory) {
 
         // Explicitly supply jsonMapper and jsonSchemaValidator to bypass McpJsonDefaults,
         // which uses ServiceLoader with the Thread context classloader — that classloader
@@ -122,6 +127,9 @@ public final class McpServerFactory {
                         .toSpec());
         server.addTool(new InspectTabularFileTool().toSpec());
         server.addTool(new GetFileColumnsTool().toSpec());
+        server.addTool(
+                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory)
+                        .toSpec());
 
         // Register prompts.
         server.addPrompt(new GuidelinePrompt().toSpec());

@@ -60,7 +60,8 @@ public final class McpManifest {
                         /* loadFileTaskFactory= */ null,
                         /* networkFactory= */ null,
                         /* networkViewFactory= */ null,
-                        /* syncTaskManager= */ null);
+                        /* syncTaskManager= */ null,
+                        /* commandExecutorTaskFactory= */ null);
 
         String toolsSection = renderTools(server.listTools(), mapper);
         String promptsSection = renderPrompts(server.listPrompts());

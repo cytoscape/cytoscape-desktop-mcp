@@ -23,6 +23,7 @@ import org.cytoscape.app.event.AppsFinishedStartingEvent;
 import org.cytoscape.app.event.AppsFinishedStartingListener;
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.application.swing.CySwingApplication;
+import org.cytoscape.command.CommandExecutorTaskFactory;
 import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
@@ -154,6 +155,10 @@ public class CyActivator extends AbstractCyActivator {
         SynchronousTaskManager<?> syncTaskManager =
                 getService(bundleContext, SynchronousTaskManager.class);
 
+        // Command executor for invoking commands registered by other apps (e.g. analyzer).
+        CommandExecutorTaskFactory commandExecutorTaskFactory =
+                getService(bundleContext, CommandExecutorTaskFactory.class);
+
         startMcpServer(
                 cyProperties,
                 appManager,
@@ -170,7 +175,8 @@ public class CyActivator extends AbstractCyActivator {
                 loadFileTaskFactory,
                 networkFactory,
                 networkViewFactory,
-                syncTaskManager);
+                syncTaskManager,
+                commandExecutorTaskFactory);
 
         // Read the CyREST port for display in the status panel.
         @SuppressWarnings("unchecked")
@@ -231,7 +237,8 @@ public class CyActivator extends AbstractCyActivator {
             LoadNetworkFileTaskFactory loadFileTaskFactory,
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
-            SynchronousTaskManager<?> syncTaskManager) {
+            SynchronousTaskManager<?> syncTaskManager,
+            CommandExecutorTaskFactory commandExecutorTaskFactory) {
 
         transportProvider = new McpTransportProvider();
 
@@ -259,7 +266,8 @@ public class CyActivator extends AbstractCyActivator {
                         loadFileTaskFactory,
                         networkFactory,
                         networkViewFactory,
-                        syncTaskManager);
+                        syncTaskManager,
+                        commandExecutorTaskFactory);
         LOGGER.info("MCP sync server built");
 
         // Register McpEndpoint as an OSGi service under its concrete class type.
