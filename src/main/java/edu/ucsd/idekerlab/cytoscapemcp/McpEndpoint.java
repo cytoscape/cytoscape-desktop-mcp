@@ -84,7 +84,7 @@ public class McpEndpoint {
      * Returns the pre-generated API manifest as Markdown.
      *
      * <p>The file {@code MCPManifest.md} is generated during the Gradle build by {@link
-     * MCPManifest#main} and bundled as a classpath resource at {@code /MCPManifest.md}. This
+     * McpManifest#main} and bundled as a classpath resource at {@code /MCPManifest.md}. This
      * endpoint serves it as-is with content-type {@code text/markdown}.
      */
     @GET

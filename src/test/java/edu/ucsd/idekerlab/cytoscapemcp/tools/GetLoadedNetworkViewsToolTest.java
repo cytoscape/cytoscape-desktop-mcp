@@ -136,7 +136,7 @@ public class GetLoadedNetworkViewsToolTest {
     // -----------------------------------------------------------------------
 
     @Test
-    public void singleNetworkWithoutView_returnsNullViewSuid() throws Exception {
+    public void singleNetworkWithoutView_omitsViewSuid() throws Exception {
         stubNetwork1("Collection A", "Network A", 100L, null, 5, 3);
         when(viewManager.getNetworkViews(subNetwork1)).thenReturn(Collections.emptyList());
 
@@ -147,7 +147,9 @@ public class GetLoadedNetworkViewsToolTest {
         String response = callTool();
 
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
-        assertTrue("Should contain null view_suid", response.contains("\\\"view_suid\\\":null"));
+        assertFalse(
+                "view_suid key must be absent when there is no view",
+                response.contains("view_suid"));
         assertTrue("Should contain network name", response.contains("Network A"));
     }
 
@@ -199,10 +201,9 @@ public class GetLoadedNetworkViewsToolTest {
 
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
         assertTrue("Should contain SubNet X", response.contains("SubNet X"));
-        // Only one entry should be present (the plain network was skipped)
-        // Count occurrences of "network_suid" — should be exactly 1
+        // Each network entry appears once in content[0].text and once in structuredContent
         int count = countOccurrences(response, "network_suid");
-        assertTrue("Should have exactly 1 network entry, found " + count, count == 1);
+        assertTrue("Should have exactly 1 network entry, found " + count / 2, count == 2);
     }
 
     // -----------------------------------------------------------------------

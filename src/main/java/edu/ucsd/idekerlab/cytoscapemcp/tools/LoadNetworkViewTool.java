@@ -7,6 +7,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -15,8 +16,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import edu.ucsd.idekerlab.cytoscapemcp.McpSchema;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.CyNetworkReader;
@@ -76,71 +81,109 @@ public class LoadNetworkViewTool {
                     + " \"use_header_row\": true}";
 
     static final String INPUT_SCHEMA =
-            """
-            {
-              "type": "object",
-              "required": ["source"],
-              "properties": {
-                "source": {
-                  "type": "string",
-                  "description": "The data source type. Must be one of: 'ndex', 'network-file', 'tabular-file'.",
-                  "enum": ["ndex", "network-file", "tabular-file"]
-                },
-                "network_id": {
-                  "type": "string",
-                  "description": "The UUID of the network on NDEx (e.g. \\"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\\"). Required when source='ndex'."
-                },
-                "file_path": {
-                  "type": "string",
-                  "description": "Absolute path to the file to import. Required when source='network-file' or 'tabular-file'."
-                },
-                "source_column": {
-                  "type": "string",
-                  "description": "Column name for the source node. Required when source='tabular-file'."
-                },
-                "target_column": {
-                  "type": "string",
-                  "description": "Column name for the target node. Required when source='tabular-file'."
-                },
-                "interaction_column": {
-                  "type": "string",
-                  "description": "Column name for the edge interaction type. Optional for source='tabular-file'."
-                },
-                "delimiter_char_code": {
-                  "type": "integer",
-                  "description": "ASCII character code of the column delimiter (e.g. 44 for comma, 9 for tab). Required for non-Excel tabular files."
-                },
-                "use_header_row": {
-                  "type": "boolean",
-                  "description": "Whether the first row of the file contains column headers. Required when source='tabular-file'."
-                },
-                "excel_sheet": {
-                  "type": "string",
-                  "description": "Name of the Excel sheet containing the network data. Required for Excel tabular files."
-                },
-                "node_attributes_sheet": {
-                  "type": "string",
-                  "description": "Name of an Excel sheet containing node attribute data. Optional for Excel tabular files."
-                },
-                "node_attributes_key_column": {
-                  "type": "string",
-                  "description": "Column name in the node attributes sheet that contains the node ID for joining. Used with node_attributes_sheet."
-                },
-                "node_attributes_source_columns": {
-                  "type": "array",
-                  "items": {"type": "string"},
-                  "description": "Array of column names from the node attributes sheet to map as source node properties."
-                },
-                "node_attributes_target_columns": {
-                  "type": "array",
-                  "items": {"type": "string"},
-                  "description": "Array of column names from the node attributes sheet to map as target node properties."
-                }
-              }
-            }
-            """;
+            McpSchema.toJson(
+                    McpSchema.InputSchema.builder()
+                            .required("source")
+                            .property(
+                                    "source",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "The data source type. Must be one of: 'ndex',"
+                                                    + " 'network-file', 'tabular-file'.",
+                                            List.of("ndex", "network-file", "tabular-file")))
+                            .property(
+                                    "network_id",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "The UUID of the network on NDEx (e.g."
+                                                    + " \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\")."
+                                                    + " Required when source='ndex'."))
+                            .property(
+                                    "file_path",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Absolute path to the file to import. Required when"
+                                                    + " source='network-file' or 'tabular-file'."))
+                            .property(
+                                    "source_column",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Column name for the source node. Required when"
+                                                    + " source='tabular-file'."))
+                            .property(
+                                    "target_column",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Column name for the target node. Required when"
+                                                    + " source='tabular-file'."))
+                            .property(
+                                    "interaction_column",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Column name for the edge interaction type."
+                                                    + " Optional for source='tabular-file'."))
+                            .property(
+                                    "delimiter_char_code",
+                                    new McpSchema.InputProperty(
+                                            "integer",
+                                            "ASCII character code of the column delimiter"
+                                                    + " (e.g. 44 for comma, 9 for tab). Required"
+                                                    + " for non-Excel tabular files."))
+                            .property(
+                                    "use_header_row",
+                                    new McpSchema.InputProperty(
+                                            "boolean",
+                                            "Whether the first row of the file contains column"
+                                                    + " headers. Required when"
+                                                    + " source='tabular-file'."))
+                            .property(
+                                    "excel_sheet",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Name of the Excel sheet containing the network data."
+                                                    + " Required for Excel tabular files."))
+                            .property(
+                                    "node_attributes_sheet",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Name of an Excel sheet containing node attribute"
+                                                    + " data. Optional for Excel tabular files."))
+                            .property(
+                                    "node_attributes_key_column",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Column name in the node attributes sheet that"
+                                                    + " contains the node ID for joining. Used with"
+                                                    + " node_attributes_sheet."))
+                            .property(
+                                    "node_attributes_source_columns",
+                                    new McpSchema.InputProperty(
+                                            "array",
+                                            "Array of column names from the node attributes sheet"
+                                                    + " to map as source node properties.",
+                                            new McpSchema.InputProperty("string", null),
+                                            null))
+                            .property(
+                                    "node_attributes_target_columns",
+                                    new McpSchema.InputProperty(
+                                            "array",
+                                            "Array of column names from the node attributes sheet"
+                                                    + " to map as target node properties.",
+                                            new McpSchema.InputProperty("string", null),
+                                            null))
+                            .build());
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record LoadNetworkViewCallResult(
+            @JsonProperty("status") String status,
+            @JsonProperty("network_suid") long networkSuid,
+            @JsonProperty("node_count") int nodeCount,
+            @JsonProperty("edge_count") int edgeCount,
+            @JsonProperty("network_name") String networkName) {}
+
+    static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(LoadNetworkViewCallResult.class);
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final CyProperty<Properties> cyProperties;
     private final CyApplicationManager appManager;
@@ -174,14 +217,18 @@ public class LoadNetworkViewTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
-                            .inputSchema(mapper.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .outputSchema(
+                                    MAPPER.readValue(
+                                            OUTPUT_SCHEMA,
+                                            new TypeReference<Map<String, Object>>() {}))
                             .build();
             return McpServerFeatures.SyncToolSpecification.builder()
                     .tool(toolDef)
                     .callHandler(this::handle)
                     .build();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to parse INPUT_SCHEMA for " + TOOL_NAME, e);
+            throw new IllegalStateException("Failed to build tool spec for " + TOOL_NAME, e);
         }
     }
 
@@ -455,22 +502,16 @@ public class LoadNetworkViewTool {
     // -- Result helpers -------------------------------------------------------
 
     private CallToolResult buildSuccessResponse(CyNetwork network, String fallbackName) {
-        try {
-            String networkName = getDisplayName(network, fallbackName);
-            ObjectNode result = mapper.createObjectNode();
-            result.put("status", "success");
-            result.put("network_suid", network.getSUID());
-            result.put("node_count", network.getNodeCount());
-            result.put("edge_count", network.getEdgeCount());
-            result.put("network_name", networkName);
-            return success(mapper.writeValueAsString(result));
-        } catch (Exception e) {
-            return success("Network loaded successfully.");
-        }
-    }
-
-    private static CallToolResult success(String message) {
-        return CallToolResult.builder().content(List.of(new TextContent(message))).build();
+        String networkName = getDisplayName(network, fallbackName);
+        return CallToolResult.builder()
+                .structuredContent(
+                        new LoadNetworkViewCallResult(
+                                "success",
+                                network.getSUID(),
+                                network.getNodeCount(),
+                                network.getEdgeCount(),
+                                networkName))
+                .build();
     }
 
     private static CallToolResult error(String message) {

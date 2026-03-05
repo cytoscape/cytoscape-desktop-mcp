@@ -10,9 +10,12 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import edu.ucsd.idekerlab.cytoscapemcp.McpSchema;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
@@ -38,21 +41,26 @@ public class InspectTabularFileTool {
                     + " (.xls/.xlsx). If Excel, returns the list of sheet names. If not Excel,"
                     + " returns the detected file extension (e.g. '.csv', '.tsv').";
 
-    static final String INPUT_SCHEMA =
-            """
-            {
-              "type": "object",
-              "required": ["file_path"],
-              "properties": {
-                "file_path": {
-                  "type": "string",
-                  "description": "Absolute path to the tabular data file to inspect."
-                }
-              }
-            }
-            """;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record InspectTabularFileCallResult(
+            @JsonProperty("is_excel") boolean isExcel,
+            @JsonProperty("sheets") List<String> sheets,
+            @JsonProperty("detected_extension") String detectedExtension) {}
+
+    static final String INPUT_SCHEMA =
+            McpSchema.toJson(
+                    McpSchema.InputSchema.builder()
+                            .required("file_path")
+                            .property(
+                                    "file_path",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Absolute path to the tabular data file to inspect."))
+                            .build());
+
+    static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(InspectTabularFileCallResult.class);
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
@@ -61,14 +69,18 @@ public class InspectTabularFileTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .description(TOOL_DESCRIPTION)
-                            .inputSchema(mapper.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .outputSchema(
+                                    MAPPER.readValue(
+                                            OUTPUT_SCHEMA,
+                                            new TypeReference<Map<String, Object>>() {}))
                             .build();
             return McpServerFeatures.SyncToolSpecification.builder()
                     .tool(toolDef)
                     .callHandler(this::handle)
                     .build();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to parse INPUT_SCHEMA for " + TOOL_NAME, e);
+            throw new IllegalStateException("Failed to build tool spec for " + TOOL_NAME, e);
         }
     }
 
@@ -98,15 +110,9 @@ public class InspectTabularFileTool {
                 for (int i = 0; i < sheetCount; i++) {
                     sheetNames.add(workbook.getSheetName(i));
                 }
-
-                ObjectNode result = mapper.createObjectNode();
-                result.put("is_excel", true);
-                ArrayNode sheetsArray = result.putArray("sheets");
-                for (String name : sheetNames) {
-                    sheetsArray.add(name);
-                }
-
-                return success(mapper.writeValueAsString(result));
+                return CallToolResult.builder()
+                        .structuredContent(new InspectTabularFileCallResult(true, sheetNames, null))
+                        .build();
             } catch (Exception poiException) {
                 // Not a valid Excel file — return extension info.
                 LOGGER.debug("File is not Excel ({}): {}", poiException.getMessage(), filePath);
@@ -115,11 +121,9 @@ public class InspectTabularFileTool {
                 int dotIndex = fileName.lastIndexOf('.');
                 String extension = dotIndex >= 0 ? fileName.substring(dotIndex) : "";
 
-                ObjectNode result = mapper.createObjectNode();
-                result.put("is_excel", false);
-                result.put("detected_extension", extension);
-
-                return success(mapper.writeValueAsString(result));
+                return CallToolResult.builder()
+                        .structuredContent(new InspectTabularFileCallResult(false, null, extension))
+                        .build();
             }
         } catch (Exception e) {
             LOGGER.error("Error inspecting tabular file", e);
@@ -128,10 +132,6 @@ public class InspectTabularFileTool {
     }
 
     // -- Result helpers -------------------------------------------------------
-
-    private static CallToolResult success(String message) {
-        return CallToolResult.builder().content(List.of(new TextContent(message))).build();
-    }
 
     private static CallToolResult error(String message) {
         return CallToolResult.builder()

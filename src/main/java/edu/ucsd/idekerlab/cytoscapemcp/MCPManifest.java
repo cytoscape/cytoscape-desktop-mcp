@@ -29,7 +29,7 @@ import io.modelcontextprotocol.spec.McpSchema.Tool;
  *       current working directory if omitted.
  * </ul>
  */
-public final class MCPManifest {
+public final class McpManifest {
 
     public static void main(String[] args) throws Exception {
         Path outputDir = args.length > 0 ? Paths.get(args[0]) : Paths.get(".");
@@ -186,7 +186,7 @@ public final class MCPManifest {
     // -------------------------------------------------------------------------
 
     private static String loadTemplate() throws IOException {
-        try (InputStream is = MCPManifest.class.getResourceAsStream("/manifest_template.md")) {
+        try (InputStream is = McpManifest.class.getResourceAsStream("/manifest_template.md")) {
             if (is == null) {
                 throw new IllegalStateException(
                         "manifest_template.md not found on classpath at /manifest_template.md");

@@ -36,7 +36,7 @@ import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
  * Static factory that creates and fully registers an {@link McpSyncServer} instance.
  *
  * <p>Centralises MCP server construction so that both {@link CyActivator} (OSGi runtime) and {@link
- * MCPManifest} (standalone Gradle task) use identical tool/prompt registrations. Cytoscape service
+ * McpManifest} (standalone Gradle task) use identical tool/prompt registrations. Cytoscape service
  * parameters are nullable — they are stored in tool instances but only accessed inside handler
  * lambdas at call time, not during schema/spec construction via {@code toSpec()}.
  */

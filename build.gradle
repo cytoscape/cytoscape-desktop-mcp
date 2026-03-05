@@ -199,7 +199,7 @@ processResources {
 tasks.register('generateManifest', JavaExec) {
     dependsOn compileJava, processResources
     classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
-    mainClass = 'edu.ucsd.idekerlab.cytoscapemcp.MCPManifest'
+    mainClass = 'edu.ucsd.idekerlab.cytoscapemcp.McpManifest'
     def outputDir = layout.buildDirectory.dir('generated/manifest').get().asFile
     args outputDir.absolutePath
     outputs.dir(layout.buildDirectory.dir('generated/manifest'))

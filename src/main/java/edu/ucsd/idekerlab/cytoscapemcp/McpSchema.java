@@ -28,6 +28,17 @@ import com.github.victools.jsonschema.module.jackson.JacksonModule;
  *   <li>{@link #toSchemaJson(Class)} — derive a JSON schema string from a Jackson-annotated class
  *       via victools.
  * </ul>
+ *
+ * <p><strong>Null vs Absent vs Empty rules for tool result json:</strong>
+ *
+ * <ol>
+ *   <li><strong>Field not applicable to this response shape</strong> — pass {@code null} and
+ *       annotate the record with {@code @JsonInclude(NON_NULL)} so the key is <em>absent</em> from
+ *       the JSON. Absent key means "this concept does not apply here."
+ *   <li><strong>List field that is applicable but has no items</strong> — pass {@code List.of()} so
+ *       the key is present as {@code []}. An empty array means "I checked; nothing was found." A
+ *       list field that was actually checked must never be {@code null}.
+ * </ol>
  */
 public class McpSchema {
 
@@ -64,18 +75,24 @@ public class McpSchema {
 
     /**
      * Describes one property entry in an MCP tool input schema's {@code properties} object.
-     * Supports nested {@code items} for array-typed properties.
+     * Supports nested {@code items} for array-typed properties and {@code enum} for allowed values.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record InputProperty(
             @JsonProperty("type") String type,
             @JsonProperty("description") String description,
-            @JsonProperty("items") InputProperty items) {
+            @JsonProperty("items") InputProperty items,
+            @JsonProperty("enum") List<String> allowedValues) {
 
-        /** Convenience constructor for non-array (leaf) properties. */
+        /** Convenience constructor for non-array, non-enum (leaf) properties. */
         public InputProperty(String type, String description) {
-            this(type, description, null);
+            this(type, description, null, null);
+        }
+
+        /** Convenience constructor for enum-constrained properties. */
+        public InputProperty(String type, String description, List<String> allowedValues) {
+            this(type, description, null, allowedValues);
         }
     }
 
@@ -144,10 +161,7 @@ public class McpSchema {
             }
 
             public InputSchema build() {
-                return new InputSchema(
-                        type,
-                        required.isEmpty() ? null : List.copyOf(required),
-                        Map.copyOf(properties));
+                return new InputSchema(type, List.copyOf(required), Map.copyOf(properties));
             }
         }
     }

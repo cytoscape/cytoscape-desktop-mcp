@@ -2,12 +2,17 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import edu.ucsd.idekerlab.cytoscapemcp.McpSchema;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.model.CyNetwork;
@@ -37,25 +42,31 @@ public class SetCurrentNetworkViewTool {
             "Set the specified network and view as the current (active) network and view"
                     + " in Cytoscape. Both network_suid and view_suid are required.";
 
-    static final String INPUT_SCHEMA =
-            """
-            {
-              "type": "object",
-              "required": ["network_suid", "view_suid"],
-              "properties": {
-                "network_suid": {
-                  "type": "integer",
-                  "description": "SUID of the target network."
-                },
-                "view_suid": {
-                  "type": "integer",
-                  "description": "SUID of the target network view."
-                }
-              }
-            }
-            """;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record SetCurrentNetworkViewCallResult(
+            @JsonProperty("status") String status,
+            @JsonProperty("network_name") String networkName,
+            @JsonProperty("node_count") int nodeCount,
+            @JsonProperty("edge_count") int edgeCount) {}
+
+    static final String INPUT_SCHEMA =
+            McpSchema.toJson(
+                    McpSchema.InputSchema.builder()
+                            .required("network_suid", "view_suid")
+                            .property(
+                                    "network_suid",
+                                    new McpSchema.InputProperty(
+                                            "integer", "SUID of the target network."))
+                            .property(
+                                    "view_suid",
+                                    new McpSchema.InputProperty(
+                                            "integer", "SUID of the target network view."))
+                            .build());
+
+    static final String OUTPUT_SCHEMA =
+            McpSchema.toSchemaJson(SetCurrentNetworkViewCallResult.class);
     private final CyApplicationManager appManager;
     private final CyNetworkManager networkManager;
     private final CyNetworkViewManager viewManager;
@@ -76,14 +87,18 @@ public class SetCurrentNetworkViewTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .description(TOOL_DESCRIPTION)
-                            .inputSchema(mapper.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .outputSchema(
+                                    MAPPER.readValue(
+                                            OUTPUT_SCHEMA,
+                                            new TypeReference<Map<String, Object>>() {}))
                             .build();
             return McpServerFeatures.SyncToolSpecification.builder()
                     .tool(toolDef)
                     .callHandler(this::handle)
                     .build();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to parse INPUT_SCHEMA for " + TOOL_NAME, e);
+            throw new IllegalStateException("Failed to build tool spec for " + TOOL_NAME, e);
         }
     }
 
@@ -119,15 +134,15 @@ public class SetCurrentNetworkViewTool {
             appManager.setCurrentNetwork(network);
             appManager.setCurrentNetworkView(targetView);
 
-            // Build success response.
             String networkName = network.getRow(network).get(CyNetwork.NAME, String.class);
-            ObjectNode result = mapper.createObjectNode();
-            result.put("status", "success");
-            result.put("network_name", networkName);
-            result.put("node_count", network.getNodeCount());
-            result.put("edge_count", network.getEdgeCount());
-
-            return success(mapper.writeValueAsString(result));
+            return CallToolResult.builder()
+                    .structuredContent(
+                            new SetCurrentNetworkViewCallResult(
+                                    "success",
+                                    networkName,
+                                    network.getNodeCount(),
+                                    network.getEdgeCount()))
+                    .build();
         } catch (Exception e) {
             LOGGER.error("Error setting current network view", e);
             return error("Failed to set current network view: " + e.getMessage());
@@ -135,10 +150,6 @@ public class SetCurrentNetworkViewTool {
     }
 
     // -- Result helpers -------------------------------------------------------
-
-    private static CallToolResult success(String message) {
-        return CallToolResult.builder().content(List.of(new TextContent(message))).build();
-    }
 
     private static CallToolResult error(String message) {
         return CallToolResult.builder()

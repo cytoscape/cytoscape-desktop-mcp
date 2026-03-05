@@ -1,15 +1,20 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import edu.ucsd.idekerlab.cytoscapemcp.McpSchema;
 
 import org.cytoscape.model.CyNetwork;
 import org.cytoscape.model.CyNetworkManager;
@@ -40,16 +45,25 @@ public class GetLoadedNetworkViewsTool {
             "Enumerate all network collections currently loaded in Cytoscape with their views,"
                     + " node counts, and edge counts. Read-only; does not modify state.";
 
-    static final String INPUT_SCHEMA =
-            """
-            {
-              "type": "object",
-              "required": [],
-              "properties": {}
-            }
-            """;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record NetworkViewEntry(
+            @JsonProperty("collection_name") String collectionName,
+            @JsonProperty("network_name") String networkName,
+            @JsonProperty("network_suid") long networkSuid,
+            @JsonProperty("view_suid") Long viewSuid,
+            @JsonProperty("node_count") int nodeCount,
+            @JsonProperty("edge_count") int edgeCount) {}
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record GetLoadedNetworkViewsCallResult(
+            @JsonProperty("views") List<NetworkViewEntry> views) {}
+
+    static final String INPUT_SCHEMA = McpSchema.toJson(McpSchema.InputSchema.builder().build());
+
+    static final String OUTPUT_SCHEMA =
+            McpSchema.toSchemaJson(GetLoadedNetworkViewsCallResult.class);
     private final CyNetworkManager networkManager;
     private final CyNetworkViewManager viewManager;
 
@@ -66,14 +80,18 @@ public class GetLoadedNetworkViewsTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .description(TOOL_DESCRIPTION)
-                            .inputSchema(mapper.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
+                            .outputSchema(
+                                    MAPPER.readValue(
+                                            OUTPUT_SCHEMA,
+                                            new TypeReference<Map<String, Object>>() {}))
                             .build();
             return McpServerFeatures.SyncToolSpecification.builder()
                     .tool(toolDef)
                     .callHandler(this::handle)
                     .build();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to parse INPUT_SCHEMA for " + TOOL_NAME, e);
+            throw new IllegalStateException("Failed to build tool spec for " + TOOL_NAME, e);
         }
     }
 
@@ -84,7 +102,7 @@ public class GetLoadedNetworkViewsTool {
 
         try {
             Set<CyNetwork> networks = networkManager.getNetworkSet();
-            ArrayNode viewsArray = mapper.createArrayNode();
+            List<NetworkViewEntry> entries = new ArrayList<>();
 
             for (CyNetwork network : networks) {
                 if (!(network instanceof CySubNetwork)) {
@@ -98,27 +116,21 @@ public class GetLoadedNetworkViewsTool {
                 String networkName = network.getRow(network).get(CyNetwork.NAME, String.class);
 
                 Collection<CyNetworkView> views = viewManager.getNetworkViews(network);
-                CyNetworkView firstView = views.isEmpty() ? null : views.iterator().next();
+                Long viewSuid = views.isEmpty() ? null : views.iterator().next().getSUID();
 
-                ObjectNode entry = mapper.createObjectNode();
-                entry.put("collection_name", collectionName);
-                entry.put("network_name", networkName);
-                entry.put("network_suid", network.getSUID());
-                if (firstView != null) {
-                    entry.put("view_suid", firstView.getSUID());
-                } else {
-                    entry.putNull("view_suid");
-                }
-                entry.put("node_count", network.getNodeCount());
-                entry.put("edge_count", network.getEdgeCount());
-
-                viewsArray.add(entry);
+                entries.add(
+                        new NetworkViewEntry(
+                                collectionName,
+                                networkName,
+                                network.getSUID(),
+                                viewSuid,
+                                network.getNodeCount(),
+                                network.getEdgeCount()));
             }
 
-            ObjectNode result = mapper.createObjectNode();
-            result.set("views", viewsArray);
-
-            return success(mapper.writeValueAsString(result));
+            return CallToolResult.builder()
+                    .structuredContent(new GetLoadedNetworkViewsCallResult(entries))
+                    .build();
         } catch (Exception e) {
             LOGGER.error("Error enumerating network views", e);
             return error("Failed to enumerate network views: " + e.getMessage());
@@ -126,10 +138,6 @@ public class GetLoadedNetworkViewsTool {
     }
 
     // -- Result helpers -------------------------------------------------------
-
-    private static CallToolResult success(String message) {
-        return CallToolResult.builder().content(List.of(new TextContent(message))).build();
-    }
 
     private static CallToolResult error(String message) {
         return CallToolResult.builder()
