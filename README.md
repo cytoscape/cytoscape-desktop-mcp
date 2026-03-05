@@ -83,7 +83,7 @@ Refer to [Diagnostics](docs/AgentConfiguration.md#diagnostics) for more informat
 See [docs/AgentConfiguration.md](docs/AgentConfiguration.md) for step-by-step setup instructions for Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
 
 ### Activate the MCP server from Agent prompts:
-Try some Prompts to chaange states on the Cytoscape Desktop from Agent.
+Try some example Prompts to chaange states on the Cytoscape Desktop from Agent.
 * `load network id 63836e7b-ca44-11f0-a218-005056ae3c32 into cytoscape` - will load `Yeast ergosterol` network that resides on ndexbio.org.
 * `/cytoscape_network_wizard` - this will work on most agents that support mapping MCP prompts directly to 'slash' commands. It will start cytoscape network wizard interactive flow at agent prompt.
 * `start cytoscape network wizard` - will trigger llm to request starting the cytoscape network wizard prompt sequence.
@@ -92,24 +92,8 @@ Try some Prompts to chaange states on the Cytoscape Desktop from Agent.
 
 ## Available Cytoscape Desktop MCP Artifacts
 
-| Tool | Description |
-|------|-------------|
-| `load_cytoscape_network_view` | Load a network into Cytoscape from [NDEx][ndex] (by UUID), a native network format file, or a tabular data file with column mapping. Creates a new network collection and view, and sets it as the current network |
-| `get_loaded_network_views` | Enumerate all network collections currently loaded in Cytoscape with their views, node counts, and edge counts. Read-only; does not modify state |
-| `set_current_network_view` | Set the specified network and view as the current (active) network and view in Cytoscape. Both `network_suid` and `view_suid` are required |
-| `create_network_view` | Create a visual view for a network that currently has no view. Sets the new view and its network as the current network and view |
-| `inspect_tabular_file` | Inspect a tabular data file to determine whether it is an Excel workbook (`.xls`/`.xlsx`). If Excel, returns the list of sheet names; if not, returns the detected file extension (e.g. `.csv`, `.tsv`) |
-| `get_file_columns` | Read column headers and up to three sample rows from a tabular file. For Excel files supply `excel_sheet`; for text files supply `delimiter_char_code` |
-
-| Prompt | Description |
-|------|-------------|
-| `cytoscape-guidelines` | General behavioral guidelines for all Cytoscape tool interactions — in particular, how to handle connectivity failures when Cytoscape Desktop is not running |
-
-The MCP server exposes a `GET /mcp/manifest` endpoint that returns a complete, human-readable catalog of every tool, prompt, resource, and resource template registered on the server, formatted as Markdown with full JSON schema definitions for each artifact's input and output. After running `make build` (or `./gradlew jar`), the generated file is also available at `build/generated/manifest/MCPManifest.md` for offline review.
-
-**Example activation prompts** — after connecting your agent, try this to load the Yeast ergosterol network:
-
-> Load the NDEx network 63836e7b-ca44-11f0-a218-005056ae3c32 into Cytoscape
+* The MCP server exposes a `GET /mcp/manifest` endpoint that returns a complete, human-readable catalog of every tool, prompt, resource, and resource template registered on the server, formatted as Markdown with full JSON schema definitions for each artifact's input and output. A
+* `make build` will generate the MCP manifest into a static file after build completes at `build/generated/manifest/MCPManifest.md` for same review.
 
 
 ## MCP Configuration properties
