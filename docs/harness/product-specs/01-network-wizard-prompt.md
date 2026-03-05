@@ -25,8 +25,8 @@ This is the primary entry-point prompt. It orchestrates the full workflow: selec
 ```json
 {
   "name": "network_wizard",
-  "title": "Network Setup and Styling Wizard",
-  "description": "Interactive wizard that guides you through selecting an existing network or loading a new one (from NDEx or local file) into Cytoscape, running network analysis, choosing a layout, and styling nodes and edges with defaults and data-driven mappings.",
+  "title": "Cytoscape Desktop Network Setup and Styling Wizard",
+  "description": "Interactive wizard that guides you through selecting an existing network or loading a new one (from NDEx or local file) into Cytoscapex Desktop. It will run network analysis, choosing visual layout to applu, and styling nodes and edges with defaults and data-driven mappings.",
   "arguments": []
 }
 ```
@@ -286,7 +286,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "get_loaded_network_views",
-  "description": "Enumerate all network collections currently loaded in Cytoscape with their views, node counts, and edge counts. Read-only; does not modify state.",
+  "description": "Enumerate all network collections currently loaded in Cytoscape Desktop with their views, node counts, and edge counts. Read-only; does not modify state.",
   "inputSchema": {
     "type": "object",
     "properties": {},
@@ -308,7 +308,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "set_current_network_view",
-  "description": "Set the specified network and view as the current (active) network and view in Cytoscape. Both network_suid and view_suid are required.",
+  "description": "Set the specified network and view as the current (active) network and view in Cytoscape Desktop. Both network_suid and view_suid are required.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -347,7 +347,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "create_network_view",
-  "description": "Create a visual view for a network that currently has no view. Sets the new view and its network as the current network and view.",
+  "description": "Create a visual view for a network in Cytoscape Desktop that currently has no view. Sets the new view and its network as the current network and view.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -382,7 +382,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "analyze_network",
-  "description": "Run NetworkAnalyzer on the current network to compute topological statistics. Adds columns like Degree, BetweennessCentrality, ClusteringCoefficient, etc. to the node and edge tables.",
+  "description": "Run NetworkAnalyzer on the current network in Cytoscape Desktop to compute topological statistics. Adds columns like Degree, BetweennessCentrality, ClusteringCoefficient, etc. to the node and edge tables.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -409,7 +409,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "get_layout_algorithms",
-  "description": "List all available layout algorithms in Cytoscape with their names and descriptions.",
+  "description": "List all available layout algorithms in Cytoscape Desktop with their names and descriptions.",
   "inputSchema": {
     "type": "object",
     "properties": {},
@@ -431,7 +431,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "apply_layout",
-  "description": "Apply a layout algorithm to the current network view using default parameters.",
+  "description": "Apply a layout algorithm to the current network view in Cytoscape Desktop using default parameters.",
   "inputSchema": {
     "type": "object",
     "properties": {

@@ -37,7 +37,7 @@ public class GetLayoutAlgorithmsTool {
     private static final String TOOL_NAME = "get_layout_algorithms";
 
     private static final String TOOL_DESCRIPTION =
-            "List all available layout algorithms in Cytoscape with their names and display names."
+            "List all available layout algorithms in Cytoscape Desktop with their names and display names."
                     + " Read-only; does not modify state.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

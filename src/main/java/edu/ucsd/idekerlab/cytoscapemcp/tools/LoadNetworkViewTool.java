@@ -80,7 +80,7 @@ public class LoadNetworkViewTool {
     private static final String TOOL_NAME = "load_cytoscape_network_view";
 
     private static final String TOOL_DESCRIPTION =
-            "Load a network into Cytoscape from NDEx (by UUID), a native network format file,"
+            "Load a network into Cytoscape Desktop from NDEx (by UUID), a native network format file,"
                     + " or a tabular data file with column mapping. Creates a new network collection"
                     + " and view, and sets it as the current network.";
 

@@ -37,7 +37,8 @@ public class InspectTabularFileTool {
     private static final String TOOL_NAME = "inspect_tabular_file";
 
     private static final String TOOL_DESCRIPTION =
-            "Inspect a tabular data file to determine whether it is an Excel workbook"
+            "Inspect a tabular data file, for use when importing network data into Cytoscape Desktop,"
+                    + " to determine whether it is an Excel workbook"
                     + " (.xls/.xlsx). If Excel, returns the list of sheet names. If not Excel,"
                     + " returns the detected file extension (e.g. '.csv', '.tsv').";
 

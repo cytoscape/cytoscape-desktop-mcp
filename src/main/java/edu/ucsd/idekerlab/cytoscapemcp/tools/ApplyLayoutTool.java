@@ -39,7 +39,7 @@ public class ApplyLayoutTool {
     private static final String TOOL_NAME = "apply_layout";
 
     private static final String TOOL_DESCRIPTION =
-            "Apply a layout algorithm to the current network view using default parameters."
+            "Apply a layout algorithm to the current network view in Cytoscape Desktop using default parameters."
                     + " After layout, the view is fitted to content and refreshed.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

@@ -41,7 +41,7 @@ public class CreateNetworkViewTool {
     private static final String TOOL_NAME = "create_network_view";
 
     private static final String TOOL_DESCRIPTION =
-            "Create a visual view for a network that currently has no view. Sets the new view"
+            "Create a visual view for a network in Cytoscape Desktop that currently has no view. Sets the new view"
                     + " and its network as the current network and view. If a view already exists, returns the existing one instead of creating a duplicate.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

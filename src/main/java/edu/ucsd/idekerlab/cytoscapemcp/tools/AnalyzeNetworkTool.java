@@ -44,7 +44,7 @@ public class AnalyzeNetworkTool {
     private static final String TOOL_NAME = "analyze_network";
 
     private static final String TOOL_DESCRIPTION =
-            "Run NetworkAnalyzer on the current network to compute topological statistics"
+            "Run NetworkAnalyzer on the current network in Cytoscape Desktop to compute topological statistics"
                     + " (Degree, BetweennessCentrality, etc.). Adds columns to the node and edge"
                     + " tables. Returns the list of newly added node columns and basic network"
                     + " statistics.";

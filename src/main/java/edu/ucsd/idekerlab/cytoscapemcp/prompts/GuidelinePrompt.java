@@ -20,7 +20,7 @@ public class GuidelinePrompt {
 
     private static final String PROMPT_NAME = "cytoscape-guidelines";
     private static final String PROMPT_DESCRIPTION =
-            "General guidelines for using the Cytoscape MCP server";
+            "General guidelines for using the Cytoscape Desktop MCP server";
 
     static final String GUIDELINE_TEXT =
             """

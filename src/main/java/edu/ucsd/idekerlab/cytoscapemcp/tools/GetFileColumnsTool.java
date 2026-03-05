@@ -52,7 +52,8 @@ public class GetFileColumnsTool {
     private static final String TOOL_NAME = "get_file_columns";
 
     private static final String TOOL_DESCRIPTION =
-            "Read column headers and up to three sample rows from a tabular file."
+            "Read column headers and up to three sample rows from a tabular file,"
+                    + " for use when importing network data into Cytoscape Desktop."
                     + " For Excel files supply excel_sheet; for text files supply delimiter_char_code."
                     + " Returns {\"columns\":[...],\"sample_rows\":[[...],...]}.";
 

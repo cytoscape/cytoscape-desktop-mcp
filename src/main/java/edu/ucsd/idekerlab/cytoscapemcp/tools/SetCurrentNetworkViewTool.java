@@ -40,7 +40,7 @@ public class SetCurrentNetworkViewTool {
 
     private static final String TOOL_DESCRIPTION =
             "Set the specified network and view as the current (active) network and view"
-                    + " in Cytoscape. Both network_suid and view_suid are required.";
+                    + " in Cytoscape Desktop. Both network_suid and view_suid are required.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

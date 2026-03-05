@@ -25,8 +25,8 @@ This prompt guides the user through loading a network into Cytoscape from NDEx (
 ```json
 {
   "name": "load_network",
-  "title": "Load Network",
-  "description": "Interactive prompt that guides you through loading a network into Cytoscape from NDEx (by UUID) or a local file (native network format or tabular data with column mapping). Creates a new network collection and view and sets it as the current network.",
+  "title": "Load Network on Cytoscape Desktop",
+  "description": "Interactive prompt that guides you through loading a network into Cytoscape Desktop from NDEx (by UUID) or a local file (native network format or tabular data with column mapping). Creates a new root network and view and sets it as the current network.",
   "arguments": []
 }
 ```
@@ -310,7 +310,7 @@ This section provides a structured reference of every step for implementation an
 ```json
 {
   "name": "load_cytoscape_network_view",
-  "description": "Load a network into Cytoscape from NDEx (by UUID), a native network format file, or a tabular data file with column mapping. Creates a new network collection and view, and sets it as the current network.",
+  "description": "Load a network into Cytoscape Desktop from NDEx (by UUID), a native network format file, or a tabular data file with column mapping. Creates a new network collection and view, and sets it as the current network.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -412,7 +412,7 @@ This section provides a structured reference of every step for implementation an
 ```json
 {
   "name": "get_file_columns",
-  "description": "Read column headers and sample rows from a tabular data file using explicit format parameters. The caller must first use inspect_tabular_file to determine Excel vs text format. Returns column names and a few sample rows. Read-only; does not import data.",
+  "description": "Read column headers and sample rows from a tabular data file, for use when importing network data into Cytoscape Desktop, using explicit format parameters. The caller must first use inspect_tabular_file to determine Excel vs text format. Returns column names and a few sample rows. Read-only; does not import data.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -453,7 +453,7 @@ This section provides a structured reference of every step for implementation an
 ```json
 {
   "name": "inspect_tabular_file",
-  "description": "Inspect a tabular data file to determine if it is Excel format and, if so, list all sheet names. Used before get_file_columns to route the agent to the correct sub-flow (Excel sheet selection vs delimiter selection). Read-only; does not import data.",
+  "description": "Inspect a tabular data file, for use when importing network data into Cytoscape Desktop, to determine if it is Excel format and, if so, list all sheet names. Used before get_file_columns to route the agent to the correct sub-flow (Excel sheet selection vs delimiter selection). Read-only; does not import data.",
   "inputSchema": {
     "type": "object",
     "properties": {
