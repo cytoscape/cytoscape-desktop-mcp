@@ -19,6 +19,7 @@ import io.modelcontextprotocol.spec.McpSchema.TextContent;
 public class GuidelinePrompt {
 
     private static final String PROMPT_NAME = "cytoscape-guidelines";
+    private static final String PROMPT_TITLE = "Cytoscape Desktop Guidelines";
     private static final String PROMPT_DESCRIPTION =
             "General guidelines for using the Cytoscape Desktop MCP server";
 
@@ -55,7 +56,8 @@ public class GuidelinePrompt {
             confirm the server is operational.'
             """;
 
-    private static final Prompt PROMPT = new Prompt(PROMPT_NAME, PROMPT_DESCRIPTION, List.of());
+    private static final Prompt PROMPT =
+            new Prompt(PROMPT_NAME, PROMPT_TITLE, PROMPT_DESCRIPTION, List.of());
 
     public McpServerFeatures.SyncPromptSpecification toSpec() {
         return new McpServerFeatures.SyncPromptSpecification(
@@ -65,6 +67,6 @@ public class GuidelinePrompt {
                                 PROMPT_DESCRIPTION,
                                 List.of(
                                         new PromptMessage(
-                                                Role.USER, new TextContent(GUIDELINE_TEXT)))));
+                                                Role.ASSISTANT, new TextContent(GUIDELINE_TEXT)))));
     }
 }

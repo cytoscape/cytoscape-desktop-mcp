@@ -14,13 +14,13 @@ import io.modelcontextprotocol.spec.McpSchema.PromptMessage;
 import io.modelcontextprotocol.spec.McpSchema.Role;
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
 
-public class GuidelinePromptTest {
+public class LoadNetworkPromptTest {
 
-    private GuidelinePrompt prompt;
+    private LoadNetworkPrompt prompt;
 
     @Before
     public void setUp() {
-        prompt = new GuidelinePrompt();
+        prompt = new LoadNetworkPrompt();
     }
 
     // -------------------------------------------------------------------------
@@ -33,21 +33,21 @@ public class GuidelinePromptTest {
     }
 
     @Test
-    public void toSpec_promptName_isCytoscapeGuidelines() {
+    public void toSpec_promptName_isLoadNetwork() {
         McpServerFeatures.SyncPromptSpecification spec = prompt.toSpec();
-        assertEquals("cytoscape-guidelines", spec.prompt().name());
+        assertEquals("load_network", spec.prompt().name());
     }
 
     @Test
-    public void toSpec_promptTitle_isCytoscapeDesktopGuidelines() {
+    public void toSpec_promptTitle_isNotBlank() {
         McpServerFeatures.SyncPromptSpecification spec = prompt.toSpec();
         assertFalse("Prompt title must not be blank", spec.prompt().title().isBlank());
     }
 
     @Test
-    public void toSpec_promptDescription_isNotEmpty() {
+    public void toSpec_promptDescription_isNotBlank() {
         McpServerFeatures.SyncPromptSpecification spec = prompt.toSpec();
-        assertFalse(spec.prompt().description().isBlank());
+        assertFalse("Prompt description must not be blank", spec.prompt().description().isBlank());
     }
 
     @Test
@@ -65,6 +65,19 @@ public class GuidelinePromptTest {
     // -------------------------------------------------------------------------
     // GetPromptResult structure
     // -------------------------------------------------------------------------
+
+    @Test
+    public void handler_result_isNotNull() {
+        GetPromptResult result = prompt.toSpec().promptHandler().apply(null, null);
+        assertNotNull(result);
+    }
+
+    @Test
+    public void handler_result_description_isNotBlank() {
+        GetPromptResult result = prompt.toSpec().promptHandler().apply(null, null);
+        assertFalse(
+                "GetPromptResult description must not be blank", result.description().isBlank());
+    }
 
     @Test
     public void handler_result_containsOneMessage() {
@@ -89,57 +102,45 @@ public class GuidelinePromptTest {
     }
 
     @Test
-    public void handler_result_messageText_isNotEmpty() {
+    public void handler_result_messageText_isNotBlank() {
         GetPromptResult result = prompt.toSpec().promptHandler().apply(null, null);
         String text = ((TextContent) result.messages().get(0).content()).text();
-        assertFalse("Guideline text must not be blank", text.isBlank());
+        assertFalse("System prompt text must not be blank", text.isBlank());
     }
 
     // -------------------------------------------------------------------------
-    // Guideline text content
+    // System prompt text content
     // -------------------------------------------------------------------------
 
     @Test
-    public void guidelineText_containsRule1_connectivityFailure() {
-        assertTrue(
-                "RULE 1 section must be present",
-                GuidelinePrompt.GUIDELINE_TEXT.contains("RULE 1"));
+    public void systemPromptText_containsStep1() {
+        assertTrue("Must contain STEP 1", LoadNetworkPrompt.SYSTEM_PROMPT_TEXT.contains("STEP 1"));
     }
 
     @Test
-    public void guidelineText_containsRule2_formattedApplicationError() {
+    public void systemPromptText_containsStep1a_NDEx() {
         assertTrue(
-                "RULE 2 section must be present",
-                GuidelinePrompt.GUIDELINE_TEXT.contains("RULE 2"));
+                "Must contain STEP 1a-NDEx",
+                LoadNetworkPrompt.SYSTEM_PROMPT_TEXT.contains("STEP 1a-NDEx"));
     }
 
     @Test
-    public void guidelineText_containsRule3_unexpectedServerError() {
+    public void systemPromptText_containsStep1a_File() {
         assertTrue(
-                "RULE 3 section must be present",
-                GuidelinePrompt.GUIDELINE_TEXT.contains("RULE 3"));
+                "Must contain STEP 1a-File",
+                LoadNetworkPrompt.SYSTEM_PROMPT_TEXT.contains("STEP 1a-File"));
     }
 
     @Test
-    public void guidelineText_containsConnectivityUserMessage() {
+    public void systemPromptText_containsStep1b() {
         assertTrue(
-                "User-facing connectivity error message must be present",
-                GuidelinePrompt.GUIDELINE_TEXT.contains(
-                        "Please make sure your Cytoscape desktop is running"));
+                "Must contain STEP 1b", LoadNetworkPrompt.SYSTEM_PROMPT_TEXT.contains("STEP 1b"));
     }
 
     @Test
-    public void guidelineText_containsUnexpectedErrorUserMessage() {
+    public void systemPromptText_containsStep1_LOAD() {
         assertTrue(
-                "User-facing unexpected error message must be present",
-                GuidelinePrompt.GUIDELINE_TEXT.contains(
-                        "An unexpected error occurred in the Cytoscape MCP server"));
-    }
-
-    @Test
-    public void guidelineText_mentionsLocalhost() {
-        assertTrue(
-                "Guideline must mention localhost transport constraint",
-                GuidelinePrompt.GUIDELINE_TEXT.contains("localhost"));
+                "Must contain STEP 1-LOAD",
+                LoadNetworkPrompt.SYSTEM_PROMPT_TEXT.contains("STEP 1-LOAD"));
     }
 }

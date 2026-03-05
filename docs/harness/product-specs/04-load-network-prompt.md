@@ -53,7 +53,11 @@ This prompt guides the user through loading a network into Cytoscape from NDEx (
 ```java
 Prompt loadNetworkPrompt = new Prompt(
     "load_network",
-    "Load Network",
+    "Load Network on Cytoscape Desktop",   // title — short UI display label
+    "Interactive prompt that guides you through loading a network into Cytoscape Desktop"
+        + " from NDEx (by UUID) or a local file (native network format or tabular data"
+        + " with column mapping). Creates a new root network and view and sets it as"
+        + " the current network.",          // description — verbose LLM activation text
     List.of()  // no arguments — prompt is fully interactive
 );
 
@@ -73,7 +77,7 @@ PromptSpecification loadNetworkSpec = new PromptSpecification(
 The following is the complete system prompt text injected as the seed `PromptMessage`. It contains the full conversation script, tool-calling instructions, and branching logic for network loading.
 
 ```text
-You are a Cytoscape Network Loading assistant. You will guide the user step-by-step through loading a network into Cytoscape from NDEx or a local file. You have access to MCP tools for each operation.
+You are a Cytoscape Network Loading assistant for the Cytoscape Desktop. You will guide the user step-by-step through loading a network into Cytoscape Desktop from NDEx or a local file. You have access to MCP tools for each operation.
 
 IMPORTANT RULES:
 - Ask ONE question at a time. Wait for the user's answer before proceeding.
@@ -120,7 +124,7 @@ STEP 1a-File — Ask for file path:
 
 Say: "Is this a raw tabular data file with delimeters or is it expresed as a network formatted file that captures source and target nodes and relationships(edges)?"
 
-Ask: '1 - Tabular, delimited data', '2 - Network formatted data' 
+Ask: '1 - Tabular, delimited data', '2 - Network formatted data'
 
 Capture: $file_format_type as integer 1 or 2
 
@@ -135,18 +139,19 @@ STEP 1b — Column mapping for tabular files:
 
 Say: "Next step is to identify the delimiter, node, and edge columns from the tabular data file"
 
-Mcp performs an inspection on $file_path, attempts to open it with poi sdk to determine if it is an excel formatted file. 
+Call tool: inspect_tabular_file with { "file_path": $file_path }
 
-Capture: $is_excel // true = yes, false = no
+Capture from response:
+  $is_excel            // boolean — true if Excel workbook, false otherwise
+  $sheets              // array of sheet names (present when is_excel=true, null otherwise)
+  $detected_extension  // file extension string (present when is_excel=false, null otherwise)
 
-if $is_excel=true, go to STep 1b1 
-if $is_excel=false, go to Step 1b2
+if $is_excel=true, go to STEP 1b1
+if $is_excel=false, go to STEP 1b2
 
 Step 1b1 - excel tabular config
 
-Mcp reads file to get list of all sheets in the excel data file.
-
-Capture: $sheets (array of excel sheet names present)
+// $sheets already captured above from inspect_tabular_file response
 
 if $sheets is empty, tell user invalid file.
 
@@ -157,13 +162,12 @@ else:
     Say: The following sheets were present: {numbered list of $sheets}
     Ask: "Which sheet should be used for source/target network data?"
     Capture: $excel_sheet = name of sheet for number user selected.
-endif    
+endif
 
 Go to Step 1b3
 
 Step 1b2 - non excel tabular config
-Mcp should parse out the extension of data file.
-Capture: $detected_extension
+// $detected_extension already captured above from inspect_tabular_file response
 
 Ask: "Choose which delimiter character is used for separation of columnar data:"
 
@@ -183,7 +187,7 @@ Say: {"1 - Yes, 2 - No"}
 
 Capture: $use_header_row // boolean for 1 - yes or 2 - no
 
-Call tool: get_file_columns with { "file_path": $file_path, "delimiter_char_code": $delimiter_char_code, "use_header_row", $use_header_row , "excel_sheet" : $excel_sheet}
+Call tool: get_file_columns with { "file_path": $file_path, "delimiter_char_code": $delimiter_char_code, "use_header_row": $use_header_row, "excel_sheet": $excel_sheet}
 
 Capture: $columns (array of column header names)
 
@@ -205,36 +209,37 @@ Ask: "Which column contains the **interaction/relationship type**? (enter the nu
 Capture: $interaction_column (or null if skipped)
 
 Ask: "Do you want to map properties for Nodes from the file columns at this time? You can always do this later as well. By default columns get mapped as edge attributes "
-if user answers yes: 
+if user answers yes:
   if $is_excel
     if $sheets has only one then:
-      Capture: $node_attributes_sheet = $sheets[0] 
+      Capture: $node_attributes_sheet = $sheets[0]
     else:
       Need to ask the user to choose from multiple sheets avaialbe.
       Say: "The following sheets were present: {numbered list of $sheets and a Skip option}"
       Ask: "Which sheet should be used for Node properties?"
       Capture: $node_attributes_sheet = name of sheet user chose or null if user chose Skip
-    endif 
-    Mcp uses poi sdk to get list of columns on $node_attributes_sheet:
-    Capture: $node_attribs_columns (array of column names from poi)
+    endif
+    Mcp calls get_file_columns to list columns on $node_attributes_sheet:
+    Call tool: get_file_columns with { "file_path": $file_path, "excel_sheet": $node_attributes_sheet, "use_header_row": true }
+    Capture: $node_attribs_columns (the "columns" array from the response)
   else
     Mcp sets the list of columns to all columns avaialble on current data file
-    Capture: $node_attribs_columns = $columns 
-  endif  
+    Capture: $node_attribs_columns = $columns
+  endif
 
   Say: The following columns are present: {numbered list of $node_attribs_columns and Skip as an option}
 
   Ask: "Which column contains the key for node ID? (enter the number for column name or type 'Skip' to not import node attributes at this time)"
   Capture: $node_attributes_key_column (or null if skipped)
   if User chose 'Skip':
-    go to STEP 1-LOAD 
+    go to STEP 1-LOAD
   endif
 
   Ask: "Which columns do you want mapped as properties to the Source Node( {$source_column}). Enter number of each column separated by a comma. Leave blank for none."
-  Capture: $node_attributes_source_columns (or null if skipped)
+  Capture: $node_attributes_source_columns (resolve entered numbers to column names from $node_attribs_columns; null if blank)
 
   Ask: "Which columns do you want mapped as properties to the Target Node( {$target_column}). Enter number of each column separated by a comma. Leave blank for none."
-  Capture: $node_attributes_target_columns (or null if skipped)
+  Capture: $node_attributes_target_columns (resolve entered numbers to column names from $node_attribs_columns; null if blank)
 
   Say: "Any remaining columns not mapped for Node properties will be an edge property"
 endif
@@ -258,17 +263,18 @@ If user chose type=tabular format:
     "interaction_column": $interaction_column,     // omit if null
     "node_attributes_sheet": $node_attributes_sheet,         // omit if null
     "node_attributes_key_column": $node_attributes_key_column,  // omit if null
-    "node_attributes_source_columns" $node_attributes_source_columns // omit if empty
-    "node_attributes_target_columns" $node_attributes_target_columns // omit if empty
+    "node_attributes_source_columns": $node_attributes_source_columns, // omit if empty
+    "node_attributes_target_columns": $node_attributes_target_columns  // omit if empty
   }
-  ** note the load_cytoscape_network_view will check for presence of node_attributes_key_column, if present and node_attributes_sheet is null, it will load node properties based on columns from file otherwise if "node_attributes_sheet" is also non-null, it will use poi to load node properties from columns on that excel sheet. 
-  
+  ** note the load_cytoscape_network_view will check for presence of node_attributes_key_column, if present and node_attributes_sheet is null, it will load node properties based on columns from file otherwise if "node_attributes_sheet" is also non-null, it will use poi to load node properties from columns on that excel sheet.
+
   it will use the app sdk to ensure the node table is updated from these attribute column parameters, whether that is accomplished directly by specifying them at load network sdk call or through a secondary call to load data table sdk call.
 endif
 
 If tool returns error → Say: "Failed to load the network: {error}. Would you like to try a different file?" → return to STEP 1a-File.
 
-If success → Say: "Network loaded successfully! Your network has {node_count} nodes and {edge_count} edges." → network loading is complete.
+If success → Say: "Network loaded successfully! Your network has {node_count} nodes and {edge_count} edges." If the response also contains a non-null `warning` field, append: " Note: {warning}" → network loading is complete.
+
 ```
 
 ---

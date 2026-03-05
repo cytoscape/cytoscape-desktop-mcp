@@ -71,6 +71,8 @@ io.modelcontextprotocol.sdk:mcp-json-jackson2
 
 `mcp-json-jackson3` is not used (Cytoscape ships Jackson 2.x).
 
+The SDK version supports last 3 mcp protocol releases with 2025-11-25 being the top most.
+
 ## Request flow
 
 ```

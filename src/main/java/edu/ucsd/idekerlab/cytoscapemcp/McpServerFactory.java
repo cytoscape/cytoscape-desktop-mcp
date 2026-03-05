@@ -5,6 +5,7 @@ import java.util.Properties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.ucsd.idekerlab.cytoscapemcp.prompts.GuidelinePrompt;
+import edu.ucsd.idekerlab.cytoscapemcp.prompts.LoadNetworkPrompt;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.AnalyzeNetworkTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.ApplyLayoutTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
@@ -137,6 +138,7 @@ public final class McpServerFactory {
 
         // Register prompts.
         server.addPrompt(new GuidelinePrompt().toSpec());
+        server.addPrompt(new LoadNetworkPrompt().toSpec());
 
         return server;
     }
