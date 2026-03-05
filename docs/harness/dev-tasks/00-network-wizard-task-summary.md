@@ -142,13 +142,13 @@ Verify `load_network` appears in `prompts/list` before running scenarios.
 3. > *"Is this a raw tabular data file with delimiters or is it expressed as a network formatted file that captures source and target nodes and relationships (edges)?  1 - Tabular, delimited data  2 - Network formatted data"*  
    → type `2`
 4. > *"Please provide the path to your network file on your local machine."*  
-   → for test purpose only, agent uses its local file search tools to resolve the absolute path of `src/test/resources/fixture/test_export.sif`, then enter the resolved path
+   → for test purpose only, agent uses its local file search tools to resolve the absolute path of this project relative path - `docs/harnes/dev-tasks/test_export.sif`, then enter the resolved absolute path on prompt
 5. > *"Network loaded…X nodes and Y edges."*  
    ✓ Network appears in Cytoscape
 
 ---
 
-**Scenario C — CSV tabular file (genes_comma.csv)**
+**Scenario C — CSV tabular file (test_export.csv)**
 
 1. Type: *"i want to load a network into cytoscape"*
 2. > *"Let's load a network into Cytoscape. Where is your network? 1. NDEx (Network Data Exchange) — load by UUID  2. Local file — load from your filesystem"*  
@@ -156,19 +156,19 @@ Verify `load_network` appears in `prompts/list` before running scenarios.
 3. > *"Is this a raw tabular data file with delimiters or is it expressed as a network formatted file…?  1 - Tabular, delimited data  2 - Network formatted data"*  
    → type `1`
 4. > *"Please provide the path to your network file on your local machine."*  
-   → for test purpose only, agent uses its local file search tools to resolve the absolute path of `src/test/resources/fixture/genes_comma.csv`, then enter the resolved path
+   → for test purpose only, agent uses its local file search tools to resolve the absolute path of this project relative path - `docs/harness/dev-tasks/test_export.csv`, then enter the resolved absolute path on prompt
 5. > *"Next step is to identify the delimiter, node, and edge columns from the tabular data file."*  
    > *"Choose which delimiter character is used for separation of columnar data:  1 - comma [pre-selected]  2 - tab  3 - space  4 - Other"*  
    → type `1`
 6. > *"Does first row of data contain header of column names? If no, then default ordinal names will be created like 'Column 1', 'Column 2', etc.  1 - Yes  2 - No"*  
    → type `1`
-7. > *"The following columns were detected in your file:  1. Gene1  2. Gene2  3. Score"*  
+7. > *"The following columns were detected in your file:  1. Gene1  2. interaction  3. Gene2  4. speed  5. style  6. weight  7. color  8. confidence"*  
    > *"Which column contains the source (from) node?"*  
    → enter `Gene1`
 8. > *"Which column contains the target (to) node?"*  
    → enter `Gene2`
 9. > *"Which column contains the interaction/relationship type? (enter the number for column or type 'skip' if there isn't one)"*  
-   → type `skip`
+   → type `interaction`
 10. > *"Do you want to map properties for Nodes from the file columns at this time?"*  
     → type `no`
 11. > *"Network loaded…X nodes and Y edges."*  
@@ -176,7 +176,7 @@ Verify `load_network` appears in `prompts/list` before running scenarios.
 
 ---
 
-**Scenario D — Excel tabular file (network_data.xlsx)**
+**Scenario D — Excel tabular file (test_export.xlsx)**
 
 1. Type: *"i want to load a network into cytoscape"*
 2. > *"Let's load a network into Cytoscape. Where is your network? 1. NDEx (Network Data Exchange) — load by UUID  2. Local file — load from your filesystem"*  
@@ -184,23 +184,91 @@ Verify `load_network` appears in `prompts/list` before running scenarios.
 3. > *"Is this a raw tabular data file with delimiters or is it expressed as a network formatted file…?  1 - Tabular, delimited data  2 - Network formatted data"*  
    → type `1`
 4. > *"Please provide the path to your network file on your local machine."*  
-   → ufor test purpose only, agent uses its local file search tools to resolve the absolute path of `src/test/resources/fixture/network_data.xlsx`, then enter the resolved path
-5. > *"The following sheets were present:  1. Sheet1  2. Interactions"*  
+   → for test purpose only, agent uses its local file search tools to resolve the absolute path of this project relative path - `docs/harness/dev-tasks/test_export.xlsx`, then enter the resolved absolute path on prompt
+5. > *"The following sheets were present:  1. Sheet1"*  
    > *"Which sheet should be used for source/target network data?"*  
    → type `1`
 6. > *"Does first row of data contain header of column names?  1 - Yes  2 - No"*  
    → type `1`
-7. > *"The following columns were detected in your file:  1. Gene1  2. Gene2  3. Score"*  
+7. > *"The following columns were detected in your file:  1. Gene1  2. interaction  3. Gene2  4. speed  5. style  6. weight  7. color  8. confidence"*  
    > *"Which column contains the source (from) node?"*  
    → enter `Gene1`
 8. > *"Which column contains the target (to) node?"*  
    → enter `Gene2`
 9. > *"Which column contains the interaction/relationship type? (enter the number for column or type 'skip' if there isn't one)"*  
-   → type `skip`
+   → type `interaction`
 10. > *"Do you want to map properties for Nodes from the file columns at this time?"*  
     → type `no`
 11. > *"Network loaded…X nodes and Y edges."*  
     ✓ Network appears in Cytoscape
+
+---
+
+**Scenario E — CSV tabular file with node property mapping (test_export.csv)**
+
+1. Type: *"i want to load a network into cytoscape"*
+2. > *"Let's load a network into Cytoscape. Where is your network? 1. NDEx (Network Data Exchange) — load by UUID  2. Local file — load from your filesystem"*  
+   → type `2`
+3. > *"Is this a raw tabular data file with delimiters or is it expressed as a network formatted file…?  1 - Tabular, delimited data  2 - Network formatted data"*  
+   → type `1`
+4. > *"Please provide the path to your network file on your local machine."*  
+   → for test purpose only, agent uses its local file search tools to resolve the absolute path of this project relative path - `docs/harness/dev-tasks/test_export.csv`, then enter the resolved absolute path on prompt
+5. > *"Choose which delimiter character is used for separation of columnar data:  1 - comma [pre-selected]  2 - tab  3 - space  4 - Other"*  
+   → type `1`
+6. > *"Does first row of data contain header of column names? If no, then default ordinal names will be created like 'Column 1', 'Column 2', etc.  1 - Yes  2 - No"*  
+   → type `1`
+7. > *"The following columns were detected in your file:  1. Gene1  2. interaction  3. Gene2  4. speed  5. style  6. weight  7. color  8. confidence"*  
+   > *"Which column contains the source (from) node?"*  
+   → enter `Gene1`
+8. > *"Which column contains the target (to) node?"*  
+   → enter `Gene2`
+9. > *"Which column contains the interaction/relationship type? (enter the number for column or type 'skip' if there isn't one)"*  
+   → type `interaction`
+10. > *"Do you want to map properties for Nodes from the file columns at this time?"*  
+    → type `yes`
+11. > *"Which column should be mapped as a property for the source node (Gene1)? Available: speed, style, weight, color, confidence  (or type 'skip')"*  
+    → type `weight`
+12. > *"Which column should be mapped as a property for the target node (Gene2)? Available: speed, style, weight, color, confidence  (or type 'skip')"*  
+    → type `speed`
+13. > *"Network loaded…X nodes and Y edges."*  
+    ✓ Network appears in Cytoscape  
+    ✓ Node table contains a `weight` column on source nodes and a `speed` column on target nodes
+
+---
+
+**Scenario F — Multi-sheet Excel with node attribute mapping from separate sheet (test_export_multi.xlsx)**
+
+1. Type: *"i want to load a network into cytoscape"*
+2. > *"Let's load a network into Cytoscape. Where is your network? 1. NDEx (Network Data Exchange) — load by UUID  2. Local file — load from your filesystem"*  
+   → type `2`
+3. > *"Is this a raw tabular data file with delimiters or is it expressed as a network formatted file…?  1 - Tabular, delimited data  2 - Network formatted data"*  
+   → type `1`
+4. > *"Please provide the path to your network file on your local machine."*  
+   → for test purpose only, agent uses its local file search tools to resolve the absolute path of this project relative path - `docs/harness/dev-tasks/test_export_multi.xlsx`, then enter the resolved absolute path on prompt
+5. > *"The following sheets were present:  1. Summary  2. Interactions  3. NodeProps"*  
+   > *"Which sheet should be used for source/target network data?"*  
+   → type `2`
+6. > *"Does first row of data contain header of column names?  1 - Yes  2 - No"*  
+   → type `1`
+7. > *"The following columns were detected in your file:  1. Gene1  2. interaction  3. Gene2  4. speed  5. style  6. weight  7. color  8. confidence"*  
+   > *"Which column contains the source (from) node?"*  
+   → enter `Gene1`
+8. > *"Which column contains the target (to) node?"*  
+   → enter `Gene2`
+9. > *"Which column contains the interaction/relationship type? (enter the number for column or type 'skip' if there isn't one)"*  
+   → type `interaction`
+10. > *"Do you want to map properties for Nodes from the file columns at this time?"*  
+    → type `yes`
+11. > *"Would you like to load node attributes from a separate sheet in this file?  1 - Yes, choose another sheet  2 - No, use remaining columns from the current sheet"*  
+    → type `1`
+12. > *"Which sheet contains the node attribute data?  1. Summary  2. Interactions  3. NodeProps"*  
+    → type `3`
+13. > *"The following columns were detected in sheet NodeProps:  1. direction  2. origin"*  
+    > *"Select the columns to import as node attributes (comma-separated numbers, or 'all', or 'skip')"*  
+    → type `all`
+14. > *"Network loaded…X nodes and Y edges."*  
+    ✓ Network appears in Cytoscape  
+    ✓ Node table contains a `direction` column (decimal values 0.00–360.00) and an `origin` column (Latin phrase values)
 
 ---
 
@@ -213,8 +281,10 @@ Verify `load_network` appears in `prompts/list` before running scenarios.
 - `load_network` prompt appears in `prompts/list`
 - **Scenario A**: prompt presents numbered source menu → asks for UUID → responds with "Network loaded from NDEx! N nodes M edges" confirmation
 - **Scenario B**: prompt presents format menu → asks for file path → responds with load confirmation
-- **Scenario C**: prompt presents format menu → asks for file path → presents delimiter menu with comma pre-selected → asks header row question → lists columns `[Gene1, Gene2, Score]` → asks for source, target, interaction, and node-property choices → responds with load confirmation
-- **Scenario D**: prompt presents format menu → asks for file path → presents sheet selection listing `Sheet1` and `Interactions` → asks header row question → lists columns `[Gene1, Gene2, Score]` → asks for source, target, interaction, and node-property choices → responds with load confirmation
+- **Scenario C**: prompt presents format menu → asks for file path → presents delimiter menu with comma pre-selected → asks header row question → lists columns `[Gene1, interaction, Gene2, speed, style, weight, color, confidence]` → asks for source, target, interaction, and node-property choices → responds with load confirmation
+- **Scenario D**: prompt presents format menu → asks for file path → presents sheet selection listing `Sheet1` → asks header row question → lists columns `[Gene1, interaction, Gene2, speed, style, weight, color, confidence]` → asks for source, target, interaction, and node-property choices → responds with load confirmation
+- **Scenario E**: same as C through column listing → user chooses to map node properties → maps `weight` to source node (Gene1) and `speed` to target node (Gene2) → responds with load confirmation → node table contains `weight` and `speed` columns
+- **Scenario F**: prompt presents format menu → asks for file path → presents sheet selection listing `Summary`, `Interactions`, `NodeProps` → user selects sheet 2 (Interactions) → column listing shows `[Gene1, interaction, Gene2, speed, style, weight, color, confidence]` → source/target/interaction mapped → user opts to map node attributes from a separate sheet → selects sheet 3 (NodeProps) → selects all columns (`direction`, `origin`) → responds with load confirmation → node table contains `direction` and `origin` columns
 - Analyze response lists newly added analysis columns
 - Layout visibly rearranges nodes in the Cytoscape canvas
 
