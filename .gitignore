@@ -17,6 +17,3 @@ build
 # Ignore Kotlin plugin data
 .kotlin
 .gitattributes
-gradlew
-gradlew.bat
-/gradle
