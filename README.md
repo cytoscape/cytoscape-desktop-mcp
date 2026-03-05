@@ -100,6 +100,8 @@ Try some Prompts to chaange states on the Cytoscape Desktop from Agent.
 |------|-------------|
 | `cytoscape-guidelines` | General behavioral guidelines for all Cytoscape tool interactions — in particular, how to handle connectivity failures when Cytoscape Desktop is not running |
 
+The MCP server exposes a `GET /mcp/manifest` endpoint that returns a complete, human-readable catalog of every tool, prompt, resource, and resource template registered on the server, formatted as Markdown with full JSON schema definitions for each artifact's input and output. After running `make build` (or `./gradlew jar`), the generated file is also available at `build/generated/manifest/MCPManifest.md` for offline review.
+
 **Example activation prompts** — after connecting your agent, try this to load the Yeast ergosterol network:
 
 > Load the NDEx network 63836e7b-ca44-11f0-a218-005056ae3c32 into Cytoscape

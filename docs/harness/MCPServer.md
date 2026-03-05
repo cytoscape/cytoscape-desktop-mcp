@@ -29,6 +29,8 @@ Clients must include `Accept: application/json, text/event-stream` on every `POS
 
 This is the endpoint used by `McpLivenessProbe` to drive the green/red toolbar button in the Cytoscape status bar. Using a dedicated health endpoint avoids the session churn that would result from polling via a real `initialize` / `tools/list` / `DELETE` cycle every 5 seconds.
 
+`GET /mcp/manifest` returns a complete Markdown catalog of every tool, prompt, resource, and resource template registered on the server, including full JSON schema definitions for each artifact's input and output. The file is generated at build time by `MCPManifest.main()` (a `generateManifest` Gradle task that runs before `jar`) and bundled into the application JAR as the classpath resource `/MCPManifest.md`. After running `make build` the generated file is also readable locally at `build/generated/manifest/MCPManifest.md`.
+
 ## JAX-RS endpoint registration via publisher-5.3
 
 `McpEndpoint` is a standard JAX-RS resource class annotated with `@Path("/mcp")`. It is registered as an OSGi service in `CyActivator`. publisher-5.3 (osgi-jax-rs-connector) discovers the `@Path` annotation on the service instance and hot-mounts it into CyREST's Jersey `RootApplication`.
@@ -100,13 +102,6 @@ Feature behaviour and agent conversation flows are specified in:
 ```
 docs/harness/product-specs/
 ```
-
-| Spec file | Feature |
-|-----------|---------|
-| [00-shared-reference.md](product-specs/00-shared-reference.md) | Shared vocabulary and conventions used across all specs |
-| [01-network-wizard-prompt.md](product-specs/01-network-wizard-prompt.md) | Network import wizard — full agent prompt and conversation script |
-| [02-default-styling-prompt.md](product-specs/02-default-styling-prompt.md) | Default visual style inspector and editor — agent prompt |
-| [03-mapping-styling-prompt.md](product-specs/03-mapping-styling-prompt.md) | Column-to-visual-property mapping — agent prompt |
 
 Specs define the canonical `Say:` / `Ask:` / `Capture:` / `Call tool:` directives that drive agent behaviour. Tool schemas in Section 4 of each spec are the source of truth for the corresponding tool implementations in the `tools` package.
 

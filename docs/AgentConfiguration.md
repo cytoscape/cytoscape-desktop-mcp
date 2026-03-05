@@ -77,15 +77,6 @@ To verify: run `codex mcp list` or type `/mcp` inside the Codex TUI.
 
 ## Diagnostics
 
-To interrogate the MCP server directly, install [cli-mcp](https://lobehub.com/mcp/zueai-cli-mcp):
-
-```
-uvx cli-mcp direct list --url http://localhost:{rest.port}/mcp
-```
-
-Install uv first if needed:
-
-```
-curl -LsSf https://astral.sh | sh
-```
+To interrogate the MCP server direct, use browser and go to http://localhost:{rest.port}/mcp/manifest.
+The MCP server exposes a `/mcp/manifest` endpoint to provide a lightweight, human-readable catalog of every tool, prompt, resource, and resource template registered   on the server, formatted as Markdown. 
 
