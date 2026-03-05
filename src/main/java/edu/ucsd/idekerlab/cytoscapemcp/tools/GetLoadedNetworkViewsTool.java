@@ -43,7 +43,7 @@ public class GetLoadedNetworkViewsTool {
 
     private static final String TOOL_DESCRIPTION =
             "Enumerate all network collections currently loaded in Cytoscape with their views,"
-                    + " node counts, and edge counts. Read-only; does not modify state.";
+                    + " node counts, and edge counts. Read-only; does not modify state. If network has no view, view_suid is absent.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

@@ -42,7 +42,7 @@ public class CreateNetworkViewTool {
 
     private static final String TOOL_DESCRIPTION =
             "Create a visual view for a network that currently has no view. Sets the new view"
-                    + " and its network as the current network and view.";
+                    + " and its network as the current network and view. If a view already exists, returns the existing one instead of creating a duplicate.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

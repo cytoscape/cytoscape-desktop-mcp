@@ -14,6 +14,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.InputStreamTaskFactory;
+import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
@@ -61,6 +62,8 @@ public final class McpServerFactory {
      * @param passthroughMappingFactory passthrough visual mapping factory (nullable)
      * @param layoutManager Cytoscape layout algorithm manager (nullable)
      * @param loadFileTaskFactory load-network-file task factory (nullable)
+     * @param networkFactory Cytoscape network factory for creating networks from tabular data
+     *     (nullable)
      * @param networkViewFactory Cytoscape network-view factory (nullable)
      * @param syncTaskManager synchronous task manager (nullable)
      */
@@ -81,6 +84,7 @@ public final class McpServerFactory {
             VisualMappingFunctionFactory passthroughMappingFactory,
             CyLayoutAlgorithmManager layoutManager,
             LoadNetworkFileTaskFactory loadFileTaskFactory,
+            CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
             SynchronousTaskManager<?> syncTaskManager) {
 
@@ -105,7 +109,9 @@ public final class McpServerFactory {
                                 viewManager,
                                 taskManager,
                                 cxReaderFactory,
-                                loadFileTaskFactory)
+                                loadFileTaskFactory,
+                                networkFactory,
+                                networkViewFactory)
                         .toSpec());
         server.addTool(new GetLoadedNetworkViewsTool(networkManager, viewManager).toSpec());
         server.addTool(

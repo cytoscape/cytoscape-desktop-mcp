@@ -22,12 +22,17 @@ import edu.ucsd.idekerlab.cytoscapemcp.fixture.InMemoryTransport;
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.CyNetworkReader;
 import org.cytoscape.io.read.InputStreamTaskFactory;
+import org.cytoscape.model.CyEdge;
 import org.cytoscape.model.CyNetwork;
+import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
+import org.cytoscape.model.CyNode;
 import org.cytoscape.model.CyRow;
+import org.cytoscape.model.CyTable;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
 import org.cytoscape.view.model.CyNetworkView;
+import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.work.FinishStatus;
 import org.cytoscape.work.Task;
@@ -40,7 +45,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -81,10 +88,23 @@ public class LoadNetworkViewToolTest {
     @Mock private TaskManager<?, ?> taskManager;
     @Mock private InputStreamTaskFactory cxReaderFactory;
     @Mock private LoadNetworkFileTaskFactory loadFileTaskFactory;
+    @Mock private CyNetworkFactory networkFactory;
+    @Mock private CyNetworkViewFactory networkViewFactory;
     @Mock private CyNetworkReader networkReader;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView networkView;
     @Mock private CyRow networkRow;
+
+    // Tabular-import mocks
+    @Mock private CyNetwork tabularNetwork;
+    @Mock private CyNetworkView tabularView;
+    @Mock private CyNode mockNode;
+    @Mock private CyEdge mockEdge;
+    @Mock private CyRow mockNetworkRow;
+    @Mock private CyRow mockNodeRow;
+    @Mock private CyRow mockEdgeRow;
+    @Mock private CyTable mockNodeTable;
+    @Mock private CyTable mockEdgeTable;
 
     private Properties props;
     private LoadNetworkViewTool tool;
@@ -107,7 +127,9 @@ public class LoadNetworkViewToolTest {
                                 viewManager,
                                 taskManager,
                                 cxReaderFactory,
-                                loadFileTaskFactory));
+                                loadFileTaskFactory,
+                                networkFactory,
+                                networkViewFactory));
 
         // Prevent real HTTP connections — return an empty stream for any URL
         try {
@@ -370,25 +392,253 @@ public class LoadNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
-    // Failure — stub handlers for unimplemented sources
+    // Tabular file import
     // -----------------------------------------------------------------------
 
     @Test
-    public void tabularFileSource_returnsNotImplemented() throws Exception {
+    public void tabularCsv_basicImport_comma_headerRow() throws Exception {
+        stubTabularNetwork();
+        String csvPath = fixturePath("genes_comma.csv");
+
         String response =
                 callToolRaw(
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\"/tmp/test.csv\","
-                                + "\"source_column\":\"A\","
-                                + "\"target_column\":\"B\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
                                 + "\"delimiter_char_code\":44,"
                                 + "\"use_header_row\":true}}}");
 
-        assertTrue("Should be an error", response.contains("\"isError\":true"));
-        assertTrue("Should mention not yet implemented", response.contains("not yet implemented"));
-        verify(networkManager, never()).addNetwork(any());
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        assertTrue("Should be success", response.contains("\\\"status\\\":\\\"success\\\""));
+        verify(networkFactory).createNetwork();
+        verify(networkManager).addNetwork(tabularNetwork);
+        verify(networkViewFactory).createNetworkView(tabularNetwork);
+        verify(appManager).setCurrentNetwork(tabularNetwork);
+        verify(appManager).setCurrentNetworkView(tabularView);
+    }
+
+    @Test
+    public void tabularCsv_tabDelimited_import() throws Exception {
+        stubTabularNetwork();
+        String tsvPath = fixturePath("genes_tab.tsv");
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + tsvPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"delimiter_char_code\":9,"
+                                + "\"use_header_row\":true}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        verify(networkFactory).createNetwork();
+        verify(networkManager).addNetwork(tabularNetwork);
+    }
+
+    @Test
+    public void tabularExcel_withExcelSheet_import() throws Exception {
+        stubTabularNetwork();
+        String xlsxPath = fixturePath("network_data.xlsx");
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + xlsxPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"excel_sheet\":\"Sheet1\","
+                                + "\"use_header_row\":true}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        verify(networkFactory).createNetwork();
+        verify(networkManager).addNetwork(tabularNetwork);
+    }
+
+    @Test
+    public void tabularCsv_missingSourceColumn_returnsError() throws Exception {
+        stubTabularNetwork();
+        String csvPath = fixturePath("genes_comma.csv");
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":true}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should mention missing source/target",
+                response.contains("source_column") || response.contains("target_column"));
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_fileNotFound_returnsError() throws Exception {
+        stubTabularNetwork();
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\"/no/such/file.csv\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":true}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue("Should mention file not found", response.contains("not found"));
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_missingDelimiterForNonExcel_returnsError() throws Exception {
+        stubTabularNetwork();
+        String csvPath = fixturePath("genes_comma.csv");
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"use_header_row\":true}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue("Should mention delimiter_char_code", response.contains("delimiter_char_code"));
+    }
+
+    @Test
+    public void tabularCsv_noHeaderRow_usesOrdinalNames() throws Exception {
+        stubTabularNetwork();
+        // genes_comma.csv has no header when use_header_row=false — TP53 would be Column 1
+        String csvPath = fixturePath("genes_comma.csv");
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"source_column\":\"Column 1\","
+                                + "\"target_column\":\"Column 2\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":false}}}");
+
+        // With no header row, "Gene1,Gene2,Score" becomes a data row with Column 1 = "Gene1"
+        // so the network will be built successfully using ordinal column names
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        verify(networkFactory).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_nodeAttributeImport_skipped_whenKeyColumnNull() throws Exception {
+        stubTabularNetwork();
+        String csvPath = fixturePath("genes_comma.csv");
+
+        callToolRaw(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":\""
+                        + csvPath
+                        + "\","
+                        + "\"source_column\":\"Gene1\","
+                        + "\"target_column\":\"Gene2\","
+                        + "\"delimiter_char_code\":44,"
+                        + "\"use_header_row\":true}}}");
+
+        // No node_attributes_key_column → node set should never be iterated for attribute import
+        verify(tabularNetwork, never()).getNodeList();
+    }
+
+    @Test
+    public void tabularCsv_nodeAttributeImport_triggered_whenKeyColumnNonNull() throws Exception {
+        // Set up node with a matching name so attribute import finds a match
+        CyNode attrNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow attrNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(attrNode));
+        when(tabularNetwork.getRow(attrNode)).thenReturn(attrNodeRow);
+        when(attrNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+        stubTabularNetwork();
+
+        String csvPath = fixturePath("genes_comma.csv");
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_key_column\":\"Gene1\","
+                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        // node_attributes_key_column triggers node set iteration
+        verify(tabularNetwork, atLeastOnce()).getNodeList();
+    }
+
+    @Test
+    public void tabularExcel_nodeAttributesSheet_triggered() throws Exception {
+        CyNode attrNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow attrNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(attrNode));
+        when(tabularNetwork.getRow(attrNode)).thenReturn(attrNodeRow);
+        when(attrNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("Gene1");
+        stubTabularNetwork();
+
+        String xlsxPath = fixturePath("network_data.xlsx");
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + xlsxPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"excel_sheet\":\"Sheet1\","
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_key_column\":\"Gene1\","
+                                + "\"node_attributes_sheet\":\"Sheet1\","
+                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        verify(tabularNetwork, atLeastOnce()).getNodeList();
     }
 
     // -----------------------------------------------------------------------
@@ -531,6 +781,39 @@ public class LoadNetworkViewToolTest {
         transport.await();
 
         return transport.getResponse();
+    }
+
+    /**
+     * Wires up the tabularNetwork mock so that tabular import can succeed. Must be called before
+     * invoking the tool with source=tabular-file.
+     */
+    private void stubTabularNetwork() {
+        when(networkFactory.createNetwork()).thenReturn(tabularNetwork);
+        when(networkViewFactory.createNetworkView(tabularNetwork)).thenReturn(tabularView);
+        when(tabularNetwork.addNode()).thenReturn(mockNode);
+        when(tabularNetwork.addEdge(any(CyNode.class), any(CyNode.class), anyBoolean()))
+                .thenReturn(mockEdge);
+        when(tabularNetwork.getRow(tabularNetwork)).thenReturn(mockNetworkRow);
+        when(tabularNetwork.getRow(mockNode)).thenReturn(mockNodeRow);
+        when(tabularNetwork.getRow(mockEdge)).thenReturn(mockEdgeRow);
+        when(tabularNetwork.getDefaultNodeTable()).thenReturn(mockNodeTable);
+        when(tabularNetwork.getDefaultEdgeTable()).thenReturn(mockEdgeTable);
+        when(tabularNetwork.getSUID()).thenReturn(999L);
+        when(tabularNetwork.getNodeCount()).thenReturn(3);
+        when(tabularNetwork.getEdgeCount()).thenReturn(3);
+        when(mockNetworkRow.get(CyNetwork.NAME, String.class)).thenReturn("test-tabular");
+        when(tabularNetwork.getNodeList()).thenReturn(Collections.emptyList());
+        when(viewManager.getNetworkViews(tabularNetwork))
+                .thenReturn(Collections.singletonList(tabularView));
+    }
+
+    /** Returns the absolute path to a test fixture file. */
+    private String fixturePath(String filename) {
+        URL resource = getClass().getClassLoader().getResource("fixture/" + filename);
+        if (resource == null) {
+            throw new RuntimeException("Fixture not found: " + filename);
+        }
+        return resource.getFile();
     }
 
     // -----------------------------------------------------------------------

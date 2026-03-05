@@ -58,6 +58,7 @@ public final class McpManifest {
                         /* passthroughMappingFactory= */ null,
                         /* layoutManager= */ null,
                         /* loadFileTaskFactory= */ null,
+                        /* networkFactory= */ null,
                         /* networkViewFactory= */ null,
                         /* syncTaskManager= */ null);
 

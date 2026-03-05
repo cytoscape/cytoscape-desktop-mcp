@@ -1,18 +1,30 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,13 +38,19 @@ import edu.ucsd.idekerlab.cytoscapemcp.McpSchema;
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.CyNetworkReader;
 import org.cytoscape.io.read.InputStreamTaskFactory;
+import org.cytoscape.model.CyEdge;
 import org.cytoscape.model.CyNetwork;
+import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
+import org.cytoscape.model.CyNode;
+import org.cytoscape.model.CyRow;
+import org.cytoscape.model.CyTable;
 import org.cytoscape.model.subnetwork.CyRootNetwork;
 import org.cytoscape.model.subnetwork.CySubNetwork;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
 import org.cytoscape.view.model.CyNetworkView;
+import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.FinishStatus;
@@ -179,7 +197,9 @@ public class LoadNetworkViewTool {
             @JsonProperty("network_suid") long networkSuid,
             @JsonProperty("node_count") int nodeCount,
             @JsonProperty("edge_count") int edgeCount,
-            @JsonProperty("network_name") String networkName) {}
+            @JsonProperty("network_name") String networkName,
+            @JsonProperty("node_attributes_imported") Boolean nodeAttributesImported,
+            @JsonProperty("warning") String warning) {}
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(LoadNetworkViewCallResult.class);
 
@@ -192,6 +212,8 @@ public class LoadNetworkViewTool {
     private final TaskManager<?, ?> taskManager;
     private final InputStreamTaskFactory cxReaderFactory;
     private final LoadNetworkFileTaskFactory loadFileTaskFactory;
+    private final CyNetworkFactory networkFactory;
+    private final CyNetworkViewFactory networkViewFactory;
 
     public LoadNetworkViewTool(
             CyProperty<Properties> cyProperties,
@@ -200,7 +222,9 @@ public class LoadNetworkViewTool {
             CyNetworkViewManager viewManager,
             TaskManager<?, ?> taskManager,
             InputStreamTaskFactory cxReaderFactory,
-            LoadNetworkFileTaskFactory loadFileTaskFactory) {
+            LoadNetworkFileTaskFactory loadFileTaskFactory,
+            CyNetworkFactory networkFactory,
+            CyNetworkViewFactory networkViewFactory) {
         this.cyProperties = cyProperties;
         this.appManager = appManager;
         this.networkManager = networkManager;
@@ -208,6 +232,8 @@ public class LoadNetworkViewTool {
         this.taskManager = taskManager;
         this.cxReaderFactory = cxReaderFactory;
         this.loadFileTaskFactory = loadFileTaskFactory;
+        this.networkFactory = networkFactory;
+        this.networkViewFactory = networkViewFactory;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -371,10 +397,366 @@ public class LoadNetworkViewTool {
     }
 
     private CallToolResult handleTabularImport(CallToolRequest request) {
-        return error("source='tabular-file' is not yet implemented. (Coming in Task 9)");
+        // -- Parameter extraction & validation --------------------------------
+        String filePath = extractString(request, "file_path");
+        if (filePath == null) {
+            return error(
+                    "'file_path' is required when source='tabular-file'."
+                            + " Provide the absolute path to a CSV, TSV, or Excel file.");
+        }
+
+        File file = new File(filePath);
+        if (!file.exists() || !file.isFile()) {
+            return error("File not found: " + filePath);
+        }
+
+        String sourceCol = extractString(request, "source_column");
+        String targetCol = extractString(request, "target_column");
+        if (sourceCol == null || targetCol == null) {
+            return error(
+                    "'source_column' and 'target_column' are required when"
+                            + " source='tabular-file'.");
+        }
+
+        Boolean useHeaderRow = extractBoolean(request, "use_header_row");
+        if (useHeaderRow == null) {
+            return error("'use_header_row' is required when source='tabular-file'.");
+        }
+
+        String excelSheet = extractString(request, "excel_sheet");
+        Integer delimiterCharCode = extractInteger(request, "delimiter_char_code");
+        if (excelSheet == null && delimiterCharCode == null) {
+            return error(
+                    "'delimiter_char_code' is required for non-Excel tabular files."
+                            + " Provide the ASCII code of the delimiter (e.g. 44 for comma, 9 for"
+                            + " tab).");
+        }
+
+        String interactionCol = extractString(request, "interaction_column");
+        String nodeAttrKeyCol = extractString(request, "node_attributes_key_column");
+        String nodeAttrSheet = extractString(request, "node_attributes_sheet");
+
+        @SuppressWarnings("unchecked")
+        List<String> nodeAttrSourceCols =
+                (List<String>) request.arguments().get("node_attributes_source_columns");
+        @SuppressWarnings("unchecked")
+        List<String> nodeAttrTargetCols =
+                (List<String>) request.arguments().get("node_attributes_target_columns");
+        if (nodeAttrSourceCols == null) nodeAttrSourceCols = Collections.emptyList();
+        if (nodeAttrTargetCols == null) nodeAttrTargetCols = Collections.emptyList();
+
+        LOGGER.info(
+                "Tabular import: file={} source={} target={} excelSheet={} delimiter={}",
+                new Object[] {filePath, sourceCol, targetCol, excelSheet, delimiterCharCode});
+
+        // -- Parse primary edge data ------------------------------------------
+        List<Map<String, String>> rows;
+        try {
+            rows = parseTabularRows(file, delimiterCharCode, useHeaderRow, excelSheet);
+        } catch (Exception e) {
+            return error("Failed to read tabular file: " + e.getMessage());
+        }
+
+        if (rows.isEmpty()) {
+            return error("No data rows found in file: " + filePath);
+        }
+
+        // Determine which columns are node-attribute columns (to exclude from edge attrs)
+        Set<String> nodeAttrColSet = new java.util.HashSet<>();
+        nodeAttrColSet.addAll(nodeAttrSourceCols);
+        nodeAttrColSet.addAll(nodeAttrTargetCols);
+
+        // -- Build CyNetwork from rows -----------------------------------------
+        CyNetwork network = networkFactory.createNetwork();
+        network.getRow(network).set(CyNetwork.NAME, file.getName());
+
+        Map<String, CyNode> nodeMap = new LinkedHashMap<>();
+        CyTable edgeTable = network.getDefaultEdgeTable();
+
+        final String finalSourceCol = sourceCol;
+        final String finalTargetCol = targetCol;
+        final String finalInteractionCol = interactionCol;
+
+        for (Map<String, String> row : rows) {
+            String srcName = row.get(finalSourceCol);
+            String tgtName = row.get(finalTargetCol);
+            if (srcName == null || tgtName == null) {
+                continue; // skip rows missing required columns
+            }
+
+            CyNode srcNode =
+                    nodeMap.computeIfAbsent(
+                            srcName,
+                            k -> {
+                                CyNode n = network.addNode();
+                                network.getRow(n).set(CyNetwork.NAME, k);
+                                return n;
+                            });
+            CyNode tgtNode =
+                    nodeMap.computeIfAbsent(
+                            tgtName,
+                            k -> {
+                                CyNode n = network.addNode();
+                                network.getRow(n).set(CyNetwork.NAME, k);
+                                return n;
+                            });
+
+            CyEdge edge = network.addEdge(srcNode, tgtNode, true);
+            CyRow edgeRow = network.getRow(edge);
+
+            String interaction =
+                    (finalInteractionCol != null) ? row.get(finalInteractionCol) : null;
+            if (interaction != null) {
+                edgeRow.set(CyEdge.INTERACTION, interaction);
+                edgeRow.set(CyNetwork.NAME, srcName + " (" + interaction + ") " + tgtName);
+            } else {
+                edgeRow.set(CyNetwork.NAME, srcName + " () " + tgtName);
+            }
+
+            // Add remaining columns as edge attributes
+            for (Map.Entry<String, String> entry : row.entrySet()) {
+                String col = entry.getKey();
+                if (col.equals(finalSourceCol)
+                        || col.equals(finalTargetCol)
+                        || col.equals(finalInteractionCol)
+                        || nodeAttrColSet.contains(col)) {
+                    continue;
+                }
+                createColumnIfAbsent(edgeTable, col);
+                edgeRow.set(col, entry.getValue());
+            }
+        }
+
+        // -- Register network and create view ----------------------------------
+        networkManager.addNetwork(network);
+
+        CyNetworkView view = networkViewFactory.createNetworkView(network);
+        viewManager.addNetworkView(view);
+        appManager.setCurrentNetwork(network);
+        appManager.setCurrentNetworkView(view);
+
+        // -- Secondary node attribute import ----------------------------------
+        Boolean nodeAttrsImported = null;
+        String warning = null;
+
+        if (nodeAttrKeyCol != null) {
+            // Build node name → CyNode map from the newly created network
+            Map<String, CyNode> nameToNode = new LinkedHashMap<>();
+            for (CyNode n : network.getNodeList()) {
+                String name = network.getRow(n).get(CyNetwork.NAME, String.class);
+                if (name != null) {
+                    nameToNode.put(name, n);
+                }
+            }
+
+            // Load attribute rows — from separate Excel sheet or from same file
+            List<Map<String, String>> attrRows;
+            try {
+                if (nodeAttrSheet != null) {
+                    attrRows =
+                            parseTabularRows(file, delimiterCharCode, useHeaderRow, nodeAttrSheet);
+                } else {
+                    // Non-Excel: reuse same file rows
+                    attrRows = rows;
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to read node attribute data: {}", e.getMessage());
+                attrRows = Collections.emptyList();
+            }
+
+            CyTable nodeTable = network.getDefaultNodeTable();
+            final String finalNodeAttrKeyCol = nodeAttrKeyCol;
+            final List<String> finalSourceCols = nodeAttrSourceCols;
+            final List<String> finalTargetCols = nodeAttrTargetCols;
+
+            int matchCount = 0;
+            for (Map<String, String> attrRow : attrRows) {
+                String keyVal = attrRow.get(finalNodeAttrKeyCol);
+                if (keyVal == null) continue;
+
+                CyNode matchedNode = nameToNode.get(keyVal);
+                if (matchedNode == null) continue;
+
+                matchCount++;
+                CyRow nodeRow = network.getRow(matchedNode);
+
+                for (String col : finalSourceCols) {
+                    String val = attrRow.get(col);
+                    if (val != null) {
+                        createColumnIfAbsent(nodeTable, col);
+                        nodeRow.set(col, val);
+                    }
+                }
+                for (String col : finalTargetCols) {
+                    String val = attrRow.get(col);
+                    if (val != null) {
+                        createColumnIfAbsent(nodeTable, col);
+                        nodeRow.set(col, val);
+                    }
+                }
+            }
+
+            if (matchCount == 0 && !attrRows.isEmpty()) {
+                nodeAttrsImported = false;
+                warning = "No matching node IDs found between key column and network node names.";
+            } else {
+                nodeAttrsImported = matchCount > 0;
+            }
+        }
+
+        return buildTabularSuccessResponse(network, file.getName(), nodeAttrsImported, warning);
     }
 
-    // -- Steps ----------------------------------------------------------------
+    // -- Tabular parsing helpers -----------------------------------------------
+
+    /**
+     * Reads all data rows from a tabular file into a list of column-name → value maps. For Excel
+     * files, specify {@code excelSheet}; for text files, specify {@code delimiterCharCode}.
+     *
+     * @param file the file to read
+     * @param delimiterCharCode ASCII code of the delimiter (ignored for Excel)
+     * @param useHeaderRow if true, first row is used as column names; if false, ordinal names are
+     *     generated ("Column 1", "Column 2", ...)
+     * @param excelSheet name of the Excel sheet to read; null for text files
+     */
+    private List<Map<String, String>> parseTabularRows(
+            File file, Integer delimiterCharCode, boolean useHeaderRow, String excelSheet)
+            throws IOException {
+        if (excelSheet != null) {
+            return parseExcelRows(file, useHeaderRow, excelSheet);
+        } else {
+            char delimiter = delimiterCharCode != null ? (char) delimiterCharCode.intValue() : ',';
+            return parseTextRows(file, delimiter, useHeaderRow);
+        }
+    }
+
+    private List<Map<String, String>> parseExcelRows(
+            File file, boolean useHeaderRow, String sheetName) throws IOException {
+        try (Workbook wb = WorkbookFactory.create(file)) {
+            Sheet sheet = wb.getSheet(sheetName);
+            if (sheet == null) {
+                throw new IOException("Sheet '" + sheetName + "' not found in workbook.");
+            }
+
+            List<String> headers = new ArrayList<>();
+            List<Map<String, String>> result = new ArrayList<>();
+
+            int startDataRow = 0;
+            if (useHeaderRow && sheet.getPhysicalNumberOfRows() > 0) {
+                Row headerRow = sheet.getRow(0);
+                if (headerRow != null) {
+                    for (int c = 0; c < headerRow.getLastCellNum(); c++) {
+                        Cell cell = headerRow.getCell(c);
+                        headers.add(cell != null ? cellStringValue(cell) : "Column " + (c + 1));
+                    }
+                }
+                startDataRow = 1;
+            }
+
+            for (int r = startDataRow; r <= sheet.getLastRowNum(); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+
+                // If no header row, generate ordinal names from first data row's cell count
+                if (headers.isEmpty()) {
+                    for (int c = 0; c < row.getLastCellNum(); c++) {
+                        headers.add("Column " + (c + 1));
+                    }
+                }
+
+                Map<String, String> rowMap = new LinkedHashMap<>();
+                for (int c = 0; c < headers.size(); c++) {
+                    Cell cell = row.getCell(c);
+                    rowMap.put(headers.get(c), cell != null ? cellStringValue(cell) : "");
+                }
+                result.add(rowMap);
+            }
+
+            return result;
+        }
+    }
+
+    private List<Map<String, String>> parseTextRows(File file, char delimiter, boolean useHeaderRow)
+            throws IOException {
+        List<String> headers = new ArrayList<>();
+        List<Map<String, String>> result = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String firstLine = reader.readLine();
+            if (firstLine == null) return result;
+
+            String[] firstParts = splitLine(firstLine, delimiter);
+
+            if (useHeaderRow) {
+                for (String h : firstParts) headers.add(h.trim());
+            } else {
+                for (int i = 1; i <= firstParts.length; i++) {
+                    headers.add("Column " + i);
+                }
+                // First line is data
+                Map<String, String> rowMap = new LinkedHashMap<>();
+                for (int i = 0; i < headers.size(); i++) {
+                    rowMap.put(headers.get(i), i < firstParts.length ? firstParts[i].trim() : "");
+                }
+                result.add(rowMap);
+            }
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank()) continue;
+                String[] parts = splitLine(line, delimiter);
+                Map<String, String> rowMap = new LinkedHashMap<>();
+                for (int i = 0; i < headers.size(); i++) {
+                    rowMap.put(headers.get(i), i < parts.length ? parts[i].trim() : "");
+                }
+                result.add(rowMap);
+            }
+        }
+
+        return result;
+    }
+
+    private String[] splitLine(String line, char delimiter) {
+        return line.split(java.util.regex.Pattern.quote(String.valueOf(delimiter)), -1);
+    }
+
+    private String cellStringValue(Cell cell) {
+        if (cell == null) return "";
+        CellType type = cell.getCellType();
+        if (type == CellType.NUMERIC) {
+            double d = cell.getNumericCellValue();
+            // Return integer representation if the value has no fractional part
+            if (d == Math.floor(d) && !Double.isInfinite(d)) {
+                return String.valueOf((long) d);
+            }
+            return String.valueOf(d);
+        }
+        if (type == CellType.BOOLEAN) {
+            return String.valueOf(cell.getBooleanCellValue());
+        }
+        if (type == CellType.FORMULA) {
+            try {
+                return String.valueOf(cell.getNumericCellValue());
+            } catch (Exception e) {
+                return cell.getStringCellValue();
+            }
+        }
+        return cell.getStringCellValue();
+    }
+
+    /**
+     * Creates a {@code String}-typed column in {@code table} with the given name if it does not
+     * already exist. Silently skips reserved columns (SUID, shared name, selected).
+     */
+    private void createColumnIfAbsent(CyTable table, String name) {
+        if (table.getColumn(name) == null) {
+            try {
+                table.createColumn(name, String.class, false);
+            } catch (Exception e) {
+                LOGGER.debug("Could not create column '{}': {}", name, e.getMessage());
+            }
+        }
+    }
 
     private String extractString(CallToolRequest request, String key) {
         Object value = request.arguments().get(key);
@@ -383,6 +765,25 @@ public class LoadNetworkViewTool {
         }
         String s = ((String) value).trim();
         return s.isEmpty() ? null : s;
+    }
+
+    private Boolean extractBoolean(CallToolRequest request, String key) {
+        Object value = request.arguments().get(key);
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        return null;
+    }
+
+    private Integer extractInteger(CallToolRequest request, String key) {
+        Object value = request.arguments().get(key);
+        if (value instanceof Integer) {
+            return (Integer) value;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return null;
     }
 
     private URL buildNdexUrl(String networkId) throws MalformedURLException {
@@ -510,7 +911,28 @@ public class LoadNetworkViewTool {
                                 network.getSUID(),
                                 network.getNodeCount(),
                                 network.getEdgeCount(),
-                                networkName))
+                                networkName,
+                                null,
+                                null))
+                .build();
+    }
+
+    private CallToolResult buildTabularSuccessResponse(
+            CyNetwork network,
+            String fallbackName,
+            Boolean nodeAttributesImported,
+            String warning) {
+        String networkName = getDisplayName(network, fallbackName);
+        return CallToolResult.builder()
+                .structuredContent(
+                        new LoadNetworkViewCallResult(
+                                "success",
+                                network.getSUID(),
+                                network.getNodeCount(),
+                                network.getEdgeCount(),
+                                networkName,
+                                nodeAttributesImported,
+                                warning))
                 .build();
     }
 

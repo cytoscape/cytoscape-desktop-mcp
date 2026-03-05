@@ -24,6 +24,7 @@ import org.cytoscape.app.event.AppsFinishedStartingListener;
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.application.swing.CySwingApplication;
 import org.cytoscape.io.read.InputStreamTaskFactory;
+import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.AbstractConfigDirPropsReader;
 import org.cytoscape.property.CyProperty;
@@ -143,6 +144,9 @@ public class CyActivator extends AbstractCyActivator {
         LoadNetworkFileTaskFactory loadFileTaskFactory =
                 getService(bundleContext, LoadNetworkFileTaskFactory.class);
 
+        // Network factory (for creating networks from tabular data).
+        CyNetworkFactory networkFactory = getService(bundleContext, CyNetworkFactory.class);
+
         // View creation and synchronous task execution.
         CyNetworkViewFactory networkViewFactory =
                 getService(bundleContext, CyNetworkViewFactory.class);
@@ -164,6 +168,7 @@ public class CyActivator extends AbstractCyActivator {
                 passthroughMappingFactory,
                 layoutManager,
                 loadFileTaskFactory,
+                networkFactory,
                 networkViewFactory,
                 syncTaskManager);
 
@@ -224,6 +229,7 @@ public class CyActivator extends AbstractCyActivator {
             VisualMappingFunctionFactory passthroughMappingFactory,
             CyLayoutAlgorithmManager layoutManager,
             LoadNetworkFileTaskFactory loadFileTaskFactory,
+            CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
             SynchronousTaskManager<?> syncTaskManager) {
 
@@ -251,6 +257,7 @@ public class CyActivator extends AbstractCyActivator {
                         passthroughMappingFactory,
                         layoutManager,
                         loadFileTaskFactory,
+                        networkFactory,
                         networkViewFactory,
                         syncTaskManager);
         LOGGER.info("MCP sync server built");
