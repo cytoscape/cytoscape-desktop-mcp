@@ -36,6 +36,8 @@ public class GetLayoutAlgorithmsTool {
 
     private static final String TOOL_NAME = "get_layout_algorithms";
 
+    private static final String TOOL_TITLE = "List Cytoscape Desktop Layouts";
+
     private static final String TOOL_DESCRIPTION =
             "List all available layout algorithms in Cytoscape Desktop with their names and display names."
                     + " Read-only; does not modify state.";
@@ -65,6 +67,7 @@ public class GetLayoutAlgorithmsTool {
             Tool toolDef =
                     Tool.builder()
                             .name(TOOL_NAME)
+                            .title(TOOL_TITLE)
                             .description(TOOL_DESCRIPTION)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(

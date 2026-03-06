@@ -38,6 +38,8 @@ public class ApplyLayoutTool {
 
     private static final String TOOL_NAME = "apply_layout";
 
+    private static final String TOOL_TITLE = "Apply Cytoscape Desktop Layout";
+
     private static final String TOOL_DESCRIPTION =
             "Apply a layout algorithm to the current network view in Cytoscape Desktop using default parameters."
                     + " After layout, the view is fitted to content and refreshed.";
@@ -83,6 +85,7 @@ public class ApplyLayoutTool {
             Tool toolDef =
                     Tool.builder()
                             .name(TOOL_NAME)
+                            .title(TOOL_TITLE)
                             .description(TOOL_DESCRIPTION)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(

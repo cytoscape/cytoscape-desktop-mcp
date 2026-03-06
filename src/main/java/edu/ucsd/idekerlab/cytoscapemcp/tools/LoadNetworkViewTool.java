@@ -79,6 +79,8 @@ public class LoadNetworkViewTool {
 
     private static final String TOOL_NAME = "load_cytoscape_network_view";
 
+    private static final String TOOL_TITLE = "Load Cytoscape Desktop Network";
+
     private static final String TOOL_DESCRIPTION =
             "Load a network into Cytoscape Desktop from NDEx (by UUID), a native network format file,"
                     + " or a tabular data file with column mapping. Creates a new network collection"
@@ -242,6 +244,7 @@ public class LoadNetworkViewTool {
             Tool toolDef =
                     Tool.builder()
                             .name(TOOL_NAME)
+                            .title(TOOL_TITLE)
                             .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(

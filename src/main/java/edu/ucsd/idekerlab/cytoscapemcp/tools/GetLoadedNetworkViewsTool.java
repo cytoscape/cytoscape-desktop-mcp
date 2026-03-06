@@ -41,6 +41,8 @@ public class GetLoadedNetworkViewsTool {
 
     private static final String TOOL_NAME = "get_loaded_network_views";
 
+    private static final String TOOL_TITLE = "List Cytoscape Desktop Networks";
+
     private static final String TOOL_DESCRIPTION =
             "Enumerate all network collections currently loaded in Cytoscape Desktop with their views,"
                     + " node counts, and edge counts. Read-only; does not modify state. If network has no view, view_suid is absent.";
@@ -79,6 +81,7 @@ public class GetLoadedNetworkViewsTool {
             Tool toolDef =
                     Tool.builder()
                             .name(TOOL_NAME)
+                            .title(TOOL_TITLE)
                             .description(TOOL_DESCRIPTION)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(

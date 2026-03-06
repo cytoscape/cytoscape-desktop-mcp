@@ -276,6 +276,7 @@ START → STEP 1 (get defaults) → STEP 1b (pick property)
 ```json
 {
   "name": "get_visual_style_defaults",
+  "title": "Get Cytoscape Desktop Style Defaults",
   "description": "Get the current default values for all node and edge visual properties in the active visual style in Cytoscape Desktop. Returns properties grouped by category with their IDs, display names, value types, and current default values. Discrete-typed properties (NodeShape, ArrowShape, LineType) include an 'allowedValues' array listing all valid choices.",
   "inputSchema": {
     "type": "object",
@@ -309,6 +310,7 @@ START → STEP 1 (get defaults) → STEP 1b (pick property)
 ```json
 {
   "name": "set_visual_default",
+  "title": "Set Cytoscape Desktop Style Default",
   "description": "Set the default value of a single visual property in the active visual style in Cytoscape Desktop. The value format depends on the property type: hex color string for Paint properties, numeric for Double/Integer, display name string for shapes and line types, 'Family-Style-Size' for fonts.",
   "inputSchema": {
     "type": "object",

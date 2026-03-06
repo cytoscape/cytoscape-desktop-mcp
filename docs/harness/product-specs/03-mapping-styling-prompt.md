@@ -505,6 +505,7 @@ STEP 3: pick mapping type
 ```json
 {
   "name": "get_mappable_properties",
+  "title": "List Cytoscape Desktop Mappable Properties",
   "description": "List all visual properties that support data-driven mappings in Cytoscape Desktop, grouped by node and edge categories. Shows the property ID, display name, value type, and current mapping (if any).",
   "inputSchema": {
     "type": "object",
@@ -530,6 +531,7 @@ STEP 3: pick mapping type
 ```json
 {
   "name": "get_compatible_columns",
+  "title": "Get Cytoscape Desktop Mapping Columns",
   "description": "List data columns compatible with a given visual property for mapping in Cytoscape Desktop. Filters columns by type compatibility (e.g., continuous mappings require numeric columns). Returns column names, types, and sample values.",
   "inputSchema": {
     "type": "object",
@@ -560,6 +562,7 @@ STEP 3: pick mapping type
 ```json
 {
   "name": "get_column_range",
+  "title": "Get Cytoscape Desktop Column Range",
   "description": "Get the min, max, and mean values for a numeric column in the node or edge table in Cytoscape Desktop. Used to determine the data range for continuous mappings.",
   "inputSchema": {
     "type": "object",
@@ -592,6 +595,7 @@ STEP 3: pick mapping type
 ```json
 {
   "name": "get_column_distinct_values",
+  "title": "Get Cytoscape Desktop Column Values",
   "description": "Get the distinct values in a column along with their occurrence counts in Cytoscape Desktop. Used for discrete mapping setup.",
   "inputSchema": {
     "type": "object",
@@ -624,6 +628,7 @@ STEP 3: pick mapping type
 ```json
 {
   "name": "create_continuous_mapping",
+  "title": "Create Cytoscape Desktop Continuous Mapping",
   "description": "Create a continuous visual mapping in Cytoscape Desktop from a numeric data column to a visual property. Supports numeric interpolation (sizes, widths, transparency), color gradients (fill colors, border colors), and threshold-based discrete assignment (shapes, line types). Breakpoints define how data values map to property values.",
   "inputSchema": {
     "type": "object",
@@ -687,6 +692,7 @@ STEP 3: pick mapping type
 ```json
 {
   "name": "create_discrete_mapping",
+  "title": "Create Cytoscape Desktop Discrete Mapping",
   "description": "Create a discrete visual mapping in Cytoscape Desktop from a data column to a visual property. Each distinct column value is explicitly mapped to a specific property value.",
   "inputSchema": {
     "type": "object",
@@ -730,6 +736,7 @@ STEP 3: pick mapping type
 ```json
 {
   "name": "create_passthrough_mapping",
+  "title": "Create Cytoscape Desktop Passthrough Mapping",
   "description": "Create a passthrough visual mapping in Cytoscape Desktop that uses a column's value directly as the visual property value. Commonly used for labels (column value becomes the label text).",
   "inputSchema": {
     "type": "object",
@@ -766,6 +773,7 @@ STEP 3: pick mapping type
 ```json
 {
   "name": "create_discrete_mapping_generated",
+  "title": "Create Cytoscape Desktop Auto Mapping",
   "description": "Create a discrete mapping in Cytoscape Desktop where property values are auto-generated for all distinct column values. Useful when there are many categories. Supports Rainbow (evenly-spaced hues), Random, and Brewer palette generators for colors; shape cycling for shapes; and evenly-distributed numeric ranges for sizes.",
   "inputSchema": {
     "type": "object",

@@ -36,6 +36,8 @@ public class InspectTabularFileTool {
 
     private static final String TOOL_NAME = "inspect_tabular_file";
 
+    private static final String TOOL_TITLE = "Inspect Cytoscape Desktop Import File";
+
     private static final String TOOL_DESCRIPTION =
             "Inspect a tabular data file, for use when importing network data into Cytoscape Desktop,"
                     + " to determine whether it is an Excel workbook"
@@ -69,6 +71,7 @@ public class InspectTabularFileTool {
             Tool toolDef =
                     Tool.builder()
                             .name(TOOL_NAME)
+                            .title(TOOL_TITLE)
                             .description(TOOL_DESCRIPTION)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(

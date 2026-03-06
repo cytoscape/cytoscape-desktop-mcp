@@ -43,6 +43,8 @@ public class AnalyzeNetworkTool {
 
     private static final String TOOL_NAME = "analyze_network";
 
+    private static final String TOOL_TITLE = "Analyze Cytoscape Desktop Network";
+
     private static final String TOOL_DESCRIPTION =
             "Run NetworkAnalyzer on the current network in Cytoscape Desktop to compute topological statistics"
                     + " (Degree, BetweennessCentrality, etc.). Adds columns to the node and edge"
@@ -96,6 +98,7 @@ public class AnalyzeNetworkTool {
             Tool toolDef =
                     Tool.builder()
                             .name(TOOL_NAME)
+                            .title(TOOL_TITLE)
                             .description(TOOL_DESCRIPTION)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(

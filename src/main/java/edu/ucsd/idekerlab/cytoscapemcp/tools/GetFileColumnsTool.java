@@ -51,6 +51,8 @@ public class GetFileColumnsTool {
 
     private static final String TOOL_NAME = "get_file_columns";
 
+    private static final String TOOL_TITLE = "Read Cytoscape Desktop File Columns";
+
     private static final String TOOL_DESCRIPTION =
             "Read column headers and up to three sample rows from a tabular file,"
                     + " for use when importing network data into Cytoscape Desktop."
@@ -104,6 +106,7 @@ public class GetFileColumnsTool {
             Tool toolDef =
                     Tool.builder()
                             .name(TOOL_NAME)
+                            .title(TOOL_TITLE)
                             .description(TOOL_DESCRIPTION)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(

@@ -286,6 +286,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "get_loaded_network_views",
+  "title": "List Cytoscape Desktop Networks",
   "description": "Enumerate all network collections currently loaded in Cytoscape Desktop with their views, node counts, and edge counts. Read-only; does not modify state.",
   "inputSchema": {
     "type": "object",
@@ -308,6 +309,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "set_current_network_view",
+  "title": "Set Cytoscape Desktop Active Network",
   "description": "Set the specified network and view as the current (active) network and view in Cytoscape Desktop. Both network_suid and view_suid are required.",
   "inputSchema": {
     "type": "object",
@@ -347,6 +349,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "create_network_view",
+  "title": "Create Cytoscape Desktop Network View",
   "description": "Create a visual view for a network in Cytoscape Desktop that currently has no view. Sets the new view and its network as the current network and view.",
   "inputSchema": {
     "type": "object",
@@ -382,6 +385,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "analyze_network",
+  "title": "Analyze Cytoscape Desktop Network",
   "description": "Run NetworkAnalyzer on the current network in Cytoscape Desktop to compute topological statistics. Adds columns like Degree, BetweennessCentrality, ClusteringCoefficient, etc. to the node and edge tables.",
   "inputSchema": {
     "type": "object",
@@ -409,6 +413,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "get_layout_algorithms",
+  "title": "List Cytoscape Desktop Layouts",
   "description": "List all available layout algorithms in Cytoscape Desktop with their names and descriptions.",
   "inputSchema": {
     "type": "object",
@@ -431,6 +436,7 @@ See `04-load-network-prompt.md §4.2a` for the full tool schema and response exa
 ```json
 {
   "name": "apply_layout",
+  "title": "Apply Cytoscape Desktop Layout",
   "description": "Apply a layout algorithm to the current network view in Cytoscape Desktop using default parameters.",
   "inputSchema": {
     "type": "object",

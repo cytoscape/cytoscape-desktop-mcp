@@ -38,6 +38,8 @@ public class SetCurrentNetworkViewTool {
 
     private static final String TOOL_NAME = "set_current_network_view";
 
+    private static final String TOOL_TITLE = "Set Cytoscape Desktop Active Network";
+
     private static final String TOOL_DESCRIPTION =
             "Set the specified network and view as the current (active) network and view"
                     + " in Cytoscape Desktop. Both network_suid and view_suid are required.";
@@ -86,6 +88,7 @@ public class SetCurrentNetworkViewTool {
             Tool toolDef =
                     Tool.builder()
                             .name(TOOL_NAME)
+                            .title(TOOL_TITLE)
                             .description(TOOL_DESCRIPTION)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(
