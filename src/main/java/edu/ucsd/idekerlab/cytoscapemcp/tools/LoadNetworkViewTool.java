@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -60,6 +61,7 @@ import org.cytoscape.work.TaskIterator;
 import org.cytoscape.work.TaskManager;
 import org.cytoscape.work.TaskMonitor;
 import org.cytoscape.work.TaskObserver;
+import org.cytoscape.work.util.ListSingleSelection;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
@@ -419,10 +421,14 @@ public class LoadNetworkViewTool {
     /**
      * Loads a network file by obtaining a format-specific {@link CyNetworkReader} from {@link
      * CyNetworkReaderManager}, executing it via the task manager, and returning the first loaded
-     * network. The reader is obtained directly before execution so that {@code
-     * reader.getNetworks()} is available immediately after the latch releases — avoiding the race
-     * where {@code LoadNetworkFileTask} inserts sub-tasks dynamically and {@code taskFinished}
-     * fires before the network is populated.
+     * network.
+     *
+     * <p>The reader is wrapped in {@link LoadNetworkTask} — an {@link AbstractTask} with no
+     * {@code @Tunable} fields — so the task manager never scans the reader's own tunables. Without
+     * this wrapper the GUI task manager detects the reader's {@code targetNetworkCollection}
+     * tunable and shows a modal "Import Network" dialog. The wrapper also ensures the reader's
+     * {@code parent} field stays {@code null}, which tells every built-in reader to create a new
+     * independent root network rather than appending to the currently-active collection.
      */
     private CyNetwork executeFileLoadViaReader(File file) throws IOException {
         CyNetworkReader reader = networkReaderManager.getReader(file.toURI(), file.getName());
@@ -439,11 +445,16 @@ public class LoadNetworkViewTool {
                 file.getName(),
                 reader.getClass().getSimpleName());
 
+        // Clear any @Tunable CyNetwork field on the reader so it creates a new independent root
+        // network. The reader constructor may have captured the currently-active network as the
+        // default parent collection; nulling it here forces "create new collection" behavior.
+        forceNewCollectionOnReader(reader);
+
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<FinishStatus> completionStatus = new AtomicReference<>();
 
         taskManager.execute(
-                new TaskIterator(reader),
+                new TaskIterator(new LoadNetworkTask(reader, file.getName())),
                 new TaskObserver() {
                     @Override
                     public void taskFinished(ObservableTask task) {}
@@ -1117,31 +1128,84 @@ public class LoadNetworkViewTool {
                 .build();
     }
 
-    // -- Inner task class ---------------------------------------------------
+    // -- Inner task class and helpers ----------------------------------------
 
     /**
-     * Wraps the CX network reader as an {@link AbstractTask} so that execution via {@link
-     * TaskManager} causes a "Load NDEx Network" entry to appear in Cytoscape's Task History panel.
-     * The title and status messages set on the {@link TaskMonitor} are captured by Cytoscape's
-     * TaskHistoryWindow.
+     * Forces the reader to load into a new, independent network collection.
+     *
+     * <p>{@link AbstractCyNetworkReader#init()} runs at reader-construction time (inside {@link
+     * CyNetworkReaderManager#getReader}) and pre-selects the currently-active collection in its
+     * {@code rootNetworkList} field. Without resetting that selection here, every file load joins
+     * the active collection instead of creating its own.
+     *
+     * <p>The fix: find the {@code rootNetworkList} field (a {@code ListSingleSelection<String>}) in
+     * the reader's class hierarchy, then select the "create new collection" entry — identified as
+     * the first possible value that starts with {@code "--"}.
+     */
+    private void forceNewCollectionOnReader(CyNetworkReader reader) {
+        for (Class<?> c = reader.getClass(); c != null; c = c.getSuperclass()) {
+            Field f;
+            try {
+                f = c.getDeclaredField("rootNetworkList");
+            } catch (NoSuchFieldException e) {
+                continue;
+            }
+            try {
+                f.setAccessible(true);
+                @SuppressWarnings("unchecked")
+                ListSingleSelection<String> lss = (ListSingleSelection<String>) f.get(reader);
+                if (lss == null) return;
+                String createNew = null;
+                for (String v : lss.getPossibleValues()) {
+                    if (v != null && v.startsWith("--")) {
+                        createNew = v;
+                        break;
+                    }
+                }
+                if (createNew != null) {
+                    lss.setSelectedValue(createNew);
+                    LOGGER.debug(
+                            "Forced new collection selection on {}",
+                            reader.getClass().getSimpleName());
+                }
+                return;
+            } catch (Exception e) {
+                LOGGER.warn(
+                        "Could not reset rootNetworkList on {}: {}",
+                        reader.getClass().getSimpleName(),
+                        e.getMessage());
+                return;
+            }
+        }
+        LOGGER.debug(
+                "No rootNetworkList found on {}; skipping collection reset",
+                reader.getClass().getSimpleName());
+    }
+
+    /**
+     * Wraps a {@link CyNetworkReader} in a plain {@link AbstractTask} so the task manager never
+     * scans the reader's own {@code @Tunable} fields. Without this wrapper the GUI task manager
+     * detects tunables on the reader (e.g. {@code targetNetworkCollection}) and shows modal
+     * dialogs. By running the reader inside this wrapper's {@link #run} method the reader's
+     * internals are invisible to the tunable system.
      */
     private static final class LoadNetworkTask extends AbstractTask {
         private final CyNetworkReader reader;
-        private final String networkId;
+        private final String source;
 
-        LoadNetworkTask(CyNetworkReader reader, String networkId) {
+        LoadNetworkTask(CyNetworkReader reader, String source) {
             this.reader = reader;
-            this.networkId = networkId;
+            this.source = source;
         }
 
         @Override
         public void run(TaskMonitor monitor) throws Exception {
             monitor.setTitle("[MCP Tool Invocation] Load Network View");
-            monitor.setStatusMessage("Downloading NDEx network " + networkId + " from NDEx...");
-            monitor.setProgress(-1); // indeterminate while downloading
+            monitor.setStatusMessage("Loading network: " + source + "...");
+            monitor.setProgress(-1); // indeterminate while loading
             reader.run(monitor);
             monitor.setProgress(1.0);
-            monitor.setStatusMessage("Network downloaded.");
+            monitor.setStatusMessage("Network loaded.");
         }
     }
 }
