@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -62,7 +63,7 @@ public class AnalyzeNetworkTool {
                                     "directed",
                                     new McpSchema.InputProperty(
                                             "boolean",
-                                            "True to treat the network as a directed graph; false"
+                                            "Required. True to treat the network as a directed graph; false"
                                                     + " for undirected (typical for most biological"
                                                     + " interaction networks). Affects which"
                                                     + " centrality metrics NetworkAnalyzer computes"
@@ -72,15 +73,25 @@ public class AnalyzeNetworkTool {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record NetworkStats(
-            @JsonProperty("node_count") int nodeCount,
-            @JsonProperty("edge_count") int edgeCount,
-            @JsonProperty("avg_degree") double avgDegree) {}
+            @JsonPropertyDescription("Number of nodes in the network.") @JsonProperty("node_count")
+                    int nodeCount,
+            @JsonPropertyDescription("Number of edges in the network.") @JsonProperty("edge_count")
+                    int edgeCount,
+            @JsonPropertyDescription("Average node degree.") @JsonProperty("avg_degree")
+                    double avgDegree) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record AnalyzeNetworkResult(
-            @JsonProperty("status") String status,
-            @JsonProperty("columns_added") List<String> columnsAdded,
-            @JsonProperty("network_stats") NetworkStats networkStats) {}
+            @JsonPropertyDescription("Result status, e.g. 'success'.") @JsonProperty("status")
+                    String status,
+            @JsonPropertyDescription(
+                            "Names of node attribute columns added to the Cytoscape Desktop node"
+                                    + " table by NetworkAnalyzer.")
+                    @JsonProperty("columns_added")
+                    List<String> columnsAdded,
+            @JsonPropertyDescription("Summary statistics of the analyzed network.")
+                    @JsonProperty("network_stats")
+                    NetworkStats networkStats) {}
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(AnalyzeNetworkResult.class);
 

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -49,9 +50,18 @@ public class InspectTabularFileTool {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record InspectTabularFileCallResult(
-            @JsonProperty("is_excel") boolean isExcel,
-            @JsonProperty("sheets") List<String> sheets,
-            @JsonProperty("detected_extension") String detectedExtension) {}
+            @JsonPropertyDescription("True if the file is an Excel workbook; false if plain-text.")
+                    @JsonProperty("is_excel")
+                    boolean isExcel,
+            @JsonPropertyDescription(
+                            "Sheet names in the workbook. Present only when is_excel is true.")
+                    @JsonProperty("sheets")
+                    List<String> sheets,
+            @JsonPropertyDescription(
+                            "Detected file extension (e.g. '.csv', '.tsv')."
+                                    + " Present only when is_excel is false.")
+                    @JsonProperty("detected_extension")
+                    String detectedExtension) {}
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(
@@ -61,7 +71,7 @@ public class InspectTabularFileTool {
                                     "file_path",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Absolute path to the tabular data file to inspect."))
+                                            "Required. Absolute path to the tabular data file to inspect."))
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(InspectTabularFileCallResult.class);

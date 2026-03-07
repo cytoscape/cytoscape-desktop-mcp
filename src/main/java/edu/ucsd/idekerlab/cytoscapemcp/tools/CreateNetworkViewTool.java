@@ -67,7 +67,7 @@ public class CreateNetworkViewTool {
                                     "network_suid",
                                     new McpSchema.InputProperty(
                                             "integer",
-                                            "SUID of the network in Cytoscape Desktop that needs a view."))
+                                            "Required. SUID of the network in Cytoscape Desktop that needs a view."))
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(CreateNetworkViewCallResult.class);

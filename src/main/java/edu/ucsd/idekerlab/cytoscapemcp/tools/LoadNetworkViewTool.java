@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -108,7 +109,7 @@ public class LoadNetworkViewTool {
                                     "source",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "The data source type. Must be one of: 'ndex' (load by"
+                                            "Required. The data source type. Must be one of: 'ndex' (load by"
                                                     + " UUID from NDEx), 'network-file' (load a"
                                                     + " native network format file such as .sif,"
                                                     + " .xgmml, or .cx), 'tabular-file' (load a CSV"
@@ -195,7 +196,7 @@ public class LoadNetworkViewTool {
                                     "node_attributes_source_columns",
                                     new McpSchema.InputProperty(
                                             "array",
-                                            "Array of column names from the node attributes sheet"
+                                            "Optional. Array of column names from the node attributes sheet"
                                                     + " (or main sheet) to attach as properties on"
                                                     + " source nodes.",
                                             new McpSchema.InputProperty("string", null),
@@ -204,7 +205,7 @@ public class LoadNetworkViewTool {
                                     "node_attributes_target_columns",
                                     new McpSchema.InputProperty(
                                             "array",
-                                            "Array of column names from the node attributes sheet"
+                                            "Optional. Array of column names from the node attributes sheet"
                                                     + " (or main sheet) to attach as properties on"
                                                     + " target nodes.",
                                             new McpSchema.InputProperty("string", null),
@@ -213,13 +214,34 @@ public class LoadNetworkViewTool {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record LoadNetworkViewCallResult(
-            @JsonProperty("status") String status,
-            @JsonProperty("network_suid") long networkSuid,
-            @JsonProperty("node_count") int nodeCount,
-            @JsonProperty("edge_count") int edgeCount,
-            @JsonProperty("network_name") String networkName,
-            @JsonProperty("node_attributes_imported") Boolean nodeAttributesImported,
-            @JsonProperty("warning") String warning) {}
+            @JsonPropertyDescription("Result status, e.g. 'success'.") @JsonProperty("status")
+                    String status,
+            @JsonPropertyDescription("Unique SUID of the loaded network in Cytoscape Desktop.")
+                    @JsonProperty("network_suid")
+                    long networkSuid,
+            @JsonPropertyDescription("Number of nodes in the loaded network.")
+                    @JsonProperty("node_count")
+                    int nodeCount,
+            @JsonPropertyDescription("Number of edges in the loaded network.")
+                    @JsonProperty("edge_count")
+                    int edgeCount,
+            @JsonPropertyDescription(
+                            "Name of the loaded network as shown in the Cytoscape Desktop Network"
+                                    + " panel.")
+                    @JsonProperty("network_name")
+                    String networkName,
+            @JsonPropertyDescription(
+                            "True if node attributes were successfully joined onto the network."
+                                    + " Present only when node_attributes_* parameters were"
+                                    + " supplied.")
+                    @JsonProperty("node_attributes_imported")
+                    Boolean nodeAttributesImported,
+            @JsonPropertyDescription(
+                            "Non-fatal warning message, e.g. when the network loaded but some"
+                                    + " attributes could not be mapped. Present only when a"
+                                    + " warning occurred.")
+                    @JsonProperty("warning")
+                    String warning) {}
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(LoadNetworkViewCallResult.class);
 

@@ -62,12 +62,12 @@ public class SetCurrentNetworkViewTool {
                                     "network_suid",
                                     new McpSchema.InputProperty(
                                             "integer",
-                                            "SUID of the target network in Cytoscape Desktop."))
+                                            "Required. SUID of the target network in Cytoscape Desktop."))
                             .property(
                                     "view_suid",
                                     new McpSchema.InputProperty(
                                             "integer",
-                                            "SUID of the target network view in Cytoscape Desktop."))
+                                            "Required. SUID of the target network view in Cytoscape Desktop."))
                             .build());
 
     static final String OUTPUT_SCHEMA =

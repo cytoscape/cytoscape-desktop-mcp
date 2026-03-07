@@ -84,11 +84,7 @@ See [docs/AgentConfiguration.md](docs/AgentConfiguration.md) for step-by-step se
 
 ### Activate the MCP server from Agent prompts:
 Try some example Prompts to chaange states on the Cytoscape Desktop from Agent.
-* `load network id 63836e7b-ca44-11f0-a218-005056ae3c32 into cytoscape` - will load `Yeast ergosterol` network that resides on ndexbio.org.
-* `/cytoscape_network_wizard` - this will work on most agents that support mapping MCP prompts directly to 'slash' commands. It will start cytoscape network wizard interactive flow at agent prompt.
-* `start cytoscape network wizard` - will trigger llm to request starting the cytoscape network wizard prompt sequence.
-* `use cytoscape desktop` - will trigger llm to request starting the cytoscape network wizard prompt sequence.
-
+* `load network id 63836e7b-ca44-11f0-a218-005056ae3c32 into cytoscape desktop` - will load `Yeast ergosterol` network that resides on ndexbio.org.
 
 ## Available Cytoscape Desktop MCP Tools
 

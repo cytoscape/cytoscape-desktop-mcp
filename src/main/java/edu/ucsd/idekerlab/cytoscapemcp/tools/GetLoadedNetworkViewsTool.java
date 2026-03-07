@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -54,12 +55,23 @@ public class GetLoadedNetworkViewsTool {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record NetworkViewEntry(
-            @JsonProperty("collection_name") String collectionName,
-            @JsonProperty("network_name") String networkName,
-            @JsonProperty("network_suid") long networkSuid,
-            @JsonProperty("view_suid") Long viewSuid,
-            @JsonProperty("node_count") int nodeCount,
-            @JsonProperty("edge_count") int edgeCount) {}
+            @JsonPropertyDescription("Name of the root network collection.")
+                    @JsonProperty("collection_name")
+                    String collectionName,
+            @JsonPropertyDescription("Name of the sub-network within the collection.")
+                    @JsonProperty("network_name")
+                    String networkName,
+            @JsonPropertyDescription("Unique SUID of the network in Cytoscape Desktop.")
+                    @JsonProperty("network_suid")
+                    long networkSuid,
+            @JsonPropertyDescription(
+                            "Unique SUID of the network view. Absent if the network has no view.")
+                    @JsonProperty("view_suid")
+                    Long viewSuid,
+            @JsonPropertyDescription("Number of nodes in the network.") @JsonProperty("node_count")
+                    int nodeCount,
+            @JsonPropertyDescription("Number of edges in the network.") @JsonProperty("edge_count")
+                    int edgeCount) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record GetLoadedNetworkViewsCallResult(

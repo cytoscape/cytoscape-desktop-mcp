@@ -61,7 +61,7 @@ public class ApplyLayoutTool {
                                     "algorithm",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Internal layout algorithm name to apply. Each algorithm has a 'name'"
+                                            "Required. Internal layout algorithm name to apply. Each algorithm has a 'name'"
                                                     + " (machine identifier) and a 'displayName' (human-readable label)."
                                                     + " Supply the 'name' value, not 'displayName'."))
                             .build());

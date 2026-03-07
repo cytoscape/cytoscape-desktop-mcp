@@ -75,7 +75,8 @@ public class GetFileColumnsTool {
                             .property(
                                     "file_path",
                                     new McpSchema.InputProperty(
-                                            "string", "Absolute path to the tabular file."))
+                                            "string",
+                                            "Required. Absolute path to the tabular file."))
                             .property(
                                     "delimiter_char_code",
                                     new McpSchema.InputProperty(
@@ -87,7 +88,7 @@ public class GetFileColumnsTool {
                                     "use_header_row",
                                     new McpSchema.InputProperty(
                                             "boolean",
-                                            "If true, the first row is treated as column headers and those strings"
+                                            "Required. If true, the first row is treated as column headers and those strings"
                                                     + " appear in 'columns'. If false, ordinal names are generated"
                                                     + " ('Column 1', 'Column 2', ...) and those ordinal names"
                                                     + " appear in 'columns' instead."))
