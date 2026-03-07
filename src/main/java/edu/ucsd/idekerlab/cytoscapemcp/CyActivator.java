@@ -30,7 +30,6 @@ import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.AbstractConfigDirPropsReader;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.service.util.AbstractCyActivator;
-import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
 import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
@@ -141,9 +140,12 @@ public class CyActivator extends AbstractCyActivator {
         CyLayoutAlgorithmManager layoutManager =
                 getService(bundleContext, CyLayoutAlgorithmManager.class);
 
-        // File loading.
-        LoadNetworkFileTaskFactory loadFileTaskFactory =
-                getService(bundleContext, LoadNetworkFileTaskFactory.class);
+        // File loading — use CyNetworkReaderManager for format-auto-detection.
+        // CyNetworkReaderManager.getReader(URI, name) returns the right InputStreamTaskFactory
+        // for each format (SIF, XGMML, GraphML, CX, etc.), mirroring how LoadNetworkFileTask
+        // works internally in Cytoscape desktop.
+        org.cytoscape.io.read.CyNetworkReaderManager networkReaderManager =
+                getService(bundleContext, org.cytoscape.io.read.CyNetworkReaderManager.class);
 
         // Network factory (for creating networks from tabular data).
         CyNetworkFactory networkFactory = getService(bundleContext, CyNetworkFactory.class);
@@ -172,7 +174,7 @@ public class CyActivator extends AbstractCyActivator {
                 discreteMappingFactory,
                 passthroughMappingFactory,
                 layoutManager,
-                loadFileTaskFactory,
+                networkReaderManager,
                 networkFactory,
                 networkViewFactory,
                 syncTaskManager,
@@ -234,7 +236,7 @@ public class CyActivator extends AbstractCyActivator {
             VisualMappingFunctionFactory discreteMappingFactory,
             VisualMappingFunctionFactory passthroughMappingFactory,
             CyLayoutAlgorithmManager layoutManager,
-            LoadNetworkFileTaskFactory loadFileTaskFactory,
+            org.cytoscape.io.read.CyNetworkReaderManager networkReaderManager,
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
             SynchronousTaskManager<?> syncTaskManager,
@@ -263,7 +265,7 @@ public class CyActivator extends AbstractCyActivator {
                         discreteMappingFactory,
                         passthroughMappingFactory,
                         layoutManager,
-                        loadFileTaskFactory,
+                        networkReaderManager,
                         networkFactory,
                         networkViewFactory,
                         syncTaskManager,

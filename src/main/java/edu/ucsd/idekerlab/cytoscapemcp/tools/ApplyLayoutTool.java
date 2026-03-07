@@ -41,8 +41,9 @@ public class ApplyLayoutTool {
     private static final String TOOL_TITLE = "Apply Cytoscape Desktop Layout";
 
     private static final String TOOL_DESCRIPTION =
-            "Apply a layout algorithm to the current network view in Cytoscape Desktop using default parameters."
-                    + " After layout, the view is fitted to content and refreshed.";
+            "Apply a layout algorithm to the current network view in Cytoscape Desktop using default"
+                    + " parameters. After the layout runs, the view is fitted to content and"
+                    + " refreshed.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -60,8 +61,9 @@ public class ApplyLayoutTool {
                                     "algorithm",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Layout algorithm name (as returned by"
-                                                    + " get_layout_algorithms)."))
+                                            "Internal layout algorithm name to apply. Each algorithm has a 'name'"
+                                                    + " (machine identifier) and a 'displayName' (human-readable label)."
+                                                    + " Supply the 'name' value, not 'displayName'."))
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(ApplyLayoutResult.class);

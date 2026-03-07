@@ -37,6 +37,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.McpSchema;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.CyNetworkReader;
+import org.cytoscape.io.read.CyNetworkReaderManager;
 import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyEdge;
 import org.cytoscape.model.CyNetwork;
@@ -48,7 +49,6 @@ import org.cytoscape.model.CyTable;
 import org.cytoscape.model.subnetwork.CyRootNetwork;
 import org.cytoscape.model.subnetwork.CySubNetwork;
 import org.cytoscape.property.CyProperty;
-import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
@@ -108,8 +108,11 @@ public class LoadNetworkViewTool {
                                     "source",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "The data source type. Must be one of: 'ndex',"
-                                                    + " 'network-file', 'tabular-file'.",
+                                            "The data source type. Must be one of: 'ndex' (load by"
+                                                    + " UUID from NDEx), 'network-file' (load a"
+                                                    + " native network format file such as .sif,"
+                                                    + " .xgmml, or .cx), 'tabular-file' (load a CSV"
+                                                    + " or Excel file with column mapping).",
                                             List.of("ndex", "network-file", "tabular-file")))
                             .property(
                                     "network_id",
@@ -166,21 +169,35 @@ public class LoadNetworkViewTool {
                                     "node_attributes_sheet",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Name of an Excel sheet containing node attribute"
-                                                    + " data. Optional for Excel tabular files."))
+                                            "Name of a second Excel sheet that contains additional"
+                                                    + " node attribute columns to join onto the"
+                                                    + " network nodes. Optional for Excel tabular"
+                                                    + " files."))
                             .property(
-                                    "node_attributes_key_column",
+                                    "node_attributes_sheet_target_key_column",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Column name in the node attributes sheet that"
-                                                    + " contains the node ID for joining. Used with"
-                                                    + " node_attributes_sheet."))
+                                            "Column name in the node attributes sheet whose values"
+                                                    + " match target-node IDs in the main network"
+                                                    + " sheet. Used to join attributes onto target"
+                                                    + " nodes. Required when node_attributes_sheet"
+                                                    + " is set."))
+                            .property(
+                                    "node_attributes_sheet_source_key_column",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Column name in the node attributes sheet whose values"
+                                                    + " match source-node IDs in the main network"
+                                                    + " sheet. Used to join attributes onto source"
+                                                    + " nodes. Required when node_attributes_sheet"
+                                                    + " is set."))
                             .property(
                                     "node_attributes_source_columns",
                                     new McpSchema.InputProperty(
                                             "array",
                                             "Array of column names from the node attributes sheet"
-                                                    + " to map as source node properties.",
+                                                    + " (or main sheet) to attach as properties on"
+                                                    + " source nodes.",
                                             new McpSchema.InputProperty("string", null),
                                             null))
                             .property(
@@ -188,7 +205,8 @@ public class LoadNetworkViewTool {
                                     new McpSchema.InputProperty(
                                             "array",
                                             "Array of column names from the node attributes sheet"
-                                                    + " to map as target node properties.",
+                                                    + " (or main sheet) to attach as properties on"
+                                                    + " target nodes.",
                                             new McpSchema.InputProperty("string", null),
                                             null))
                             .build());
@@ -213,7 +231,7 @@ public class LoadNetworkViewTool {
     private final CyNetworkViewManager viewManager;
     private final TaskManager<?, ?> taskManager;
     private final InputStreamTaskFactory cxReaderFactory;
-    private final LoadNetworkFileTaskFactory loadFileTaskFactory;
+    private final CyNetworkReaderManager networkReaderManager;
     private final CyNetworkFactory networkFactory;
     private final CyNetworkViewFactory networkViewFactory;
 
@@ -224,7 +242,7 @@ public class LoadNetworkViewTool {
             CyNetworkViewManager viewManager,
             TaskManager<?, ?> taskManager,
             InputStreamTaskFactory cxReaderFactory,
-            LoadNetworkFileTaskFactory loadFileTaskFactory,
+            CyNetworkReaderManager networkReaderManager,
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory) {
         this.cyProperties = cyProperties;
@@ -233,7 +251,7 @@ public class LoadNetworkViewTool {
         this.viewManager = viewManager;
         this.taskManager = taskManager;
         this.cxReaderFactory = cxReaderFactory;
-        this.loadFileTaskFactory = loadFileTaskFactory;
+        this.networkReaderManager = networkReaderManager;
         this.networkFactory = networkFactory;
         this.networkViewFactory = networkViewFactory;
     }
@@ -348,29 +366,62 @@ public class LoadNetworkViewTool {
 
         LOGGER.info("Loading network from file: {}", filePath);
 
+        CyNetwork loadedNetwork;
         try {
-            executeFileLoad(file);
+            loadedNetwork = executeFileLoadViaReader(file);
         } catch (Exception e) {
             LOGGER.error("Error loading network from file {}", filePath, e);
             return error(
                     "Failed to load network from file: " + filePath + ", error: " + e.getMessage());
         }
 
-        CyNetwork loadedNetwork = appManager.getCurrentNetwork();
         if (loadedNetwork == null) {
+            LOGGER.warn("No network was created after loading file: {}", filePath);
             return error("No network was created after loading file: " + filePath);
         }
 
+        // If the reader produced a generic/empty name, fall back to the source filename.
+        String existingName = loadedNetwork.getRow(loadedNetwork).get(CyNetwork.NAME, String.class);
+        if (existingName == null
+                || existingName.isBlank()
+                || existingName.equalsIgnoreCase("network")) {
+            String baseName = baseNameWithoutExtension(file);
+            loadedNetwork.getRow(loadedNetwork).set(CyNetwork.NAME, baseName);
+        }
+
+        setCollectionName(loadedNetwork);
+        activateNetwork(loadedNetwork);
         return buildSuccessResponse(loadedNetwork, file.getName());
     }
 
-    private void executeFileLoad(File file) {
-        TaskIterator ti = loadFileTaskFactory.createTaskIterator(file);
+    /**
+     * Loads a network file by obtaining a format-specific {@link CyNetworkReader} from {@link
+     * CyNetworkReaderManager}, executing it via the task manager, and returning the first loaded
+     * network. The reader is obtained directly before execution so that {@code
+     * reader.getNetworks()} is available immediately after the latch releases — avoiding the race
+     * where {@code LoadNetworkFileTask} inserts sub-tasks dynamically and {@code taskFinished}
+     * fires before the network is populated.
+     */
+    private CyNetwork executeFileLoadViaReader(File file) throws IOException {
+        CyNetworkReader reader = networkReaderManager.getReader(file.toURI(), file.getName());
+        if (reader == null) {
+            throw new IOException(
+                    "No compatible reader found for file: "
+                            + file.getName()
+                            + ". Supported formats: SIF, XGMML, GraphML, GML, CX, CX2, SBML,"
+                            + " BioPAX.");
+        }
+
+        LOGGER.info(
+                "Loading file {} using reader: {}",
+                file.getName(),
+                reader.getClass().getSimpleName());
+
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<FinishStatus> completionStatus = new AtomicReference<>();
 
         taskManager.execute(
-                ti,
+                new TaskIterator(reader),
                 new TaskObserver() {
                     @Override
                     public void taskFinished(ObservableTask task) {}
@@ -397,6 +448,21 @@ public class LoadNetworkViewTool {
             throw new RuntimeException(
                     cause != null ? cause.getMessage() : "Network file load task failed", cause);
         }
+
+        CyNetwork[] networks = reader.getNetworks();
+        if (networks == null || networks.length == 0) {
+            return null;
+        }
+
+        CyNetwork loaded = networks[0];
+        networkManager.addNetwork(loaded);
+
+        CyNetworkView view = reader.buildCyNetworkView(loaded);
+        if (view != null) {
+            viewManager.addNetworkView(view);
+        }
+
+        return loaded;
     }
 
     private CallToolResult handleTabularImport(CallToolRequest request) {
@@ -436,8 +502,11 @@ public class LoadNetworkViewTool {
         }
 
         String interactionCol = extractString(request, "interaction_column");
-        String nodeAttrKeyCol = extractString(request, "node_attributes_key_column");
         String nodeAttrSheet = extractString(request, "node_attributes_sheet");
+        String nodeAttrSheetSourceKeyCol =
+                extractString(request, "node_attributes_sheet_source_key_column");
+        String nodeAttrSheetTargetKeyCol =
+                extractString(request, "node_attributes_sheet_target_key_column");
 
         @SuppressWarnings("unchecked")
         List<String> nodeAttrSourceCols =
@@ -470,8 +539,11 @@ public class LoadNetworkViewTool {
         nodeAttrColSet.addAll(nodeAttrTargetCols);
 
         // -- Build CyNetwork from rows -----------------------------------------
+        // CyNetworkFactory.createNetwork() always produces a new root network (collection).
+        // Setting the name before registration and calling setCollectionName() ensures both the
+        // sub-network and the collection header in the Network panel show the source filename.
         CyNetwork network = networkFactory.createNetwork();
-        network.getRow(network).set(CyNetwork.NAME, file.getName());
+        network.getRow(network).set(CyNetwork.NAME, baseNameWithoutExtension(file));
 
         Map<String, CyNode> nodeMap = new LinkedHashMap<>();
         CyTable edgeTable = network.getDefaultEdgeTable();
@@ -522,7 +594,10 @@ public class LoadNetworkViewTool {
                 if (col.equals(finalSourceCol)
                         || col.equals(finalTargetCol)
                         || col.equals(finalInteractionCol)
-                        || nodeAttrColSet.contains(col)) {
+                        // Skip node attribute columns if non-excel or is excel and attribs are on
+                        // same sheet)
+                        || (nodeAttrColSet.contains(col)
+                                && (excelSheet == null || excelSheet.equals(nodeAttrSheet)))) {
                     continue;
                 }
                 createColumnIfAbsent(edgeTable, col);
@@ -532,6 +607,7 @@ public class LoadNetworkViewTool {
 
         // -- Register network and create view ----------------------------------
         networkManager.addNetwork(network);
+        setCollectionName(network);
 
         CyNetworkView view = networkViewFactory.createNetworkView(network);
         viewManager.addNetworkView(view);
@@ -542,75 +618,137 @@ public class LoadNetworkViewTool {
         Boolean nodeAttrsImported = null;
         String warning = null;
 
-        if (nodeAttrKeyCol != null) {
-            // Build node name → CyNode map from the newly created network
-            Map<String, CyNode> nameToNode = new LinkedHashMap<>();
-            for (CyNode n : network.getNodeList()) {
-                String name = network.getRow(n).get(CyNetwork.NAME, String.class);
-                if (name != null) {
-                    nameToNode.put(name, n);
-                }
-            }
-
-            // Load attribute rows — from separate Excel sheet or from same file
-            List<Map<String, String>> attrRows;
-            try {
-                if (nodeAttrSheet != null) {
-                    attrRows =
-                            parseTabularRows(file, delimiterCharCode, useHeaderRow, nodeAttrSheet);
-                } else {
-                    // Non-Excel: reuse same file rows
-                    attrRows = rows;
-                }
-            } catch (Exception e) {
-                LOGGER.warn("Failed to read node attribute data: {}", e.getMessage());
-                attrRows = Collections.emptyList();
-            }
-
-            CyTable nodeTable = network.getDefaultNodeTable();
-            final String finalNodeAttrKeyCol = nodeAttrKeyCol;
-            final List<String> finalSourceCols = nodeAttrSourceCols;
-            final List<String> finalTargetCols = nodeAttrTargetCols;
-
-            int matchCount = 0;
-            for (Map<String, String> attrRow : attrRows) {
-                String keyVal = attrRow.get(finalNodeAttrKeyCol);
-                if (keyVal == null) continue;
-
-                CyNode matchedNode = nameToNode.get(keyVal);
-                if (matchedNode == null) continue;
-
-                matchCount++;
-                CyRow nodeRow = network.getRow(matchedNode);
-
-                for (String col : finalSourceCols) {
-                    String val = attrRow.get(col);
-                    if (val != null) {
-                        createColumnIfAbsent(nodeTable, col);
-                        nodeRow.set(col, val);
-                    }
-                }
-                for (String col : finalTargetCols) {
-                    String val = attrRow.get(col);
-                    if (val != null) {
-                        createColumnIfAbsent(nodeTable, col);
-                        nodeRow.set(col, val);
-                    }
-                }
-            }
-
-            if (matchCount == 0 && !attrRows.isEmpty()) {
-                nodeAttrsImported = false;
-                warning = "No matching node IDs found between key column and network node names.";
-            } else {
-                nodeAttrsImported = matchCount > 0;
-            }
+        boolean shouldImportNodeAttrs =
+                nodeAttrSheet != null
+                        || !nodeAttrSourceCols.isEmpty()
+                        || !nodeAttrTargetCols.isEmpty();
+        if (shouldImportNodeAttrs) {
+            NodeAttrImportResult result =
+                    importNodeAttributes(
+                            network,
+                            file,
+                            rows,
+                            nodeAttrSheet,
+                            delimiterCharCode,
+                            useHeaderRow,
+                            nodeAttrSheetSourceKeyCol,
+                            nodeAttrSheetTargetKeyCol,
+                            sourceCol,
+                            targetCol,
+                            nodeAttrSourceCols,
+                            nodeAttrTargetCols);
+            nodeAttrsImported = result.imported();
+            warning = result.warning();
         }
 
         return buildTabularSuccessResponse(network, file.getName(), nodeAttrsImported, warning);
     }
 
     // -- Tabular parsing helpers -----------------------------------------------
+
+    /** Holds the outcome of a secondary node-attribute import pass. */
+    private record NodeAttrImportResult(Boolean imported, String warning) {}
+
+    /**
+     * Imports node attributes into the node table of an already-built network. For Excel files (
+     * {@code nodeAttrSheet != null}), attribute rows are read from the specified sheet and keyed by
+     * the per-node-type key columns ({@code nodeAttrSheetSourceKeyCol} / {@code
+     * nodeAttrSheetTargetKeyCol}). For non-Excel files ({@code nodeAttrSheet == null}), the primary
+     * edge rows are reused and keyed by the existing source/target column values, which already
+     * correspond to node names in the network.
+     *
+     * <p>Source and target attribute imports run independently — either or both may be provided.
+     */
+    private NodeAttrImportResult importNodeAttributes(
+            CyNetwork network,
+            File file,
+            List<Map<String, String>> rows,
+            String nodeAttrSheet,
+            Integer delimiterCharCode,
+            boolean useHeaderRow,
+            String nodeAttrSheetSourceKeyCol,
+            String nodeAttrSheetTargetKeyCol,
+            String sourceCol,
+            String targetCol,
+            List<String> nodeAttrSourceCols,
+            List<String> nodeAttrTargetCols) {
+
+        if (nodeAttrSourceCols.isEmpty() && nodeAttrTargetCols.isEmpty()) {
+            return new NodeAttrImportResult(null, null);
+        }
+
+        // Build node name → CyNode lookup from the network
+        Map<String, CyNode> nameToNode = new LinkedHashMap<>();
+        for (CyNode n : network.getNodeList()) {
+            String name = network.getRow(n).get(CyNetwork.NAME, String.class);
+            if (name != null) nameToNode.put(name, n);
+        }
+
+        // Load attribute rows from separate Excel sheet or reuse primary rows for non-Excel
+        List<Map<String, String>> attrRows;
+        try {
+            if (nodeAttrSheet != null) {
+                attrRows = parseTabularRows(file, delimiterCharCode, useHeaderRow, nodeAttrSheet);
+            } else {
+                attrRows = rows;
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to read node attribute data: {}", e.getMessage());
+            attrRows = Collections.emptyList();
+        }
+
+        CyTable nodeTable = network.getDefaultNodeTable();
+        int matchCount = 0;
+
+        // For Excel: key cols are from the node attributes sheet; for non-Excel: node identity is
+        // the source/target column value used during edge construction
+        String srcKeyCol = (nodeAttrSheet != null) ? nodeAttrSheetSourceKeyCol : sourceCol;
+        String tgtKeyCol = (nodeAttrSheet != null) ? nodeAttrSheetTargetKeyCol : targetCol;
+
+        // Source node attribute import
+        if (!nodeAttrSourceCols.isEmpty() && srcKeyCol != null) {
+            for (Map<String, String> attrRow : attrRows) {
+                String keyVal = attrRow.get(srcKeyCol);
+                if (keyVal == null) continue;
+                CyNode matchedNode = nameToNode.get(keyVal);
+                if (matchedNode == null) continue;
+                matchCount++;
+                CyRow nodeRow = network.getRow(matchedNode);
+                for (String col : nodeAttrSourceCols) {
+                    String val = attrRow.get(col);
+                    if (val != null) {
+                        createColumnIfAbsent(nodeTable, col);
+                        nodeRow.set(col, val);
+                    }
+                }
+            }
+        }
+
+        // Target node attribute import
+        if (!nodeAttrTargetCols.isEmpty() && tgtKeyCol != null) {
+            for (Map<String, String> attrRow : attrRows) {
+                String keyVal = attrRow.get(tgtKeyCol);
+                if (keyVal == null) continue;
+                CyNode matchedNode = nameToNode.get(keyVal);
+                if (matchedNode == null) continue;
+                matchCount++;
+                CyRow nodeRow = network.getRow(matchedNode);
+                for (String col : nodeAttrTargetCols) {
+                    String val = attrRow.get(col);
+                    if (val != null) {
+                        createColumnIfAbsent(nodeTable, col);
+                        nodeRow.set(col, val);
+                    }
+                }
+            }
+        }
+
+        if (matchCount == 0 && !attrRows.isEmpty()) {
+            return new NodeAttrImportResult(
+                    false, "No matching node IDs found between key column and network node names.");
+        }
+        return new NodeAttrImportResult(matchCount > 0, null);
+    }
 
     /**
      * Reads all data rows from a tabular file into a list of column-name → value maps. For Excel
@@ -874,6 +1012,17 @@ public class LoadNetworkViewTool {
     /** Downloads the CX stream from the given URL. Package-private for test overriding. */
     InputStream openStream(URL url) throws IOException {
         return url.openStream();
+    }
+
+    /**
+     * Returns the filename without its last extension (e.g. {@code "my_net.sif"} → {@code
+     * "my_net"}, {@code "data.csv"} → {@code "data"}). If the filename has no extension the full
+     * name is returned.
+     */
+    private static String baseNameWithoutExtension(File file) {
+        String name = file.getName();
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(0, dot) : name;
     }
 
     /**

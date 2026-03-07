@@ -43,8 +43,10 @@ public class CreateNetworkViewTool {
     private static final String TOOL_TITLE = "Create Cytoscape Desktop Network View";
 
     private static final String TOOL_DESCRIPTION =
-            "Create a visual view for a network in Cytoscape Desktop that currently has no view. Sets the new view"
-                    + " and its network as the current network and view. If a view already exists, returns the existing one instead of creating a duplicate.";
+            "Create a visual view for a network in Cytoscape Desktop that currently has no view."
+                    + " Sets the new view and its network as the current network and view."
+                    + " If a view already exists for the network, returns the existing one instead"
+                    + " of creating a duplicate.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -64,7 +66,8 @@ public class CreateNetworkViewTool {
                             .property(
                                     "network_suid",
                                     new McpSchema.InputProperty(
-                                            "integer", "SUID of the target network."))
+                                            "integer",
+                                            "SUID of the network in Cytoscape Desktop that needs a view."))
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(CreateNetworkViewCallResult.class);

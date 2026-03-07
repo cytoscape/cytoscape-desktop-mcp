@@ -58,6 +58,8 @@ public class McpTransportProviderTest {
     public void protocolVersions_containsBothSupportedVersions() {
         assertTrue(provider.protocolVersions().contains(ProtocolVersions.MCP_2024_11_05));
         assertTrue(provider.protocolVersions().contains(ProtocolVersions.MCP_2025_03_26));
+        assertTrue(provider.protocolVersions().contains(ProtocolVersions.MCP_2025_06_18));
+        assertTrue(provider.protocolVersions().contains(ProtocolVersions.MCP_2025_11_25));
     }
 
     @Test

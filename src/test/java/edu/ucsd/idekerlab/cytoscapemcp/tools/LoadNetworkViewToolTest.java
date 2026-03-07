@@ -3,6 +3,7 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +22,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.fixture.InMemoryTransport;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.io.read.CyNetworkReader;
+import org.cytoscape.io.read.CyNetworkReaderManager;
 import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyEdge;
 import org.cytoscape.model.CyNetwork;
@@ -30,7 +32,6 @@ import org.cytoscape.model.CyNode;
 import org.cytoscape.model.CyRow;
 import org.cytoscape.model.CyTable;
 import org.cytoscape.property.CyProperty;
-import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
@@ -46,6 +47,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -87,7 +89,7 @@ public class LoadNetworkViewToolTest {
     @Mock private CyNetworkViewManager viewManager;
     @Mock private TaskManager<?, ?> taskManager;
     @Mock private InputStreamTaskFactory cxReaderFactory;
-    @Mock private LoadNetworkFileTaskFactory loadFileTaskFactory;
+    @Mock private CyNetworkReaderManager networkReaderManager;
     @Mock private CyNetworkFactory networkFactory;
     @Mock private CyNetworkViewFactory networkViewFactory;
     @Mock private CyNetworkReader networkReader;
@@ -127,7 +129,7 @@ public class LoadNetworkViewToolTest {
                                 viewManager,
                                 taskManager,
                                 cxReaderFactory,
-                                loadFileTaskFactory,
+                                networkReaderManager,
                                 networkFactory,
                                 networkViewFactory));
 
@@ -333,8 +335,7 @@ public class LoadNetworkViewToolTest {
         File tempFile = File.createTempFile("test-network", ".sif");
         tempFile.deleteOnExit();
 
-        when(loadFileTaskFactory.createTaskIterator(any(File.class)))
-                .thenReturn(new TaskIterator((Task) networkReader));
+        when(networkReaderManager.getReader(any(URI.class), anyString())).thenReturn(networkReader);
 
         doAnswer(
                         invocation -> {
@@ -365,9 +366,8 @@ public class LoadNetworkViewToolTest {
         File tempFile = File.createTempFile("test-network", ".sif");
         tempFile.deleteOnExit();
 
-        when(loadFileTaskFactory.createTaskIterator(any(File.class)))
-                .thenReturn(new TaskIterator((Task) networkReader));
-        when(appManager.getCurrentNetwork()).thenReturn(null);
+        when(networkReaderManager.getReader(any(URI.class), anyString())).thenReturn(networkReader);
+        when(networkReader.getNetworks()).thenReturn(new CyNetwork[0]);
 
         doAnswer(
                         invocation -> {
@@ -389,6 +389,57 @@ public class LoadNetworkViewToolTest {
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
         assertTrue("Should mention No network", response.contains("No network"));
+    }
+
+    @Test
+    public void networkFileLoad_genericName_fallsBackToBaseName() throws Exception {
+        // Create a predictably named temp file so we know the expected base name.
+        File tempDir = java.nio.file.Files.createTempDirectory("cy-test").toFile();
+        tempDir.deleteOnExit();
+        File tempFile = new File(tempDir, "my_network.sif");
+        tempFile.createNewFile();
+        tempFile.deleteOnExit();
+
+        when(networkReaderManager.getReader(any(URI.class), anyString())).thenReturn(networkReader);
+        when(networkReader.getNetworks()).thenReturn(new CyNetwork[] {network});
+        when(networkReader.buildCyNetworkView(network)).thenReturn(networkView);
+        when(network.getSUID()).thenReturn(200L);
+        when(network.getNodeCount()).thenReturn(10);
+        when(network.getEdgeCount()).thenReturn(5);
+        when(viewManager.getNetworkViews(network))
+                .thenReturn(Collections.singletonList(networkView));
+
+        // Simulate the reader defaulting the name to "network", then returning the updated name.
+        when(network.getRow(network)).thenReturn(networkRow);
+        when(networkRow.get(CyNetwork.NAME, String.class))
+                .thenReturn("network") // 1st call: the generic-name check
+                .thenReturn("my_network"); // 2nd call: getDisplayName after override
+
+        doAnswer(
+                        invocation -> {
+                            TaskObserver observer = invocation.getArgument(1);
+                            observer.allFinished(FinishStatus.getSucceeded());
+                            return null;
+                        })
+                .when(taskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"network-file\","
+                                + "\"file_path\":\""
+                                + tempFile.getAbsolutePath()
+                                + "\"}}}");
+
+        assertFalse("Should not be an error", response.contains("\"isError\":true"));
+        // Verify the override was applied to the network row
+        verify(networkRow).set(CyNetwork.NAME, "my_network");
+        // The display name should reflect the base filename, not the reader default
+        assertTrue(
+                "Response should contain base filename as network_name",
+                response.contains("\\\"network_name\\\":\\\"my_network\\\""));
     }
 
     // -----------------------------------------------------------------------
@@ -574,12 +625,13 @@ public class LoadNetworkViewToolTest {
                         + "\"delimiter_char_code\":44,"
                         + "\"use_header_row\":true}}}");
 
-        // No node_attributes_key_column → node set should never be iterated for attribute import
+        // No node_attributes_source_columns or target_columns → node set should never be iterated
         verify(tabularNetwork, never()).getNodeList();
     }
 
     @Test
-    public void tabularCsv_nodeAttributeImport_triggered_whenKeyColumnNonNull() throws Exception {
+    public void tabularCsv_nodeAttributeImport_triggered_whenSourceColumnsProvided()
+            throws Exception {
         // Set up node with a matching name so attribute import finds a match
         CyNode attrNode = org.mockito.Mockito.mock(CyNode.class);
         CyRow attrNodeRow = org.mockito.Mockito.mock(CyRow.class);
@@ -602,11 +654,11 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":\"Gene2\","
                                 + "\"delimiter_char_code\":44,"
                                 + "\"use_header_row\":true,"
-                                + "\"node_attributes_key_column\":\"Gene1\","
                                 + "\"node_attributes_source_columns\":[\"Score\"]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
-        // node_attributes_key_column triggers node set iteration
+        // node_attributes_source_columns triggers node set iteration (non-Excel uses source_column
+        // as key)
         verify(tabularNetwork, atLeastOnce()).getNodeList();
     }
 
@@ -633,12 +685,241 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":\"Gene2\","
                                 + "\"excel_sheet\":\"Sheet1\","
                                 + "\"use_header_row\":true,"
-                                + "\"node_attributes_key_column\":\"Gene1\","
                                 + "\"node_attributes_sheet\":\"Sheet1\","
+                                + "\"node_attributes_sheet_source_key_column\":\"Gene1\","
                                 + "\"node_attributes_source_columns\":[\"Score\"]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(tabularNetwork, atLeastOnce()).getNodeList();
+    }
+
+    // -----------------------------------------------------------------------
+    // Node attribute import — value verification
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void tabularCsv_sourceNodeAttr_setsAttributeValue() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        // TP53 appears in the Gene1 (source_column) of the first data row; Score=0.95
+        verify(srcNodeRow).set("Score", "0.95");
+    }
+
+    @Test
+    public void tabularCsv_targetNodeAttr_setsAttributeValue() throws Exception {
+        stubTabularNetwork();
+        CyNode tgtNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow tgtNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(tgtNode));
+        when(tabularNetwork.getRow(tgtNode)).thenReturn(tgtNodeRow);
+        when(tgtNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("MDM2");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        // MDM2 appears in the Gene2 (target_column) of the first data row; Score=0.95
+        verify(tgtNodeRow).set("Score", "0.95");
+    }
+
+    @Test
+    public void tabularCsv_bothNodeAttrs_sourceAndTargetEachMatchCorrectNode() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        CyNode tgtNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow tgtNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode, tgtNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(tabularNetwork.getRow(tgtNode)).thenReturn(tgtNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+        when(tgtNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("MDM2");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_source_columns\":[\"Score\"],"
+                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        // Source import (keyed by Gene1): TP53 row → set Score=0.95 on srcNode
+        verify(srcNodeRow).set("Score", "0.95");
+        // Target import (keyed by Gene2): MDM2 row → set Score=0.95 on tgtNode
+        verify(tgtNodeRow).set("Score", "0.95");
+    }
+
+    @Test
+    public void tabularExcel_sourceKeyCol_setsAttributeValue() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+
+        String xlsxPath = fixturePath("network_data.xlsx");
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + xlsxPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"excel_sheet\":\"Sheet1\","
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_sheet\":\"Sheet1\","
+                                + "\"node_attributes_sheet_source_key_column\":\"Gene1\","
+                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        // TP53 is in Gene1 col of Sheet1; Score numeric cell 0.95 → cellStringValue → "0.95"
+        verify(srcNodeRow).set("Score", "0.95");
+    }
+
+    @Test
+    public void tabularExcel_targetKeyCol_setsAttributeValue() throws Exception {
+        stubTabularNetwork();
+        CyNode tgtNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow tgtNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(tgtNode));
+        when(tabularNetwork.getRow(tgtNode)).thenReturn(tgtNodeRow);
+        when(tgtNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("MDM2");
+
+        String xlsxPath = fixturePath("network_data.xlsx");
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + xlsxPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"excel_sheet\":\"Sheet1\","
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_sheet\":\"Sheet1\","
+                                + "\"node_attributes_sheet_target_key_column\":\"Gene2\","
+                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        // MDM2 is in Gene2 col of Sheet1; Score numeric cell 0.95 → "0.95"
+        verify(tgtNodeRow).set("Score", "0.95");
+    }
+
+    @Test
+    public void tabularExcel_bothKeys_sourceAndTargetEachGetAttr() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        CyNode tgtNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow tgtNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode, tgtNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(tabularNetwork.getRow(tgtNode)).thenReturn(tgtNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+        when(tgtNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("MDM2");
+
+        String xlsxPath = fixturePath("network_data.xlsx");
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + xlsxPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"excel_sheet\":\"Sheet1\","
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_sheet\":\"Sheet1\","
+                                + "\"node_attributes_sheet_source_key_column\":\"Gene1\","
+                                + "\"node_attributes_sheet_target_key_column\":\"Gene2\","
+                                + "\"node_attributes_source_columns\":[\"Score\"],"
+                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        verify(srcNodeRow).set("Score", "0.95");
+        verify(tgtNodeRow).set("Score", "0.95");
+    }
+
+    @Test
+    public void tabularCsv_noMatchingNodes_responseHasWarning() throws Exception {
+        stubTabularNetwork();
+        CyNode unmatchedNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow unmatchedNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(unmatchedNode));
+        when(tabularNetwork.getRow(unmatchedNode)).thenReturn(unmatchedNodeRow);
+        when(unmatchedNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("NONEXISTENT");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        // No CSV gene name matches "NONEXISTENT" → importNodeAttributes returns imported=false
+        assertTrue(
+                "Should contain node_attributes_imported false",
+                response.contains("node_attributes_imported") && response.contains("false"));
+        assertTrue("Should contain no-match warning", response.contains("No matching node IDs"));
     }
 
     // -----------------------------------------------------------------------
@@ -695,7 +976,7 @@ public class LoadNetworkViewToolTest {
     // -----------------------------------------------------------------------
 
     /**
-     * Stubs mocks for a successful network file load via LoadNetworkFileTaskFactory. Creates a real
+     * Stubs mocks for a successful network file load via CyNetworkReaderManager. Creates a real
      * temp file so that file.exists() passes. Returns the temp file for embedding in the JSON-RPC
      * call.
      */
@@ -703,15 +984,18 @@ public class LoadNetworkViewToolTest {
         File tempFile = File.createTempFile("test-network", ".sif");
         tempFile.deleteOnExit();
 
-        when(loadFileTaskFactory.createTaskIterator(any(File.class)))
-                .thenReturn(new TaskIterator((Task) networkReader));
-        when(appManager.getCurrentNetwork()).thenReturn(network);
+        when(networkReaderManager.getReader(any(URI.class), anyString())).thenReturn(networkReader);
+        when(networkReader.getNetworks()).thenReturn(new CyNetwork[] {network});
+        when(networkReader.buildCyNetworkView(network)).thenReturn(networkView);
 
         when(network.getRow(network)).thenReturn(networkRow);
         when(network.getSUID()).thenReturn(200L);
         when(network.getNodeCount()).thenReturn(30);
         when(network.getEdgeCount()).thenReturn(45);
         when(networkRow.get(CyNetwork.NAME, String.class)).thenReturn(networkName);
+
+        when(viewManager.getNetworkViews(network))
+                .thenReturn(Collections.singletonList(networkView));
 
         doAnswer(
                         invocation -> {
@@ -867,7 +1151,8 @@ public class LoadNetworkViewToolTest {
                     "use_header_row",
                     "excel_sheet",
                     "node_attributes_sheet",
-                    "node_attributes_key_column",
+                    "node_attributes_sheet_source_key_column",
+                    "node_attributes_sheet_target_key_column",
                     "node_attributes_source_columns",
                     "node_attributes_target_columns"
                 }) {

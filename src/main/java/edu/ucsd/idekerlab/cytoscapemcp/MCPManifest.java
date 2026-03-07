@@ -12,10 +12,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.spec.McpSchema.Prompt;
-import io.modelcontextprotocol.spec.McpSchema.PromptArgument;
-import io.modelcontextprotocol.spec.McpSchema.Resource;
-import io.modelcontextprotocol.spec.McpSchema.ResourceTemplate;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 
 /**
@@ -57,24 +53,15 @@ public final class McpManifest {
                         /* discreteMappingFactory= */ null,
                         /* passthroughMappingFactory= */ null,
                         /* layoutManager= */ null,
-                        /* loadFileTaskFactory= */ null,
+                        /* networkReaderManager= */ null,
                         /* networkFactory= */ null,
                         /* networkViewFactory= */ null,
                         /* syncTaskManager= */ null,
                         /* commandExecutorTaskFactory= */ null);
 
         String toolsSection = renderTools(server.listTools(), mapper);
-        String promptsSection = renderPrompts(server.listPrompts());
-        String resourcesSection = renderResources(server.listResources(), mapper);
-        String resourceTemplatesSection =
-                renderResourceTemplates(server.listResourceTemplates(), mapper);
-
         String template = loadTemplate();
-        String manifest =
-                template.replace("{{TOOLS}}", toolsSection)
-                        .replace("{{PROMPTS}}", promptsSection)
-                        .replace("{{RESOURCES}}", resourcesSection)
-                        .replace("{{RESOURCE_TEMPLATES}}", resourceTemplatesSection);
+        String manifest = template.replace("{{TOOLS}}", toolsSection);
 
         Path outputFile = outputDir.resolve("MCPManifest.md");
         Files.writeString(outputFile, manifest, StandardCharsets.UTF_8);
@@ -92,6 +79,9 @@ public final class McpManifest {
         StringBuilder sb = new StringBuilder();
         for (Tool tool : tools) {
             sb.append("### `").append(tool.name()).append("`\n\n");
+            if (tool.title() != null && !tool.title().isBlank()) {
+                sb.append("**Title:** ").append(tool.title()).append("\n\n");
+            }
             if (tool.description() != null && !tool.description().isBlank()) {
                 sb.append("**Description:** ").append(tool.description()).append("\n\n");
             }
@@ -104,79 +94,6 @@ public final class McpManifest {
                 sb.append("**Output Schema:**\n\n```json\n")
                         .append(mapper.writeValueAsString(tool.outputSchema()))
                         .append("\n```\n\n");
-            }
-            sb.append("---\n\n");
-        }
-        return sb.toString();
-    }
-
-    private static String renderPrompts(List<Prompt> prompts) {
-        if (prompts.isEmpty()) {
-            return "*No prompts registered.*\n";
-        }
-        StringBuilder sb = new StringBuilder();
-        for (Prompt prompt : prompts) {
-            sb.append("### `").append(prompt.name()).append("`\n\n");
-            if (prompt.description() != null && !prompt.description().isBlank()) {
-                sb.append("**Description:** ").append(prompt.description()).append("\n\n");
-            }
-            List<PromptArgument> args = prompt.arguments();
-            if (args != null && !args.isEmpty()) {
-                sb.append("**Arguments:**\n\n");
-                sb.append("| Name | Description | Required |\n");
-                sb.append("|------|-------------|----------|\n");
-                for (PromptArgument arg : args) {
-                    String desc = arg.description() != null ? arg.description() : "";
-                    String req = Boolean.TRUE.equals(arg.required()) ? "Yes" : "No";
-                    sb.append("| `")
-                            .append(arg.name())
-                            .append("` | ")
-                            .append(desc)
-                            .append(" | ")
-                            .append(req)
-                            .append(" |\n");
-                }
-                sb.append("\n");
-            }
-            sb.append("---\n\n");
-        }
-        return sb.toString();
-    }
-
-    private static String renderResources(List<Resource> resources, ObjectMapper mapper)
-            throws IOException {
-        if (resources.isEmpty()) {
-            return "*No resources registered.*\n";
-        }
-        StringBuilder sb = new StringBuilder();
-        for (Resource resource : resources) {
-            sb.append("### `").append(resource.name()).append("`\n\n");
-            sb.append("**URI:** `").append(resource.uri()).append("`\n\n");
-            if (resource.description() != null && !resource.description().isBlank()) {
-                sb.append("**Description:** ").append(resource.description()).append("\n\n");
-            }
-            if (resource.mimeType() != null) {
-                sb.append("**MIME Type:** `").append(resource.mimeType()).append("`\n\n");
-            }
-            sb.append("---\n\n");
-        }
-        return sb.toString();
-    }
-
-    private static String renderResourceTemplates(
-            List<ResourceTemplate> templates, ObjectMapper mapper) throws IOException {
-        if (templates.isEmpty()) {
-            return "*No resource templates registered.*\n";
-        }
-        StringBuilder sb = new StringBuilder();
-        for (ResourceTemplate tmpl : templates) {
-            sb.append("### `").append(tmpl.name()).append("`\n\n");
-            sb.append("**URI Template:** `").append(tmpl.uriTemplate()).append("`\n\n");
-            if (tmpl.description() != null && !tmpl.description().isBlank()) {
-                sb.append("**Description:** ").append(tmpl.description()).append("\n\n");
-            }
-            if (tmpl.mimeType() != null) {
-                sb.append("**MIME Type:** `").append(tmpl.mimeType()).append("`\n\n");
             }
             sb.append("---\n\n");
         }

@@ -41,8 +41,9 @@ public class SetCurrentNetworkViewTool {
     private static final String TOOL_TITLE = "Set Cytoscape Desktop Active Network";
 
     private static final String TOOL_DESCRIPTION =
-            "Set the specified network and view as the current (active) network and view"
-                    + " in Cytoscape Desktop. Both network_suid and view_suid are required.";
+            "Set the specified network and view as the current (active) network and view in"
+                    + " Cytoscape Desktop. Both network_suid and view_suid are required."
+                    + " Useful before applying styles, layouts, or analysis to a specific network.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -60,11 +61,13 @@ public class SetCurrentNetworkViewTool {
                             .property(
                                     "network_suid",
                                     new McpSchema.InputProperty(
-                                            "integer", "SUID of the target network."))
+                                            "integer",
+                                            "SUID of the target network in Cytoscape Desktop."))
                             .property(
                                     "view_suid",
                                     new McpSchema.InputProperty(
-                                            "integer", "SUID of the target network view."))
+                                            "integer",
+                                            "SUID of the target network view in Cytoscape Desktop."))
                             .build());
 
     static final String OUTPUT_SCHEMA =

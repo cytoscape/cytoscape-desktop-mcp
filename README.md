@@ -90,9 +90,9 @@ Try some example Prompts to chaange states on the Cytoscape Desktop from Agent.
 * `use cytoscape desktop` - will trigger llm to request starting the cytoscape network wizard prompt sequence.
 
 
-## Available Cytoscape Desktop MCP Artifacts
+## Available Cytoscape Desktop MCP Tools
 
-* The MCP server exposes a `GET /mcp/manifest` endpoint that returns a complete, human-readable catalog of every tool, prompt, resource, and resource template registered on the server, formatted as Markdown with full JSON schema definitions for each artifact's input and output. A
+* The MCP server exposes a `GET /mcp/manifest` endpoint that returns a complete, human-readable catalog of every tool registered on the server, formatted as Markdown with full JSON schema definitions for each artifact's input and output. A
 * `make build` will generate the MCP manifest into a static file after build completes at `build/generated/manifest/MCPManifest.md` for same review.
 
 

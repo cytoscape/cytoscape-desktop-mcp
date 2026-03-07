@@ -57,7 +57,8 @@ public class GetFileColumnsTool {
             "Read column headers and up to three sample rows from a tabular file,"
                     + " for use when importing network data into Cytoscape Desktop."
                     + " For Excel files supply excel_sheet; for text files supply delimiter_char_code."
-                    + " Returns {\"columns\":[...],\"sample_rows\":[[...],...]}.";
+                    + " Returns a 'columns' array of header strings and a 'sample_rows' list"
+                    + " of value arrays.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -86,9 +87,10 @@ public class GetFileColumnsTool {
                                     "use_header_row",
                                     new McpSchema.InputProperty(
                                             "boolean",
-                                            "If true, the first row is used as column headers."
-                                                    + " If false, ordinal names are generated:"
-                                                    + " Column 1, Column 2, ..."))
+                                            "If true, the first row is treated as column headers and those strings"
+                                                    + " appear in 'columns'. If false, ordinal names are generated"
+                                                    + " ('Column 1', 'Column 2', ...) and those ordinal names"
+                                                    + " appear in 'columns' instead."))
                             .property(
                                     "excel_sheet",
                                     new McpSchema.InputProperty(

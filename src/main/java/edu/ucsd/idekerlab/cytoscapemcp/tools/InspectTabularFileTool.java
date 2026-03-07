@@ -39,10 +39,11 @@ public class InspectTabularFileTool {
     private static final String TOOL_TITLE = "Inspect Cytoscape Desktop Import File";
 
     private static final String TOOL_DESCRIPTION =
-            "Inspect a tabular data file, for use when importing network data into Cytoscape Desktop,"
-                    + " to determine whether it is an Excel workbook"
-                    + " (.xls/.xlsx). If Excel, returns the list of sheet names. If not Excel,"
-                    + " returns the detected file extension (e.g. '.csv', '.tsv').";
+            "Inspect a tabular data file to determine whether it is an Excel workbook (.xls/.xlsx)"
+                    + " or a plain-text delimited file, for use when importing network data into"
+                    + " Cytoscape Desktop. If Excel, returns the list of sheet names contained"
+                    + " in the workbook. If not Excel, returns the detected file extension"
+                    + " (e.g. '.csv', '.tsv').";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

@@ -4,8 +4,6 @@ import java.util.Properties;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.ucsd.idekerlab.cytoscapemcp.prompts.GuidelinePrompt;
-import edu.ucsd.idekerlab.cytoscapemcp.prompts.LoadNetworkPrompt;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.AnalyzeNetworkTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.ApplyLayoutTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
@@ -18,11 +16,11 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.command.CommandExecutorTaskFactory;
+import org.cytoscape.io.read.CyNetworkReaderManager;
 import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.CyProperty;
-import org.cytoscape.task.read.LoadNetworkFileTaskFactory;
 import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
@@ -66,7 +64,8 @@ public final class McpServerFactory {
      * @param discreteMappingFactory discrete visual mapping factory (nullable)
      * @param passthroughMappingFactory passthrough visual mapping factory (nullable)
      * @param layoutManager Cytoscape layout algorithm manager (nullable)
-     * @param loadFileTaskFactory load-network-file task factory (nullable)
+     * @param networkReaderManager Cytoscape network reader manager for format auto-detection
+     *     (nullable)
      * @param networkFactory Cytoscape network factory for creating networks from tabular data
      *     (nullable)
      * @param networkViewFactory Cytoscape network-view factory (nullable)
@@ -90,7 +89,7 @@ public final class McpServerFactory {
             VisualMappingFunctionFactory discreteMappingFactory,
             VisualMappingFunctionFactory passthroughMappingFactory,
             CyLayoutAlgorithmManager layoutManager,
-            LoadNetworkFileTaskFactory loadFileTaskFactory,
+            CyNetworkReaderManager networkReaderManager,
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
             SynchronousTaskManager<?> syncTaskManager,
@@ -117,7 +116,7 @@ public final class McpServerFactory {
                                 viewManager,
                                 taskManager,
                                 cxReaderFactory,
-                                loadFileTaskFactory,
+                                networkReaderManager,
                                 networkFactory,
                                 networkViewFactory)
                         .toSpec());
@@ -135,11 +134,6 @@ public final class McpServerFactory {
                         .toSpec());
         server.addTool(new GetLayoutAlgorithmsTool(layoutManager).toSpec());
         server.addTool(new ApplyLayoutTool(appManager, layoutManager, syncTaskManager).toSpec());
-
-        // Register prompts.
-        server.addPrompt(new GuidelinePrompt().toSpec());
-        server.addPrompt(new LoadNetworkPrompt().toSpec());
-
         return server;
     }
 }

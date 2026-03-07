@@ -46,10 +46,11 @@ public class AnalyzeNetworkTool {
     private static final String TOOL_TITLE = "Analyze Cytoscape Desktop Network";
 
     private static final String TOOL_DESCRIPTION =
-            "Run NetworkAnalyzer on the current network in Cytoscape Desktop to compute topological statistics"
-                    + " (Degree, BetweennessCentrality, etc.). Adds columns to the node and edge"
-                    + " tables. Returns the list of newly added node columns and basic network"
-                    + " statistics.";
+            "Run NetworkAnalyzer on the current network in Cytoscape Desktop to compute topological"
+                    + " statistics such as Degree, BetweennessCentrality, and ClosenessCentrality."
+                    + " Adds the computed values as new columns directly to the node and edge tables"
+                    + " in Cytoscape Desktop. Returns the names of newly added node columns and"
+                    + " basic network statistics.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -61,8 +62,12 @@ public class AnalyzeNetworkTool {
                                     "directed",
                                     new McpSchema.InputProperty(
                                             "boolean",
-                                            "True to treat the network as directed, false for"
-                                                    + " undirected."))
+                                            "True to treat the network as a directed graph; false"
+                                                    + " for undirected (typical for most biological"
+                                                    + " interaction networks). Affects which"
+                                                    + " centrality metrics NetworkAnalyzer computes"
+                                                    + " — directed mode adds in-degree/out-degree"
+                                                    + " metrics."))
                             .build());
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
