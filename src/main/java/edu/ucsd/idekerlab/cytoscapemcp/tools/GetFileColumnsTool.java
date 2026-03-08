@@ -56,15 +56,18 @@ public class GetFileColumnsTool {
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
-                    + "Example 1 — Read column headers from a CSV file for Cytoscape desktop import:\n"
+                    + "Example 1 — Read column headers from a file for Cytoscape desktop import:\n"
                     + "{\"file_path\": \"/path/to/data.csv\", \"delimiter_char_code\": 44, \"use_header_row\": true}\n\n"
-                    + "Example 2 — Preview columns from a tab-separated file:\n"
+                    + "Example 2 — Preview columns from a file:\n"
                     + "{\"file_path\": \"/path/to/data.tsv\", \"delimiter_char_code\": 9, \"use_header_row\": true}\n\n"
                     + "Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:\n"
-                    + "{\"file_path\": \"/path/to/data.xlsx\", \"use_header_row\": true, \"excel_sheet\": \"Sheet1\"}";
+                    + "{\"file_path\": \"/path/to/data.xlsx\", \"use_header_row\": true, \"excel_sheet\": \"Sheet1\"}\n\n"
+                    + "Example 4 — Get column headers from a file:\n"
+                    + "Inspect the file first to determine input params as needed.\n"
+                    + "{\"file_path\": \"/path/to/data.csv\", \"delimiter_char_code\": 44, \"use_header_row\": true}\n\n";
 
     private static final String TOOL_DESCRIPTION =
-            "Retrieve column headers and sample data rows from a tabular file. Use when importing"
+            "Retrieve column headers and first three rows from a tabular file. Use when importing"
                     + " network data into Cytoscape Desktop to preview columns before mapping."
                     + " Supports both Excel workbooks and plain-text delimited files.";
 
@@ -79,8 +82,8 @@ public class GetFileColumnsTool {
                     @JsonProperty("columns")
                     List<String> columns,
             @JsonPropertyDescription(
-                            "Up to three sample data rows, each as an array of string values"
-                                    + " aligned with columns.")
+                            "Up to the first three data rows in the file, each as an array of string values"
+                                    + " aligned with columns. The first three rows are included in the response to help determine if column header row is included or not.")
                     @JsonProperty("sample_rows")
                     List<List<String>> sampleRows) {}
 

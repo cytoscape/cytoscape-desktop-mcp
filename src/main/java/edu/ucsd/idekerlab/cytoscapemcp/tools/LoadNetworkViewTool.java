@@ -38,6 +38,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsd.idekerlab.cytoscapemcp.McpSchema;
 
 import org.cytoscape.application.CyApplicationManager;
+import org.cytoscape.io.read.AbstractCyNetworkReader;
 import org.cytoscape.io.read.CyNetworkReader;
 import org.cytoscape.io.read.CyNetworkReaderManager;
 import org.cytoscape.io.read.InputStreamTaskFactory;
@@ -103,7 +104,9 @@ public class LoadNetworkViewTool {
                     + "{\"source\": \"tabular-file\", \"file_path\":"
                     + " \"/path/to/data.csv\", \"source_column\": \"Gene_A\","
                     + " \"target_column\": \"Gene_B\", \"delimiter_char_code\": 44,"
-                    + " \"use_header_row\": true}";
+                    + " \"use_header_row\": true}\"}\n\n"
+                    + "Example 4 — Load network into cytoscape desktop:\n"
+                    + "{\"source\": \"determine the source first to figure out rest of input params\"}\n\n";
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(
@@ -126,7 +129,7 @@ public class LoadNetworkViewTool {
                                     "network_id",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Optional. NDEx network Id as UUID (e.g."
+                                            "Optional. NDEx network Id expressed as UUID string (e.g."
                                                     + " 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa')."
                                                     + " Required when source='ndex'. Ignored"
                                                     + " otherwise."))
@@ -143,33 +146,39 @@ public class LoadNetworkViewTool {
                                     new McpSchema.InputProperty(
                                             "string",
                                             "Optional. Column name for the source (from) node."
+                                                    + " Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge."
                                                     + " Required when source='tabular-file'."))
                             .property(
                                     "target_column",
                                     new McpSchema.InputProperty(
                                             "string",
                                             "Optional. Column name for the target (to) node."
+                                                    + " Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge."
                                                     + " Required when source='tabular-file'."))
                             .property(
                                     "interaction_column",
                                     new McpSchema.InputProperty(
                                             "string",
                                             "Optional. Column name for the edge interaction type."
+                                                    + " Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name."
                                                     + " Applicable when source='tabular-file'."))
                             .property(
                                     "delimiter_char_code",
                                     new McpSchema.InputProperty(
                                             "integer",
                                             "Optional. ASCII code of the column delimiter (e.g."
-                                                    + " 44=comma, 9=tab). Required when"
+                                                    + " 44=comma, 9=tab). "
+                                                    + " Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code."
+                                                    + " Required when"
                                                     + " source='tabular-file' and file is not Excel."
                                                     + " Ignored for Excel files."))
                             .property(
                                     "use_header_row",
                                     new McpSchema.InputProperty(
                                             "boolean",
-                                            "Optional. Whether the first row contains column"
-                                                    + " headers. If false, ordinal column names are"
+                                            "Optional. Whether the first row contains column headers."
+                                                    + " Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers."
+                                                    + " If false, ordinal column names are"
                                                     + " generated. Required when"
                                                     + " source='tabular-file'."))
                             .property(
@@ -177,7 +186,9 @@ public class LoadNetworkViewTool {
                                     new McpSchema.InputProperty(
                                             "string",
                                             "Optional. Name of the Excel sheet containing the"
-                                                    + " network edge data. Required when"
+                                                    + " network edge data. "
+                                                    + " Inspect the source file to determine what sheets are available."
+                                                    + " Required when"
                                                     + " source='tabular-file' and file is Excel."
                                                     + " Ignored for non-Excel files."))
                             .property(
@@ -186,7 +197,9 @@ public class LoadNetworkViewTool {
                                             "string",
                                             "Optional. Name of a second Excel sheet containing"
                                                     + " node attribute columns to join onto the"
-                                                    + " network nodes. Applicable for Excel tabular"
+                                                    + " nodes from main network sheet. "
+                                                    + " Inspect the source file to determine what sheets are available."
+                                                    + " Applicable for Excel tabular"
                                                     + " files."))
                             .property(
                                     "node_attributes_sheet_target_key_column",
@@ -194,8 +207,10 @@ public class LoadNetworkViewTool {
                                             "string",
                                             "Optional. Column name in the node attributes sheet"
                                                     + " whose values match target-node IDs in the"
-                                                    + " network sheet. Used to join attributes onto"
-                                                    + " target nodes. Required when"
+                                                    + " main network sheet. Used to join attributes onto"
+                                                    + " target nodes. "
+                                                    + " Preview columns from the file and node attributes sheet to determine which columns are available."
+                                                    + " Required when"
                                                     + " node_attributes_sheet is provided."))
                             .property(
                                     "node_attributes_sheet_source_key_column",
@@ -203,25 +218,29 @@ public class LoadNetworkViewTool {
                                             "string",
                                             "Optional. Column name in the node attributes sheet"
                                                     + " whose values match source-node IDs in the"
-                                                    + " network sheet. Used to join attributes onto"
-                                                    + " source nodes. Required when"
+                                                    + " main network sheet. Used to join attributes onto"
+                                                    + " source nodes. "
+                                                    + " Preview columns from the file and node attributes sheet to determine which columns are available."
+                                                    + " Required when"
                                                     + " node_attributes_sheet is provided."))
                             .property(
                                     "node_attributes_source_columns",
                                     new McpSchema.InputProperty(
                                             "array",
-                                            "Optional. Array of column names from the node_attributes_sheet"
-                                                    + " (or main sheet) to attach as properties on"
-                                                    + " source nodes.",
+                                            "Optional. Array of column names from the sheet or file "
+                                                    + " to attach as properties on"
+                                                    + " source nodes."
+                                                    + " Preview columns from the file(and sheet if applicable) to determine which columns are available.",
                                             new McpSchema.InputProperty("string", null),
                                             null))
                             .property(
                                     "node_attributes_target_columns",
                                     new McpSchema.InputProperty(
                                             "array",
-                                            "Optional. Array of column names from the node_attributes_sheet"
-                                                    + " (or main sheet) to attach as properties on"
-                                                    + " target nodes.",
+                                            "Optional. Array of column names from sheet or file "
+                                                    + " to attach as properties on"
+                                                    + " target nodes."
+                                                    + " Preview columns from the file(and sheet if applicable) to determine which columns are available.",
                                             new McpSchema.InputProperty("string", null),
                                             null))
                             .build());

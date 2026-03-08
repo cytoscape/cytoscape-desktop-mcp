@@ -48,7 +48,9 @@ public class ApplyLayoutTool {
                     + "Example 2 — Arrange nodes in a circle on the current network view in Cytoscape desktop:\n"
                     + "{\"algorithm\": \"circular\"}\n\n"
                     + "Example 3 — Apply a hierarchical layout to the current network in Cytoscape desktop:\n"
-                    + "{\"algorithm\": \"hierarchical\"}";
+                    + "{\"algorithm\": \"hierarchical\"}\n\n"
+                    + "Example 4 — Apply a layout to the current network view in Cytoscape desktop:\n"
+                    + "{\"algorithm\": \"force-directed\"}\n\n";
 
     private static final String TOOL_DESCRIPTION =
             "Apply a layout algorithm to the current network view in Cytoscape Desktop using default"
@@ -78,7 +80,8 @@ public class ApplyLayoutTool {
                                             "string",
                                             "Required. Internal layout algorithm name to apply. Each algorithm has a 'name'"
                                                     + " (machine identifier) and a 'displayName' (human-readable label)."
-                                                    + " Supply the 'name' value, not 'displayName'."))
+                                                    + " Supply the 'name' value, not 'displayName'."
+                                                    + " Determine the layout name by choosing from list of all layout algorithms available in Cytoscape Desktop ."))
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(ApplyLayoutResult.class);

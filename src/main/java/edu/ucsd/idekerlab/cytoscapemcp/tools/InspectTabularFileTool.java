@@ -44,13 +44,13 @@ public class InspectTabularFileTool {
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
-                    + "Example 1 — What tabular format is data file encoded in importing into Cytoscape desktop:\n"
+                    + "Example 1 — What tabular format is a file encoded:\n"
                     + "{\"file_path\": \"/path/to/data.xlsx\"}\n\n"
-                    + "Example 2 — Inspect a tabular file to determine its format for Cytoscape desktop import:\n"
+                    + "Example 2 — Inspect a file to determine its format for Cytoscape desktop import:\n"
                     + "{\"file_path\": \"/path/to/data.csv\"}\n\n"
                     + "Example 3 — What sheets are in this Excel workbook:\n"
                     + "{\"file_path\": \"/path/to/workbook.xlsx\"}\n\n"
-                    + "Example 4 — What delimiter is used in a data file for importing into Cytoscape desktop:\n"
+                    + "Example 4 — What delimiter is used in a file for importing into Cytoscape desktop:\n"
                     + "{\"file_path\": \"/path/to/data.csv\"}\n\n";
 
     private static final String TOOL_DESCRIPTION =

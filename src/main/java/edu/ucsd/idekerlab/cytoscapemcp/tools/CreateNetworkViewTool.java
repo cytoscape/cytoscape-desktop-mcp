@@ -49,9 +49,9 @@ public class CreateNetworkViewTool {
                     + "{\"network_suid\": 100}\n\n"
                     + "Example 2 — This network has no view, generate one in Cytoscape desktop:\n"
                     + "{\"network_suid\": 100}\n\n"
-                    + "Example 2 — Get existing view or create one if none exist for a network in Cytoscape desktop:\n"
+                    + "Example 3 — Get existing view or create one if none exist for a network in Cytoscape desktop:\n"
                     + "{\"network_suid\": 100}\n\n"
-                    + "Example 3 — Force create a new view in Cytoscape desktop even though one already exists:\n"
+                    + "Example 4 — Force create a new view in Cytoscape desktop even though one already exists:\n"
                     + "{\"network_suid\": 100, \"create_if_exists\": true}";
 
     private static final String TOOL_DESCRIPTION =

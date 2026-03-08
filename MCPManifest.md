@@ -26,7 +26,12 @@ Example 2 — Load network file into cytoscape desktop:
 {"source": "network-file", "file_path": "/path/to/network.sif"}
 
 Example 3 — Load tabular file into cytoscape desktop:
-{"source": "tabular-file", "file_path": "/path/to/data.csv", "source_column": "Gene_A", "target_column": "Gene_B", "delimiter_char_code": 44, "use_header_row": true}
+{"source": "tabular-file", "file_path": "/path/to/data.csv", "source_column": "Gene_A", "target_column": "Gene_B", "delimiter_char_code": 44, "use_header_row": true}"}
+
+Example 4 — Load network into cytoscape desktop:
+{"source": "determine the source first to figure out rest of input params"}
+
+
 
 **Input Schema:**
 
@@ -34,68 +39,68 @@ Example 3 — Load tabular file into cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
-    "node_attributes_source_columns" : {
+    "node_attributes_sheet_target_key_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+    },
+    "node_attributes_target_columns" : {
       "type" : "array",
-      "description" : "Optional. Array of column names from the node_attributes_sheet (or main sheet) to attach as properties on source nodes.",
+      "description" : "Optional. Array of column names from sheet or file  to attach as properties on target nodes. Preview columns from the file(and sheet if applicable) to determine which columns are available.",
       "items" : {
         "type" : "string"
       }
     },
-    "network_id" : {
+    "node_attributes_sheet_source_key_column" : {
       "type" : "string",
-      "description" : "Optional. NDEx network Id as UUID (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
+      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
     },
-    "source_column" : {
+    "target_column" : {
       "type" : "string",
-      "description" : "Optional. Column name for the source (from) node. Required when source='tabular-file'."
-    },
-    "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab). Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
-    },
-    "file_path" : {
-      "type" : "string",
-      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
-    },
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Optional. Whether the first row contains column headers. If false, ordinal column names are generated. Required when source='tabular-file'."
-    },
-    "node_attributes_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the network nodes. Applicable for Excel tabular files."
+      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
     },
     "source" : {
       "type" : "string",
       "description" : "Required. Determines which import path to use — the remaining parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
       "enum" : [ "ndex", "network-file", "tabular-file" ]
     },
-    "target_column" : {
+    "node_attributes_sheet" : {
       "type" : "string",
-      "description" : "Optional. Column name for the target (to) node. Required when source='tabular-file'."
+      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Applicable for Excel tabular files."
     },
-    "node_attributes_sheet_source_key_column" : {
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
+    },
+    "file_path" : {
       "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the network sheet. Used to join attributes onto source nodes. Required when node_attributes_sheet is provided."
+      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
     },
-    "node_attributes_target_columns" : {
+    "delimiter_char_code" : {
+      "type" : "integer",
+      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab).  Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code. Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
+    },
+    "source_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the source (from) node. Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge. Required when source='tabular-file'."
+    },
+    "network_id" : {
+      "type" : "string",
+      "description" : "Optional. NDEx network Id expressed as UUID string (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
+    },
+    "node_attributes_source_columns" : {
       "type" : "array",
-      "description" : "Optional. Array of column names from the node_attributes_sheet (or main sheet) to attach as properties on target nodes.",
+      "description" : "Optional. Array of column names from the sheet or file  to attach as properties on source nodes. Preview columns from the file(and sheet if applicable) to determine which columns are available.",
       "items" : {
         "type" : "string"
       }
     },
-    "node_attributes_sheet_target_key_column" : {
+    "excel_sheet" : {
       "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the network sheet. Used to join attributes onto target nodes. Required when node_attributes_sheet is provided."
+      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
     },
     "interaction_column" : {
       "type" : "string",
-      "description" : "Optional. Column name for the edge interaction type. Applicable when source='tabular-file'."
-    },
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet containing the network edge data. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
+      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
     }
   },
   "required" : [ "source" ]
@@ -294,10 +299,10 @@ Example 1 — Create a visual view for a network that has no view in Cytoscape d
 Example 2 — This network has no view, generate one in Cytoscape desktop:
 {"network_suid": 100}
 
-Example 2 — Get existing view or create one if none exist for a network in Cytoscape desktop:
+Example 3 — Get existing view or create one if none exist for a network in Cytoscape desktop:
 {"network_suid": 100}
 
-Example 3 — Force create a new view in Cytoscape desktop even though one already exists:
+Example 4 — Force create a new view in Cytoscape desktop even though one already exists:
 {"network_suid": 100, "create_if_exists": true}
 
 **Input Schema:**
@@ -364,16 +369,16 @@ Example 3 — Force create a new view in Cytoscape desktop even though one alrea
 
 ## Examples
 
-Example 1 — What tabular format is data file encoded in importing into Cytoscape desktop:
+Example 1 — What tabular format is a file encoded:
 {"file_path": "/path/to/data.xlsx"}
 
-Example 2 — Inspect a tabular file to determine its format for Cytoscape desktop import:
+Example 2 — Inspect a file to determine its format for Cytoscape desktop import:
 {"file_path": "/path/to/data.csv"}
 
 Example 3 — What sheets are in this Excel workbook:
 {"file_path": "/path/to/workbook.xlsx"}
 
-Example 4 — What delimiter is used in a data file for importing into Cytoscape desktop:
+Example 4 — What delimiter is used in a file for importing into Cytoscape desktop:
 {"file_path": "/path/to/data.csv"}
 
 
@@ -425,18 +430,24 @@ Example 4 — What delimiter is used in a data file for importing into Cytoscape
 
 **Title:** Read Cytoscape Desktop File Columns
 
-**Description:** Retrieve column headers and sample data rows from a tabular file. Use when importing network data into Cytoscape Desktop to preview columns before mapping. Supports both Excel workbooks and plain-text delimited files.
+**Description:** Retrieve column headers and first three rows from a tabular file. Use when importing network data into Cytoscape Desktop to preview columns before mapping. Supports both Excel workbooks and plain-text delimited files.
 
 ## Examples
 
-Example 1 — Read column headers from a CSV file for Cytoscape desktop import:
+Example 1 — Read column headers from a file for Cytoscape desktop import:
 {"file_path": "/path/to/data.csv", "delimiter_char_code": 44, "use_header_row": true}
 
-Example 2 — Preview columns from a tab-separated file:
+Example 2 — Preview columns from a file:
 {"file_path": "/path/to/data.tsv", "delimiter_char_code": 9, "use_header_row": true}
 
 Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:
 {"file_path": "/path/to/data.xlsx", "use_header_row": true, "excel_sheet": "Sheet1"}
+
+Example 4 — Get column headers from a file:
+Inspect the file first to determine input params as needed.
+{"file_path": "/path/to/data.csv", "delimiter_char_code": 44, "use_header_row": true}
+
+
 
 **Input Schema:**
 
@@ -448,17 +459,17 @@ Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:
       "type" : "integer",
       "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
     },
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
     },
     "file_path" : {
       "type" : "string",
       "description" : "Required. Absolute path to the tabular file."
     },
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
+    "excel_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
     }
   },
   "required" : [ "file_path", "use_header_row" ]
@@ -480,7 +491,7 @@ Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:
       }
     },
     "sample_rows" : {
-      "description" : "Up to three sample data rows, each as an array of string values aligned with columns.",
+      "description" : "Up to the first three data rows in the file, each as an array of string values aligned with columns. The first three rows are included in the response to help determine if column header row is included or not.",
       "type" : "array",
       "items" : {
         "type" : "array",
@@ -643,6 +654,11 @@ Example 2 — Arrange nodes in a circle on the current network view in Cytoscape
 Example 3 — Apply a hierarchical layout to the current network in Cytoscape desktop:
 {"algorithm": "hierarchical"}
 
+Example 4 — Apply a layout to the current network view in Cytoscape desktop:
+{"algorithm": "force-directed"}
+
+
+
 **Input Schema:**
 
 ```json
@@ -651,7 +667,7 @@ Example 3 — Apply a hierarchical layout to the current network in Cytoscape de
   "properties" : {
     "algorithm" : {
       "type" : "string",
-      "description" : "Required. Internal layout algorithm name to apply. Each algorithm has a 'name' (machine identifier) and a 'displayName' (human-readable label). Supply the 'name' value, not 'displayName'."
+      "description" : "Required. Internal layout algorithm name to apply. Each algorithm has a 'name' (machine identifier) and a 'displayName' (human-readable label). Supply the 'name' value, not 'displayName'. Determine the layout name by choosing from list all layout algorithms available in Cytoscape Desktop ."
     }
   },
   "required" : [ "algorithm" ]
