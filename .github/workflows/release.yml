@@ -27,8 +27,8 @@ jobs:
       run: |
         TAG="${{ github.event.release.tag_name }}"
         VERSION="${TAG#v}"
-        if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-          echo "Error: version '$VERSION' is not valid semver (expected X.Y.Z)"
+        if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'; then
+          echo "Error: version '$VERSION' is not valid semver (expected X.Y.Z or X.Y.Z-rc.N)"
           exit 1
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT
