@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -55,10 +56,16 @@ public class GetLayoutAlgorithmsTool {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record LayoutEntry(
-            @JsonProperty("name") String name, @JsonProperty("displayName") String displayName) {}
+            @JsonPropertyDescription("Internal algorithm name to pass to apply_layout.")
+                    @JsonProperty("name")
+                    String name,
+            @JsonPropertyDescription("Human-readable algorithm label.") @JsonProperty("displayName")
+                    String displayName) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private record GetLayoutAlgorithmsResult(@JsonProperty("layouts") List<LayoutEntry> layouts) {}
+    private record GetLayoutAlgorithmsResult(
+            @JsonPropertyDescription("Available layout algorithms.") @JsonProperty("layouts")
+                    List<LayoutEntry> layouts) {}
 
     static final String INPUT_SCHEMA = McpSchema.toJson(McpSchema.InputSchema.builder().build());
 

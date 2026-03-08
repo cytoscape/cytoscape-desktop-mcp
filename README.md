@@ -89,8 +89,7 @@ The MCP server provides a human-readable catalog of every tool registered on the
 * Static copy of the catalog is also stored in repo at [MCPManifest.md](./MCPManifest.md)
 
 ### Activate Cytoscape Desktop MCP tools from Agent prompts:
-Invoking the tools requires some prompt engineering to activate the LLM to choose the tool.
-Check out [MCPManifest.md](./MCPManifest.md) which contains 3 to 4 examples of Prompt snippets on each tool's description. These examples should server as reference examples to trigger LLM activation. 
+Invoking the tools requires some prompt engineering to provide key words or phrases which will activate the LLM to choose usage of a specific tool. Check out [MCPManifest.md](./MCPManifest.md) which contains 3 to 4 examples of Prompt snippets on each tool's description as reference of how to trigger LLM activation. 
 
 ## Cytoscape Desktop MCP Configuration properties
 

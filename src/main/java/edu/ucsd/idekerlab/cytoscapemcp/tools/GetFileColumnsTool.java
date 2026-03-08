@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -63,19 +64,25 @@ public class GetFileColumnsTool {
                     + "{\"file_path\": \"/path/to/data.xlsx\", \"use_header_row\": true, \"excel_sheet\": \"Sheet1\"}";
 
     private static final String TOOL_DESCRIPTION =
-            "Retrieve column headers and up to three sample data rows from a tabular file."
-                    + " Use when importing network data from a tabular file into Cytoscape Desktop."
-                    + " For Excel files supply excel_sheet; for text files supply delimiter_char_code."
-                    + " Returns a 'columns' array of header strings and a 'sample_rows' list"
-                    + " of value arrays.";
+            "Retrieve column headers and sample data rows from a tabular file. Use when importing"
+                    + " network data into Cytoscape Desktop to preview columns before mapping."
+                    + " Supports both Excel workbooks and plain-text delimited files.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /** App response model — Jackson annotations also drive victools OUTPUT_SCHEMA generation. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record GetFileColumnsCallResult(
-            @JsonProperty("columns") List<String> columns,
-            @JsonProperty("sample_rows") List<List<String>> sampleRows) {}
+            @JsonPropertyDescription(
+                            "Column header names from the file. Ordinal names ('Column 1',"
+                                    + " 'Column 2', ...) if use_header_row was false.")
+                    @JsonProperty("columns")
+                    List<String> columns,
+            @JsonPropertyDescription(
+                            "Up to three sample data rows, each as an array of string values"
+                                    + " aligned with columns.")
+                    @JsonProperty("sample_rows")
+                    List<List<String>> sampleRows) {}
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(
@@ -90,9 +97,10 @@ public class GetFileColumnsTool {
                                     "delimiter_char_code",
                                     new McpSchema.InputProperty(
                                             "integer",
-                                            "ASCII code of the delimiter character"
+                                            "Optional. ASCII code of the delimiter character"
                                                     + " (e.g. 44=comma, 9=tab, 124=pipe)."
-                                                    + " Required for non-Excel files. Ignored for Excel."))
+                                                    + " Required for non-Excel files. Ignored for"
+                                                    + " Excel."))
                             .property(
                                     "use_header_row",
                                     new McpSchema.InputProperty(
@@ -105,7 +113,7 @@ public class GetFileColumnsTool {
                                     "excel_sheet",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Name of the Excel sheet to read."
+                                            "Optional. Name of the Excel sheet to read."
                                                     + " Required when reading an Excel file."
                                                     + " Ignored for text files."))
                             .build());

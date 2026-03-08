@@ -56,29 +56,24 @@ public class AnalyzeNetworkTool {
                     + "{\"directed\": false}";
 
     private static final String TOOL_DESCRIPTION =
-            "Run NetworkAnalyzer on the current network in Cytoscape Desktop to compute topological"
-                    + " statistics such as Degree, BetweennessCentrality, and ClosenessCentrality."
-                    + " Adds the computed values as new columns directly to the node and edge tables"
-                    + " in Cytoscape Desktop. Returns the names of newly added node columns and"
-                    + " basic network statistics.";
+            "Compute topological statistics (degree, betweenness centrality, closeness centrality)"
+                    + " for the current network. Adds computed values as new columns to the node and"
+                    + " edge tables.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(
                     McpSchema.InputSchema.builder()
-                            .required("directed")
                             .property(
                                     "directed",
                                     new McpSchema.InputProperty(
                                             "boolean",
-                                            "Optional. Default is True."
-                                                    + " When True, treats the network as a directed graph; "
-                                                    + " When False, treats the network as undirected (typical for most biological"
-                                                    + " interaction networks). "
-                                                    + "Affects which"
-                                                    + " centrality metrics NetworkAnalyzer computes"
-                                                    + " — directed mode adds in-degree/out-degree metrics."))
+                                            "Optional. Default is true. When true, treats the network"
+                                                    + " as a directed graph with in-degree/out-degree"
+                                                    + " metrics. When false, treats it as undirected,"
+                                                    + " typical for most biological interaction"
+                                                    + " networks."))
                             .build());
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

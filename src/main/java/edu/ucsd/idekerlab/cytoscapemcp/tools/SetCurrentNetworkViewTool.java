@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -50,18 +51,24 @@ public class SetCurrentNetworkViewTool {
                     + "{\"network_suid\": 100, \"view_suid\": 200}";
 
     private static final String TOOL_DESCRIPTION =
-            "Set the specified network and view as the current (active) network and view in"
-                    + " Cytoscape Desktop. Both network_suid and view_suid are required."
-                    + " Useful before applying styles, layouts, or analysis to a specific network.";
+            "Set a network and its view as the current (active) selection in Cytoscape Desktop."
+                    + " Use before applying styles, layouts, or analysis to a specific network.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record SetCurrentNetworkViewCallResult(
-            @JsonProperty("status") String status,
-            @JsonProperty("network_name") String networkName,
-            @JsonProperty("node_count") int nodeCount,
-            @JsonProperty("edge_count") int edgeCount) {}
+            @JsonPropertyDescription("Result status, e.g. 'success'.") @JsonProperty("status")
+                    String status,
+            @JsonPropertyDescription("Name of the now-active network.")
+                    @JsonProperty("network_name")
+                    String networkName,
+            @JsonPropertyDescription("Number of nodes in the active network.")
+                    @JsonProperty("node_count")
+                    int nodeCount,
+            @JsonPropertyDescription("Number of edges in the active network.")
+                    @JsonProperty("edge_count")
+                    int edgeCount) {}
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(

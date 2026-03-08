@@ -298,19 +298,21 @@ public class AnalyzeNetworkToolTest {
     // -----------------------------------------------------------------------
 
     @Test
-    public void inputSchema_requiredContainsDirected() throws Exception {
+    public void inputSchema_directedIsOptional() throws Exception {
         JsonNode schema = MAPPER.readTree(AnalyzeNetworkTool.INPUT_SCHEMA);
         JsonNode required = schema.get("required");
-        assertNotNull("required field must exist", required);
-        assertTrue("required must be an array", required.isArray());
-        boolean found = false;
-        for (JsonNode el : required) {
-            if ("directed".equals(el.asText())) {
-                found = true;
-                break;
+        // directed has a server-side default, so it must NOT be in required
+        if (required != null && required.isArray()) {
+            for (JsonNode el : required) {
+                assertFalse(
+                        "directed must not be in required (it has a default)",
+                        "directed".equals(el.asText()));
             }
         }
-        assertTrue("required must contain 'directed'", found);
+        // Verify the property itself exists in the schema
+        JsonNode props = schema.get("properties");
+        assertNotNull("properties must exist", props);
+        assertNotNull("directed property must exist", props.get("directed"));
     }
 
     // -----------------------------------------------------------------------

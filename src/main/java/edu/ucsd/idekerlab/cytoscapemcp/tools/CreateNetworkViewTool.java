@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -48,26 +49,36 @@ public class CreateNetworkViewTool {
                     + "{\"network_suid\": 100}\n\n"
                     + "Example 2 — This network has no view, generate one in Cytoscape desktop:\n"
                     + "{\"network_suid\": 100}\n\n"
+                    + "Example 2 — Get existing view or create one if none exist for a network in Cytoscape desktop:\n"
+                    + "{\"network_suid\": 100}\n\n"
                     + "Example 3 — Force create a new view in Cytoscape desktop even though one already exists:\n"
                     + "{\"network_suid\": 100, \"create_if_exists\": true}";
 
     private static final String TOOL_DESCRIPTION =
-            "Create or retrieve existing view for the provided network in Cytoscape Desktop."
-                    + " Sets the provided network and view as the current network and view on Desktop."
-                    + " If a view already exists for the network, returns the existing one instead of creating another view in the same network collection by default."
-                    + " Change the default behavior by setting create_if_exists to true to always create a"
-                    + " new view even in the network collection even when one or more views already exists in the network collection.";
+            "Create a new visual view for a network or retrieve the existing view if at least one already"
+                    + " exists. Idempotent, will always result in setting the network and the view as the current selection in Cytoscape"
+                    + " Desktop. By default will return an existing view if one exists for the given network rather than creating another view on the network.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record CreateNetworkViewCallResult(
-            @JsonProperty("status") String status,
-            @JsonProperty("network_suid") long networkSuid,
-            @JsonProperty("view_suid") long viewSuid,
-            @JsonProperty("network_name") String networkName,
-            @JsonProperty("node_count") int nodeCount,
-            @JsonProperty("edge_count") int edgeCount) {}
+            @JsonPropertyDescription("Result status, e.g. 'success' or 'exists'.")
+                    @JsonProperty("status")
+                    String status,
+            @JsonPropertyDescription("SUID of the network.") @JsonProperty("network_suid")
+                    long networkSuid,
+            @JsonPropertyDescription("SUID of the created or existing network view.")
+                    @JsonProperty("view_suid")
+                    long viewSuid,
+            @JsonPropertyDescription(
+                            "Name of the network as shown in the Cytoscape Desktop network panel.")
+                    @JsonProperty("network_name")
+                    String networkName,
+            @JsonPropertyDescription("Number of nodes in the network.") @JsonProperty("node_count")
+                    int nodeCount,
+            @JsonPropertyDescription("Number of edges in the network.") @JsonProperty("edge_count")
+                    int edgeCount) {}
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(

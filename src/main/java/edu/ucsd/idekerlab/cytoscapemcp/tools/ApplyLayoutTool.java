@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -58,9 +59,14 @@ public class ApplyLayoutTool {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record ApplyLayoutResult(
-            @JsonProperty("status") String status,
-            @JsonProperty("algorithm") String algorithm,
-            @JsonProperty("displayName") String displayName) {}
+            @JsonPropertyDescription("Result status, e.g. 'success'.") @JsonProperty("status")
+                    String status,
+            @JsonPropertyDescription("Internal name of the layout algorithm that was applied.")
+                    @JsonProperty("algorithm")
+                    String algorithm,
+            @JsonPropertyDescription("Human-readable display name of the layout algorithm.")
+                    @JsonProperty("displayName")
+                    String displayName) {}
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(

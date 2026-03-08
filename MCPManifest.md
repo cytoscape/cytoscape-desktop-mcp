@@ -34,68 +34,68 @@ Example 3 — Load tabular file into cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
-    "node_attributes_source_columns" : {
-      "type" : "array",
-      "description" : "Optional. Array of column names from the node attributes sheet (or main sheet) to attach as properties on source nodes.",
-      "items" : {
-        "type" : "string"
-      }
-    },
     "network_id" : {
       "type" : "string",
-      "description" : "The UUID of the network on NDEx (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\"). Required when source='ndex'."
+      "description" : "Optional. NDEx network Id as UUID (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
     },
     "source_column" : {
       "type" : "string",
-      "description" : "Column name for the source node. Required when source='tabular-file'."
+      "description" : "Optional. Column name for the source (from) node. Required when source='tabular-file'."
     },
     "delimiter_char_code" : {
       "type" : "integer",
-      "description" : "ASCII character code of the column delimiter (e.g. 44 for comma, 9 for tab). Required for non-Excel tabular files."
+      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab). Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
     },
     "file_path" : {
       "type" : "string",
-      "description" : "Absolute path to the file to import. Required when source='network-file' or 'tabular-file'."
+      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
     },
     "use_header_row" : {
       "type" : "boolean",
-      "description" : "Whether the first row of the file contains column headers. Required when source='tabular-file'."
+      "description" : "Optional. Whether the first row contains column headers. If false, ordinal column names are generated. Required when source='tabular-file'."
     },
     "node_attributes_sheet" : {
       "type" : "string",
-      "description" : "Name of a second Excel sheet that contains additional node attribute columns to join onto the network nodes. Optional for Excel tabular files."
+      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the network nodes. Applicable for Excel tabular files."
     },
     "source" : {
       "type" : "string",
-      "description" : "Required. \nThe location and type of network data file to load. \nMust be one of: \n'ndex' (load by UUID from NDEx - ndexbio.org), \n'network-file' (load a local filepath which is encoded in network format already such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), \n'tabular-file' (load a local filepath which is encoded as CSV, TSV, or Excel which will have column mappings).",
+      "description" : "Required. Determines which import path to use — the remaining parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
       "enum" : [ "ndex", "network-file", "tabular-file" ]
     },
     "target_column" : {
       "type" : "string",
-      "description" : "Column name for the target node. Required when source='tabular-file'."
+      "description" : "Optional. Column name for the target (to) node. Required when source='tabular-file'."
     },
     "node_attributes_sheet_source_key_column" : {
       "type" : "string",
-      "description" : "Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes. Required when node_attributes_sheet is set."
+      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the network sheet. Used to join attributes onto source nodes. Required when node_attributes_sheet is provided."
     },
     "node_attributes_target_columns" : {
       "type" : "array",
-      "description" : "Optional. Array of column names from the node attributes sheet (or main sheet) to attach as properties on target nodes.",
+      "description" : "Optional. Array of column names from the node_attributes_sheet (or main sheet) to attach as properties on target nodes.",
       "items" : {
         "type" : "string"
       }
     },
     "node_attributes_sheet_target_key_column" : {
       "type" : "string",
-      "description" : "Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes. Required when node_attributes_sheet is set."
+      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the network sheet. Used to join attributes onto target nodes. Required when node_attributes_sheet is provided."
     },
     "interaction_column" : {
       "type" : "string",
-      "description" : "Column name for the edge interaction type. Optional for source='tabular-file'."
+      "description" : "Optional. Column name for the edge interaction type. Applicable when source='tabular-file'."
     },
     "excel_sheet" : {
       "type" : "string",
-      "description" : "Name of the Excel sheet containing the network data. Required for Excel tabular files."
+      "description" : "Optional. Name of the Excel sheet containing the network edge data. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
+    },
+    "node_attributes_source_columns" : {
+      "type" : "array",
+      "description" : "Optional. Array of column names from the node_attributes_sheet (or main sheet) to attach as properties on source nodes.",
+      "items" : {
+        "type" : "string"
+      }
     }
   },
   "required" : [ "source" ]
@@ -147,7 +147,7 @@ Example 3 — Load tabular file into cytoscape desktop:
 
 **Title:** List Cytoscape Desktop Networks
 
-**Description:** Enumerate all network collections currently loaded in Cytoscape Desktop with their views, node counts, and edge counts. Call this first to discover network_suid and view_suid values required by other tools. Read-only; does not modify state. If a network has no view, view_suid is absent from that entry.
+**Description:** List all network collections currently loaded in Cytoscape Desktop with their views, node counts, and edge counts. Call this first to discover network and view identifiers required by other tools. Read-only; does not modify state.
 
 ## Examples
 
@@ -219,7 +219,7 @@ Example 3 — Show me the network SUIDs available in Cytoscape desktop:
 
 **Title:** Set Cytoscape Desktop Active Network
 
-**Description:** Set the specified network and view as the current (active) network and view in Cytoscape Desktop. Both network_suid and view_suid are required. Useful before applying styles, layouts, or analysis to a specific network.
+**Description:** Set a network and its view as the current (active) selection in Cytoscape Desktop. Use before applying styles, layouts, or analysis to a specific network.
 
 ## Examples
 
@@ -259,16 +259,20 @@ Example 3 — Focus Cytoscape desktop on a particular network before applying st
   "type" : "object",
   "properties" : {
     "edge_count" : {
-      "type" : "integer"
+      "type" : "integer",
+      "description" : "Number of edges in the active network."
     },
     "network_name" : {
-      "type" : "string"
+      "type" : "string",
+      "description" : "Name of the now-active network."
     },
     "node_count" : {
-      "type" : "integer"
+      "type" : "integer",
+      "description" : "Number of nodes in the active network."
     },
     "status" : {
-      "type" : "string"
+      "type" : "string",
+      "description" : "Result status, e.g. 'success'."
     }
   }
 }
@@ -280,7 +284,7 @@ Example 3 — Focus Cytoscape desktop on a particular network before applying st
 
 **Title:** Create Cytoscape Desktop Network View
 
-**Description:** Create or retrieve existing view for the provided network in Cytoscape Desktop. Sets the provided network and view as the current network and view on Desktop. If a view already exists for the network, returns the existing one instead of creating another view in the same network collection by default. Change the default behavior by setting create_if_exists to true to always create a new view even in the network collection even when one or more views already exists in the network collection.
+**Description:** Create a new visual view for a network or retrieve the existing view if at least one already exists. Idempotent, will always result in setting the network and the view as the current selection in Cytoscape Desktop. By default will return an existing view if one exists for the given network rather than creating another view on the network.
 
 ## Examples
 
@@ -288,6 +292,9 @@ Example 1 — Create a visual view for a network that has no view in Cytoscape d
 {"network_suid": 100}
 
 Example 2 — This network has no view, generate one in Cytoscape desktop:
+{"network_suid": 100}
+
+Example 2 — Get existing view or create one if none exist for a network in Cytoscape desktop:
 {"network_suid": 100}
 
 Example 3 — Force create a new view in Cytoscape desktop even though one already exists:
@@ -320,22 +327,28 @@ Example 3 — Force create a new view in Cytoscape desktop even though one alrea
   "type" : "object",
   "properties" : {
     "edge_count" : {
-      "type" : "integer"
+      "type" : "integer",
+      "description" : "Number of edges in the network."
     },
     "network_name" : {
-      "type" : "string"
+      "type" : "string",
+      "description" : "Name of the network as shown in the Cytoscape Desktop network panel."
     },
     "network_suid" : {
-      "type" : "integer"
+      "type" : "integer",
+      "description" : "SUID of the network."
     },
     "node_count" : {
-      "type" : "integer"
+      "type" : "integer",
+      "description" : "Number of nodes in the network."
     },
     "status" : {
-      "type" : "string"
+      "type" : "string",
+      "description" : "Result status, e.g. 'success' or 'exists'."
     },
     "view_suid" : {
-      "type" : "integer"
+      "type" : "integer",
+      "description" : "SUID of the created or existing network view."
     }
   }
 }
@@ -347,7 +360,7 @@ Example 3 — Force create a new view in Cytoscape desktop even though one alrea
 
 **Title:** Inspect Cytoscape Desktop Import File
 
-**Description:** Inspect a tabular data file to determine whether it is an Excel workbook (.xls/.xlsx) or a plain-text delimited file such as csv or tsv. For use when importing network data into Cytoscape Desktop. If Excel, returns the list of sheet names contained in the workbook. If not Excel, returns the detected delimiter.
+**Description:** Inspect a tabular data file to determine whether it is an Excel workbook or a plain-text delimited file. For use when importing network data into Cytoscape Desktop. For Excel files, enumerates sheet names; for text files, detects the delimiter character.
 
 ## Examples
 
@@ -412,7 +425,7 @@ Example 4 — What delimiter is used in a data file for importing into Cytoscape
 
 **Title:** Read Cytoscape Desktop File Columns
 
-**Description:** Retrieve column headers and up to three sample data rows from a tabular file. Use when importing network data from a tabular file into Cytoscape Desktop. For Excel files supply excel_sheet; for text files supply delimiter_char_code. Returns a 'columns' array of header strings and a 'sample_rows' list of value arrays.
+**Description:** Retrieve column headers and sample data rows from a tabular file. Use when importing network data into Cytoscape Desktop to preview columns before mapping. Supports both Excel workbooks and plain-text delimited files.
 
 ## Examples
 
@@ -433,11 +446,11 @@ Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:
   "properties" : {
     "delimiter_char_code" : {
       "type" : "integer",
-      "description" : "ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
+      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
     },
     "excel_sheet" : {
       "type" : "string",
-      "description" : "Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
+      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
     },
     "file_path" : {
       "type" : "string",
@@ -460,12 +473,14 @@ Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:
   "type" : "object",
   "properties" : {
     "columns" : {
+      "description" : "Column header names from the file. Ordinal names ('Column 1', 'Column 2', ...) if use_header_row was false.",
       "type" : "array",
       "items" : {
         "type" : "string"
       }
     },
     "sample_rows" : {
+      "description" : "Up to three sample data rows, each as an array of string values aligned with columns.",
       "type" : "array",
       "items" : {
         "type" : "array",
@@ -484,7 +499,7 @@ Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:
 
 **Title:** Analyze Cytoscape Desktop Network
 
-**Description:** Run NetworkAnalyzer on the current network in Cytoscape Desktop to compute topological statistics such as Degree, BetweennessCentrality, and ClosenessCentrality. Adds the computed values as new columns directly to the node and edge tables in Cytoscape Desktop. Returns the names of newly added node columns and basic network statistics.
+**Description:** Compute topological statistics (degree, betweenness centrality, closeness centrality) for the current network. Adds computed values as new columns to the node and edge tables.
 
 ## Examples
 
@@ -505,10 +520,10 @@ Example 3 — Calculate centrality metrics for an undirected biological network 
   "properties" : {
     "directed" : {
       "type" : "boolean",
-      "description" : "Optional. Default is True. When True, treats the network as a directed graph;  When False, treats the network as undirected (typical for most biological interaction networks). Affects which centrality metrics NetworkAnalyzer computes — directed mode adds in-degree/out-degree metrics."
+      "description" : "Optional. Default is true. When true, treats the network as a directed graph with in-degree/out-degree metrics. When false, treats it as undirected, typical for most biological interaction networks."
     }
   },
-  "required" : [ "directed" ]
+  "required" : [ ]
 }
 ```
 
@@ -589,15 +604,18 @@ Example 3 — Show me what layouts Cytoscape desktop supports:
   "type" : "object",
   "properties" : {
     "layouts" : {
+      "description" : "Available layout algorithms.",
       "type" : "array",
       "items" : {
         "type" : "object",
         "properties" : {
           "displayName" : {
-            "type" : "string"
+            "type" : "string",
+            "description" : "Human-readable algorithm label."
           },
           "name" : {
-            "type" : "string"
+            "type" : "string",
+            "description" : "Internal algorithm name to pass to apply_layout."
           }
         }
       }
@@ -648,13 +666,16 @@ Example 3 — Apply a hierarchical layout to the current network in Cytoscape de
   "type" : "object",
   "properties" : {
     "algorithm" : {
-      "type" : "string"
+      "type" : "string",
+      "description" : "Internal name of the layout algorithm that was applied."
     },
     "displayName" : {
-      "type" : "string"
+      "type" : "string",
+      "description" : "Human-readable display name of the layout algorithm."
     },
     "status" : {
-      "type" : "string"
+      "type" : "string",
+      "description" : "Result status, e.g. 'success'."
     }
   }
 }

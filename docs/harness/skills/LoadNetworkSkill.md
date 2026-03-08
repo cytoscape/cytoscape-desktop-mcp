@@ -192,8 +192,6 @@ go to STEP 1-LOAD.
 
 STEP 1-LOAD — Load the network from file:
 
-here's my file find out.
-
 If user chose type=network format:
   Call tool: load_cytoscape_network_view with { "source": "network-file", "file_path": $file_path }
 endif

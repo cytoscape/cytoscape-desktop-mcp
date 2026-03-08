@@ -54,10 +54,10 @@ public class InspectTabularFileTool {
                     + "{\"file_path\": \"/path/to/data.csv\"}\n\n";
 
     private static final String TOOL_DESCRIPTION =
-            "Inspect a tabular data file to determine whether it is an Excel workbook (.xls/.xlsx)"
-                    + " or a plain-text delimited file such as csv or tsv. For use when importing network data into"
-                    + " Cytoscape Desktop. If Excel, returns the list of sheet names contained"
-                    + " in the workbook. If not Excel, returns the detected delimiter.";
+            "Inspect a tabular data file to determine whether it is an Excel workbook or a"
+                    + " plain-text delimited file. For use when importing network data into Cytoscape"
+                    + " Desktop. For Excel files, enumerates sheet names; for text files, detects the"
+                    + " delimiter character.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
