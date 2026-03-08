@@ -34,6 +34,13 @@ Example 3 — Load tabular file into cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
+    "node_attributes_source_columns" : {
+      "type" : "array",
+      "description" : "Optional. Array of column names from the node_attributes_sheet (or main sheet) to attach as properties on source nodes.",
+      "items" : {
+        "type" : "string"
+      }
+    },
     "network_id" : {
       "type" : "string",
       "description" : "Optional. NDEx network Id as UUID (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
@@ -89,13 +96,6 @@ Example 3 — Load tabular file into cytoscape desktop:
     "excel_sheet" : {
       "type" : "string",
       "description" : "Optional. Name of the Excel sheet containing the network edge data. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
-    },
-    "node_attributes_source_columns" : {
-      "type" : "array",
-      "description" : "Optional. Array of column names from the node_attributes_sheet (or main sheet) to attach as properties on source nodes.",
-      "items" : {
-        "type" : "string"
-      }
     }
   },
   "required" : [ "source" ]
@@ -687,12 +687,12 @@ Example 3 — Apply a hierarchical layout to the current network in Cytoscape de
 
 ## Prompts
 
-{{PROMPTS}}
+none
 
 ## Resources
 
-{{RESOURCES}}
+none
 
 ## Resource Templates
 
-{{RESOURCE_TEMPLATES}}
+none

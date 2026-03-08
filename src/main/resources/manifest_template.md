@@ -15,12 +15,12 @@ into the application JAR.
 
 ## Prompts
 
-{{PROMPTS}}
+none
 
 ## Resources
 
-{{RESOURCES}}
+none
 
 ## Resource Templates
 
-{{RESOURCE_TEMPLATES}}
+none
