@@ -40,6 +40,15 @@ public class ApplyLayoutTool {
 
     private static final String TOOL_TITLE = "Apply Cytoscape Desktop Layout";
 
+    private static final String TOOL_EXAMPLES =
+            "\n\n## Examples\n\n"
+                    + "Example 1 — Apply a force-directed layout to the current network view in Cytoscape desktop:\n"
+                    + "{\"algorithm\": \"force-directed\"}\n\n"
+                    + "Example 2 — Arrange nodes in a circle on the current network view in Cytoscape desktop:\n"
+                    + "{\"algorithm\": \"circular\"}\n\n"
+                    + "Example 3 — Apply a hierarchical layout to the current network in Cytoscape desktop:\n"
+                    + "{\"algorithm\": \"hierarchical\"}";
+
     private static final String TOOL_DESCRIPTION =
             "Apply a layout algorithm to the current network view in Cytoscape Desktop using default"
                     + " parameters. After the layout runs, the view is fitted to content and"
@@ -88,7 +97,7 @@ public class ApplyLayoutTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .title(TOOL_TITLE)
-                            .description(TOOL_DESCRIPTION)
+                            .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(
                                     MAPPER.readValue(

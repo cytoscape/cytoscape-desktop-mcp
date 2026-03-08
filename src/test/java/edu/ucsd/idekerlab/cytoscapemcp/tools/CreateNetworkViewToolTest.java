@@ -1,5 +1,6 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -26,6 +27,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -59,6 +61,16 @@ public class CreateNetworkViewToolTest {
                     + "\"params\":{\"name\":\"create_network_view\","
                     + "\"arguments\":{\"network_suid\":999}}}";
 
+    private static final String TOOL_CALL_CREATE_IF_EXISTS_TRUE =
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                    + "\"params\":{\"name\":\"create_network_view\","
+                    + "\"arguments\":{\"network_suid\":100,\"create_if_exists\":true}}}";
+
+    private static final String TOOL_CALL_CREATE_IF_EXISTS_FALSE =
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                    + "\"params\":{\"name\":\"create_network_view\","
+                    + "\"arguments\":{\"network_suid\":100,\"create_if_exists\":false}}}";
+
     // --- Mocks -------------------------------------------------------------
 
     @Mock private CyApplicationManager appManager;
@@ -67,6 +79,7 @@ public class CreateNetworkViewToolTest {
     @Mock private CyNetworkViewFactory networkViewFactory;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView existingView;
+    @Mock private CyNetworkView anotherExistingView;
     @Mock private CyNetworkView newView;
     @Mock private CyRow networkRow;
 
@@ -168,6 +181,83 @@ public class CreateNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // create_if_exists = true — views exist → creates new view
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void createIfExists_true_existingViews_createsNewView() throws Exception {
+        stubNetwork(100L, "My Network", 10, 20);
+        when(viewManager.getNetworkViews(network))
+                .thenReturn(Collections.singletonList(existingView));
+        when(existingView.getSUID()).thenReturn(200L);
+        when(networkViewFactory.createNetworkView(network)).thenReturn(newView);
+        when(newView.getSUID()).thenReturn(300L);
+
+        String response = callTool(TOOL_CALL_CREATE_IF_EXISTS_TRUE);
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain new view SUID", response.contains("\\\"view_suid\\\":300"));
+        verify(networkViewFactory).createNetworkView(network);
+        verify(viewManager).addNetworkView(newView);
+    }
+
+    // -----------------------------------------------------------------------
+    // create_if_exists = false — views exist → returns existing
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void createIfExists_false_existingViews_returnsExisting() throws Exception {
+        stubNetwork(100L, "My Network", 10, 20);
+        when(viewManager.getNetworkViews(network))
+                .thenReturn(Collections.singletonList(existingView));
+        when(existingView.getSUID()).thenReturn(200L);
+
+        String response = callTool(TOOL_CALL_CREATE_IF_EXISTS_FALSE);
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain existing view SUID", response.contains("\\\"view_suid\\\":200"));
+        verify(networkViewFactory, never()).createNetworkView(network);
+    }
+
+    // -----------------------------------------------------------------------
+    // create_if_exists = false, no views → creates new view
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void createIfExists_false_noViews_createsNewView() throws Exception {
+        stubNetwork(100L, "My Network", 10, 20);
+        when(viewManager.getNetworkViews(network)).thenReturn(Collections.emptyList());
+        when(networkViewFactory.createNetworkView(network)).thenReturn(newView);
+        when(newView.getSUID()).thenReturn(300L);
+
+        String response = callTool(TOOL_CALL_CREATE_IF_EXISTS_FALSE);
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain new view SUID", response.contains("\\\"view_suid\\\":300"));
+        verify(networkViewFactory).createNetworkView(network);
+    }
+
+    // -----------------------------------------------------------------------
+    // create_if_exists = false — prefers current view when it belongs to network
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void createIfExists_false_prefersCurrentView() throws Exception {
+        stubNetwork(100L, "My Network", 10, 20);
+        when(existingView.getSUID()).thenReturn(200L);
+        when(anotherExistingView.getSUID()).thenReturn(250L);
+        when(viewManager.getNetworkViews(network))
+                .thenReturn(Arrays.asList(anotherExistingView, existingView));
+        when(appManager.getCurrentNetworkView()).thenReturn(existingView);
+
+        String response = callTool(TOOL_CALL_CREATE_IF_EXISTS_FALSE);
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should prefer current view SUID", response.contains("\\\"view_suid\\\":200"));
+        verify(networkViewFactory, never()).createNetworkView(any());
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
@@ -227,6 +317,20 @@ public class CreateNetworkViewToolTest {
     public void inputSchema_networkSuidHasDescription() throws Exception {
         JsonNode schema = MAPPER.readTree(CreateNetworkViewTool.INPUT_SCHEMA);
         JsonNode desc = schema.at("/properties/network_suid/description");
+        assertNotNull(desc);
+        assertTrue(!desc.isMissingNode() && !desc.asText().isEmpty());
+    }
+
+    @Test
+    public void inputSchema_createIfExistsIsBoolean() throws Exception {
+        JsonNode schema = MAPPER.readTree(CreateNetworkViewTool.INPUT_SCHEMA);
+        assertEquals("boolean", schema.at("/properties/create_if_exists/type").asText());
+    }
+
+    @Test
+    public void inputSchema_createIfExistsHasDescription() throws Exception {
+        JsonNode schema = MAPPER.readTree(CreateNetworkViewTool.INPUT_SCHEMA);
+        JsonNode desc = schema.at("/properties/create_if_exists/description");
         assertNotNull(desc);
         assertTrue(!desc.isMissingNode() && !desc.asText().isEmpty());
     }

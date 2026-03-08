@@ -16,9 +16,6 @@ An embedded [Model Context Protocol (MCP)][mcp] server for [Cytoscape Desktop][c
 ## Architecture
 ![Cytoscape MCP Desktop](docs/desktopmcp.png)
 
-## MCP Protocol Design:
-![Cytoscape MCP Protocol](docs/desktop_mcp_proto.png)
-
 ## How It Works
 
 Once installed, the app publishes an MCP endpoint inside Cytoscape's existing CyREST HTTP server — AI clients connect to the MCP endpoint with Streamable HTTP transport and call MCP tools which drive activity on the Cytoscape desktop display. 
@@ -66,7 +63,7 @@ For a full list of build targets:
 ```bash
 make help
 ```
-### Desktop Installation
+### Cytoscape Desktop Installation
 
 1. Get the mcp app jar:
     * Download the latest `cytoscape-mcp-<VERSION>.jar` from the [Releases](../../releases) page.
@@ -77,22 +74,25 @@ make help
 
 After startup, the MCP status can be viewed via the [MCP button](#mcp-toolbar-button) in the status bar.
 
-Refer to [Diagnostics](docs/AgentConfiguration.md#diagnostics) for more information on how to externally inspect and verify the Mcp server.
-
-### Connecting an Agent to Cytoscape Desktop
+### Connecting an Agent to Cytoscape Desktop MCP
 See [docs/AgentConfiguration.md](docs/AgentConfiguration.md) for step-by-step setup instructions for Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
 
-### Activate the MCP server from Agent prompts:
-Try some example Prompts to chaange states on the Cytoscape Desktop from Agent.
-* `load network id 63836e7b-ca44-11f0-a218-005056ae3c32 into cytoscape desktop` - will load `Yeast ergosterol` network that resides on ndexbio.org.
-
-## Available Cytoscape Desktop MCP Tools
-
-* The MCP server exposes a `GET /mcp/manifest` endpoint that returns a complete, human-readable catalog of every tool registered on the server, formatted as Markdown with full JSON schema definitions for each artifact's input and output. A
-* `make build` will generate the MCP manifest into a static file after build completes at `build/generated/manifest/MCPManifest.md` for same review.
+### Cytoscape Desktop MCP Diagnostics
+* Most agents will have a `/mcp` command or UI settings panel which will show list of tools currently published by this server.
+* Use external MCP introspection tools against the Desktop MCP server running at `<CyRest Url>/mcp` to validate or view current tools catalog - [modelcontextprotocol/inspector](https://github.com/modelcontextprotocol/inspector?tab=readme-ov-file#running-the-inspector)
 
 
-## MCP Configuration properties
+## Cytoscape Desktop MCP Tool Catalog
+The MCP server provides a human-readable catalog of every tool registered on the server formatted as Markdown with complete MCP Protocol JSON schema definitions for each tool's input and output. You can obtain the catalog through multiple options:
+*  When the app is loaded in Desktop, at runtime the MCP server exposes `GET <CyRest Url>/mcp/manifest` endpoint. 
+* After any build locally, `make build` will generate the MCP manifest based on current code into a static file at `build/generated/manifest/MCPManifest.md` for same review.
+* Static copy of the catalog is also stored in repo at [MCPManifest.md](./MCPManifest.md)
+
+### Activate Cytoscape Desktop MCP tools from Agent prompts:
+Invoking the tools requires some prompt engineering to activate the LLM to choose the tool.
+Check out [MCPManifest.md](./MCPManifest.md) which contains 3 to 4 examples of Prompt snippets on each tool's description. These examples should server as reference examples to trigger LLM activation. 
+
+## Cytoscape Desktop MCP Configuration properties
 
 Properties are editable at runtime via **Edit > Preferences > Properties > cytoscapemcp**:
 

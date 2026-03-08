@@ -1,6 +1,8 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +31,8 @@ import io.modelcontextprotocol.spec.McpSchema.Tool;
 /**
  * MCP tool that inspects a tabular data file to determine if it is an Excel workbook. If so,
  * enumerates the sheet names so the agent can prompt the user to select which sheet to import.
- * Otherwise, returns the file extension so the agent knows to proceed with delimiter-based import.
+ * Otherwise, returns the detected delimiter character code so the agent knows to proceed with
+ * delimiter-based import.
  */
 public class InspectTabularFileTool {
 
@@ -39,12 +42,22 @@ public class InspectTabularFileTool {
 
     private static final String TOOL_TITLE = "Inspect Cytoscape Desktop Import File";
 
+    private static final String TOOL_EXAMPLES =
+            "\n\n## Examples\n\n"
+                    + "Example 1 — What tabular format is data file encoded in importing into Cytoscape desktop:\n"
+                    + "{\"file_path\": \"/path/to/data.xlsx\"}\n\n"
+                    + "Example 2 — Inspect a tabular file to determine its format for Cytoscape desktop import:\n"
+                    + "{\"file_path\": \"/path/to/data.csv\"}\n\n"
+                    + "Example 3 — What sheets are in this Excel workbook:\n"
+                    + "{\"file_path\": \"/path/to/workbook.xlsx\"}\n\n"
+                    + "Example 4 — What delimiter is used in a data file for importing into Cytoscape desktop:\n"
+                    + "{\"file_path\": \"/path/to/data.csv\"}\n\n";
+
     private static final String TOOL_DESCRIPTION =
             "Inspect a tabular data file to determine whether it is an Excel workbook (.xls/.xlsx)"
-                    + " or a plain-text delimited file, for use when importing network data into"
+                    + " or a plain-text delimited file such as csv or tsv. For use when importing network data into"
                     + " Cytoscape Desktop. If Excel, returns the list of sheet names contained"
-                    + " in the workbook. If not Excel, returns the detected file extension"
-                    + " (e.g. '.csv', '.tsv').";
+                    + " in the workbook. If not Excel, returns the detected delimiter.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -58,10 +71,11 @@ public class InspectTabularFileTool {
                     @JsonProperty("sheets")
                     List<String> sheets,
             @JsonPropertyDescription(
-                            "Detected file extension (e.g. '.csv', '.tsv')."
+                            "ASCII code of the detected delimiter character"
+                                    + " (e.g. 44=comma, 9=tab, 124=pipe, 59=semicolon, 32=space)."
                                     + " Present only when is_excel is false.")
-                    @JsonProperty("detected_extension")
-                    String detectedExtension) {}
+                    @JsonProperty("detected_delimiter_char_code")
+                    Integer detectedDelimiterCharCode) {}
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(
@@ -83,7 +97,7 @@ public class InspectTabularFileTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .title(TOOL_TITLE)
-                            .description(TOOL_DESCRIPTION)
+                            .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(
                                     MAPPER.readValue(
@@ -129,21 +143,75 @@ public class InspectTabularFileTool {
                         .structuredContent(new InspectTabularFileCallResult(true, sheetNames, null))
                         .build();
             } catch (Exception poiException) {
-                // Not a valid Excel file — return extension info.
+                // Not a valid Excel file — detect delimiter.
                 LOGGER.debug("File is not Excel ({}): {}", poiException.getMessage(), filePath);
 
-                String fileName = file.getName();
-                int dotIndex = fileName.lastIndexOf('.');
-                String extension = dotIndex >= 0 ? fileName.substring(dotIndex) : "";
+                int delimiterCharCode = detectDelimiter(file);
 
                 return CallToolResult.builder()
-                        .structuredContent(new InspectTabularFileCallResult(false, null, extension))
+                        .structuredContent(
+                                new InspectTabularFileCallResult(false, null, delimiterCharCode))
                         .build();
             }
         } catch (Exception e) {
             LOGGER.error("Error inspecting tabular file", e);
             return error("Failed to inspect tabular file: " + e.getMessage());
         }
+    }
+
+    // -- Delimiter detection --------------------------------------------------
+
+    /**
+     * Reads the first line of the file and counts occurrences of common delimiters. Returns the
+     * ASCII code of the most frequently occurring one, preferring tab if any tabs are present.
+     * Falls back to comma (44) if the file is empty or no delimiters are found.
+     */
+    private static int detectDelimiter(File file) {
+        String firstLine;
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            firstLine = reader.readLine();
+        } catch (Exception e) {
+            return 44; // fallback to comma
+        }
+
+        if (firstLine == null || firstLine.isEmpty()) {
+            return 44; // fallback to comma
+        }
+
+        int tabs = 0, commas = 0, pipes = 0, semicolons = 0, spaces = 0;
+        for (int i = 0; i < firstLine.length(); i++) {
+            switch (firstLine.charAt(i)) {
+                case '\t' -> tabs++;
+                case ',' -> commas++;
+                case '|' -> pipes++;
+                case ';' -> semicolons++;
+                case ' ' -> spaces++;
+            }
+        }
+
+        // Prefer tab if any are present — tabs are unambiguous delimiters
+        if (tabs > 0) {
+            return 9;
+        }
+
+        // Find the delimiter with the highest count
+        int maxCount = commas;
+        int bestDelimiter = 44; // comma
+
+        if (pipes > maxCount) {
+            maxCount = pipes;
+            bestDelimiter = 124;
+        }
+        if (semicolons > maxCount) {
+            maxCount = semicolons;
+            bestDelimiter = 59;
+        }
+        if (spaces > maxCount) {
+            maxCount = spaces;
+            bestDelimiter = 32;
+        }
+
+        return bestDelimiter; // defaults to comma (44) if all counts are 0
     }
 
     // -- Result helpers -------------------------------------------------------

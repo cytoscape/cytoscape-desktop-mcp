@@ -53,9 +53,18 @@ public class GetFileColumnsTool {
 
     private static final String TOOL_TITLE = "Read Cytoscape Desktop File Columns";
 
+    private static final String TOOL_EXAMPLES =
+            "\n\n## Examples\n\n"
+                    + "Example 1 — Read column headers from a CSV file for Cytoscape desktop import:\n"
+                    + "{\"file_path\": \"/path/to/data.csv\", \"delimiter_char_code\": 44, \"use_header_row\": true}\n\n"
+                    + "Example 2 — Preview columns from a tab-separated file:\n"
+                    + "{\"file_path\": \"/path/to/data.tsv\", \"delimiter_char_code\": 9, \"use_header_row\": true}\n\n"
+                    + "Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:\n"
+                    + "{\"file_path\": \"/path/to/data.xlsx\", \"use_header_row\": true, \"excel_sheet\": \"Sheet1\"}";
+
     private static final String TOOL_DESCRIPTION =
-            "Read column headers and up to three sample rows from a tabular file,"
-                    + " for use when importing network data into Cytoscape Desktop."
+            "Retrieve column headers and up to three sample data rows from a tabular file."
+                    + " Use when importing network data from a tabular file into Cytoscape Desktop."
                     + " For Excel files supply excel_sheet; for text files supply delimiter_char_code."
                     + " Returns a 'columns' array of header strings and a 'sample_rows' list"
                     + " of value arrays.";
@@ -110,7 +119,7 @@ public class GetFileColumnsTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .title(TOOL_TITLE)
-                            .description(TOOL_DESCRIPTION)
+                            .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(
                                     MAPPER.readValue(

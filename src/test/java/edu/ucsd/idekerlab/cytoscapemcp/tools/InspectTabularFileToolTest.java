@@ -103,11 +103,11 @@ public class InspectTabularFileToolTest {
     }
 
     // -----------------------------------------------------------------------
-    // CSV file — returns detected extension
+    // CSV file — returns detected delimiter
     // -----------------------------------------------------------------------
 
     @Test
-    public void csvFile_returnsDetectedExtension() throws Exception {
+    public void csvFile_returnsDetectedDelimiter() throws Exception {
         File tempFile = File.createTempFile("test-inspect-", ".csv");
         tempFile.deleteOnExit();
 
@@ -120,16 +120,16 @@ public class InspectTabularFileToolTest {
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
         assertTrue("Should not be Excel", response.contains("\\\"is_excel\\\":false"));
         assertTrue(
-                "Should detect .csv extension",
-                response.contains("\\\"detected_extension\\\":\\\".csv\\\""));
+                "Should detect comma delimiter (44)",
+                response.contains("\\\"detected_delimiter_char_code\\\":44"));
     }
 
     // -----------------------------------------------------------------------
-    // TSV file — returns detected extension
+    // TSV file — returns detected delimiter
     // -----------------------------------------------------------------------
 
     @Test
-    public void tsvFile_returnsDetectedExtension() throws Exception {
+    public void tsvFile_returnsDetectedDelimiter() throws Exception {
         File tempFile = File.createTempFile("test-inspect-", ".tsv");
         tempFile.deleteOnExit();
 
@@ -142,8 +142,8 @@ public class InspectTabularFileToolTest {
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
         assertTrue("Should not be Excel", response.contains("\\\"is_excel\\\":false"));
         assertTrue(
-                "Should detect .tsv extension",
-                response.contains("\\\"detected_extension\\\":\\\".tsv\\\""));
+                "Should detect tab delimiter (9)",
+                response.contains("\\\"detected_delimiter_char_code\\\":9"));
     }
 
     // -----------------------------------------------------------------------
@@ -159,11 +159,11 @@ public class InspectTabularFileToolTest {
     }
 
     // -----------------------------------------------------------------------
-    // Corrupt .xlsx file — returns detected extension (not Excel)
+    // Corrupt .xlsx file — returns detected delimiter (not Excel)
     // -----------------------------------------------------------------------
 
     @Test
-    public void corruptFile_returnsDetectedExtension() throws Exception {
+    public void corruptFile_returnsDetectedDelimiter() throws Exception {
         File tempFile = File.createTempFile("test-inspect-", ".xlsx");
         tempFile.deleteOnExit();
 
@@ -176,8 +176,8 @@ public class InspectTabularFileToolTest {
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
         assertTrue("Should not be Excel", response.contains("\\\"is_excel\\\":false"));
         assertTrue(
-                "Should detect .xlsx extension",
-                response.contains("\\\"detected_extension\\\":\\\".xlsx\\\""));
+                "Should fallback to comma delimiter (44)",
+                response.contains("\\\"detected_delimiter_char_code\\\":44"));
     }
 
     // -----------------------------------------------------------------------

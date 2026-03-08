@@ -51,6 +51,8 @@ import org.cytoscape.model.CyTable;
 import org.cytoscape.model.subnetwork.CyRootNetwork;
 import org.cytoscape.model.subnetwork.CySubNetwork;
 import org.cytoscape.property.CyProperty;
+import org.cytoscape.view.layout.CyLayoutAlgorithm;
+import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
@@ -85,19 +87,19 @@ public class LoadNetworkViewTool {
     private static final String TOOL_TITLE = "Load Cytoscape Desktop Network";
 
     private static final String TOOL_DESCRIPTION =
-            "Load a network into Cytoscape Desktop from NDEx (by UUID), a native network format file,"
-                    + " or a tabular data file with column mapping. Creates a new network collection"
-                    + " and view, and sets it as the current network.";
+            "Load a network into Cytoscape Desktop from one of multiple sources such as NDEx (by Network Id), a network formatted file,"
+                    + " or a tabular formatted file with column mapping. Creates a new network root as a new collection"
+                    + " and view, and sets it as the current network on Cytoscape Desktop.";
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
-                    + "Example 1 — Load from NDEx:\n"
+                    + "Example 1 — Load NDEx network into cytoscape desktop:\n"
                     + "{\"source\": \"ndex\", \"network_id\":"
                     + " \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\"}\n\n"
-                    + "Example 2 — Load a native format file:\n"
+                    + "Example 2 — Load network file into cytoscape desktop:\n"
                     + "{\"source\": \"network-file\", \"file_path\":"
                     + " \"/path/to/network.sif\"}\n\n"
-                    + "Example 3 — Load tabular data:\n"
+                    + "Example 3 — Load tabular file into cytoscape desktop:\n"
                     + "{\"source\": \"tabular-file\", \"file_path\":"
                     + " \"/path/to/data.csv\", \"source_column\": \"Gene_A\","
                     + " \"target_column\": \"Gene_B\", \"delimiter_char_code\": 44,"
@@ -111,11 +113,12 @@ public class LoadNetworkViewTool {
                                     "source",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Required. The data source type. Must be one of: 'ndex' (load by"
-                                                    + " UUID from NDEx), 'network-file' (load a"
-                                                    + " native network format file such as .sif,"
-                                                    + " .xgmml, or .cx), 'tabular-file' (load a CSV"
-                                                    + " or Excel file with column mapping).",
+                                            "Required. \n"
+                                                    + "The location and type of network data file to load. \n"
+                                                    + "Must be one of: \n"
+                                                    + "'ndex' (load by UUID from NDEx - ndexbio.org), \n"
+                                                    + "'network-file' (load a local filepath which is encoded in network format already such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), \n"
+                                                    + "'tabular-file' (load a local filepath which is encoded as CSV, TSV, or Excel which will have column mappings).",
                                             List.of("ndex", "network-file", "tabular-file")))
                             .property(
                                     "network_id",
@@ -258,6 +261,7 @@ public class LoadNetworkViewTool {
     private final CyNetworkReaderManager networkReaderManager;
     private final CyNetworkFactory networkFactory;
     private final CyNetworkViewFactory networkViewFactory;
+    private final CyLayoutAlgorithmManager layoutAlgorithmManager;
 
     public LoadNetworkViewTool(
             CyProperty<Properties> cyProperties,
@@ -268,7 +272,8 @@ public class LoadNetworkViewTool {
             InputStreamTaskFactory cxReaderFactory,
             CyNetworkReaderManager networkReaderManager,
             CyNetworkFactory networkFactory,
-            CyNetworkViewFactory networkViewFactory) {
+            CyNetworkViewFactory networkViewFactory,
+            CyLayoutAlgorithmManager layoutAlgorithmManager) {
         this.cyProperties = cyProperties;
         this.appManager = appManager;
         this.networkManager = networkManager;
@@ -278,6 +283,7 @@ public class LoadNetworkViewTool {
         this.networkReaderManager = networkReaderManager;
         this.networkFactory = networkFactory;
         this.networkViewFactory = networkViewFactory;
+        this.layoutAlgorithmManager = layoutAlgorithmManager;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -644,6 +650,7 @@ public class LoadNetworkViewTool {
 
         CyNetworkView view = networkViewFactory.createNetworkView(network);
         viewManager.addNetworkView(view);
+        applyDefaultLayout(view);
         appManager.setCurrentNetwork(network);
         appManager.setCurrentNetworkView(view);
 
@@ -1129,6 +1136,57 @@ public class LoadNetworkViewTool {
     }
 
     // -- Inner task class and helpers ----------------------------------------
+
+    /**
+     * Applies the Cytoscape default (preferred) layout to a newly created network view. Mirrors the
+     * pattern used by {@code SIFNetworkReader.buildCyNetworkView()}: the layout task is run
+     * synchronously on the current thread. After layout, the view is fitted and refreshed so nodes
+     * are visible immediately.
+     *
+     * <p>Without this call, all nodes in a programmatically constructed network (e.g. tabular
+     * import) sit at the default (0, 0) coordinate and render as a single node on screen.
+     */
+    private void applyDefaultLayout(CyNetworkView view) {
+        if (layoutAlgorithmManager == null) return;
+        CyLayoutAlgorithm layout = layoutAlgorithmManager.getDefaultLayout();
+        if (layout == null) {
+            LOGGER.warn("No default layout algorithm available; skipping layout");
+            return;
+        }
+        try {
+            String attribute = layoutAlgorithmManager.getLayoutAttribute(layout, view);
+            TaskIterator itr =
+                    layout.createTaskIterator(
+                            view,
+                            layout.getDefaultLayoutContext(),
+                            CyLayoutAlgorithm.ALL_NODE_VIEWS,
+                            attribute);
+            TaskMonitor noOp =
+                    new TaskMonitor() {
+                        @Override
+                        public void setTitle(String t) {}
+
+                        @Override
+                        public void setProgress(double p) {}
+
+                        @Override
+                        public void setStatusMessage(String m) {}
+
+                        @Override
+                        public void showMessage(TaskMonitor.Level l, String m) {}
+                    };
+            while (itr.hasNext()) {
+                itr.next().run(noOp);
+            }
+            view.fitContent();
+            view.updateView();
+        } catch (Exception e) {
+            LOGGER.warn(
+                    "Could not apply default layout to view {}: {}",
+                    view.getSUID(),
+                    e.getMessage());
+        }
+    }
 
     /**
      * Forces the reader to load into a new, independent network collection.

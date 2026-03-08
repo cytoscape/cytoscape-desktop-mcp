@@ -38,6 +38,15 @@ public class GetLayoutAlgorithmsTool {
 
     private static final String TOOL_TITLE = "List Cytoscape Desktop Layouts";
 
+    private static final String TOOL_EXAMPLES =
+            "\n\n## Examples\n\n"
+                    + "Example 1 — What layout algorithms are available in Cytoscape desktop:\n"
+                    + "{}\n\n"
+                    + "Example 2 — List the layout options available from Cytoscape desktop that I can apply to a network:\n"
+                    + "{}\n\n"
+                    + "Example 3 — Show me what layouts Cytoscape desktop supports:\n"
+                    + "{}";
+
     private static final String TOOL_DESCRIPTION =
             "List all layout algorithms available in Cytoscape Desktop with their internal names and"
                     + " human-readable display names. Read-only; does not modify state.";
@@ -68,7 +77,7 @@ public class GetLayoutAlgorithmsTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .title(TOOL_TITLE)
-                            .description(TOOL_DESCRIPTION)
+                            .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(
                                     MAPPER.readValue(

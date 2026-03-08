@@ -40,6 +40,15 @@ public class SetCurrentNetworkViewTool {
 
     private static final String TOOL_TITLE = "Set Cytoscape Desktop Active Network";
 
+    private static final String TOOL_EXAMPLES =
+            "\n\n## Examples\n\n"
+                    + "Example 1 — Switch to a specific network view in Cytoscape desktop:\n"
+                    + "{\"network_suid\": 100, \"view_suid\": 200}\n\n"
+                    + "Example 2 — Make a different network the active one in Cytoscape desktop:\n"
+                    + "{\"network_suid\": 300, \"view_suid\": 400}\n\n"
+                    + "Example 3 — Focus Cytoscape desktop on a particular network before applying styles:\n"
+                    + "{\"network_suid\": 100, \"view_suid\": 200}";
+
     private static final String TOOL_DESCRIPTION =
             "Set the specified network and view as the current (active) network and view in"
                     + " Cytoscape Desktop. Both network_suid and view_suid are required."
@@ -92,7 +101,7 @@ public class SetCurrentNetworkViewTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .title(TOOL_TITLE)
-                            .description(TOOL_DESCRIPTION)
+                            .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(
                                     MAPPER.readValue(

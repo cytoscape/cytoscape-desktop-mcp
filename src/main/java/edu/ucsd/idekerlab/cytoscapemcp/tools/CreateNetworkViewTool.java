@@ -30,9 +30,9 @@ import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 
 /**
- * MCP tool that creates a visual view for a network that currently has no view. If a view already
- * exists, it returns the existing one instead of creating a duplicate. Sets the new/existing view
- * and its network as the current network and view.
+ * MCP tool that creates a visual view for a network. If a view already exists, it returns the
+ * existing one instead of creating a duplicate. Sets the new/existing view and its network as the
+ * current network and view.
  */
 public class CreateNetworkViewTool {
 
@@ -42,11 +42,21 @@ public class CreateNetworkViewTool {
 
     private static final String TOOL_TITLE = "Create Cytoscape Desktop Network View";
 
+    private static final String TOOL_EXAMPLES =
+            "\n\n## Examples\n\n"
+                    + "Example 1 — Create a visual view for a network that has no view in Cytoscape desktop:\n"
+                    + "{\"network_suid\": 100}\n\n"
+                    + "Example 2 — This network has no view, generate one in Cytoscape desktop:\n"
+                    + "{\"network_suid\": 100}\n\n"
+                    + "Example 3 — Force create a new view in Cytoscape desktop even though one already exists:\n"
+                    + "{\"network_suid\": 100, \"create_if_exists\": true}";
+
     private static final String TOOL_DESCRIPTION =
-            "Create a visual view for a network in Cytoscape Desktop that currently has no view."
-                    + " Sets the new view and its network as the current network and view."
-                    + " If a view already exists for the network, returns the existing one instead"
-                    + " of creating a duplicate.";
+            "Create or retrieve existing view for the provided network in Cytoscape Desktop."
+                    + " Sets the provided network and view as the current network and view on Desktop."
+                    + " If a view already exists for the network, returns the existing one instead of creating another view in the same network collection by default."
+                    + " Change the default behavior by setting create_if_exists to true to always create a"
+                    + " new view even in the network collection even when one or more views already exists in the network collection.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -68,6 +78,13 @@ public class CreateNetworkViewTool {
                                     new McpSchema.InputProperty(
                                             "integer",
                                             "Required. SUID of the network in Cytoscape Desktop that needs a view."))
+                            .property(
+                                    "create_if_exists",
+                                    new McpSchema.InputProperty(
+                                            "boolean",
+                                            "Optional. Default is false. When false and a view already exists,"
+                                                    + " returns the existing current view (or first available) without creating a duplicate."
+                                                    + " When true, always creates a new view even if views already exist."))
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(CreateNetworkViewCallResult.class);
@@ -94,7 +111,7 @@ public class CreateNetworkViewTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .title(TOOL_TITLE)
-                            .description(TOOL_DESCRIPTION)
+                            .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(
                                     MAPPER.readValue(
@@ -124,13 +141,21 @@ public class CreateNetworkViewTool {
                 return error("Network with SUID " + networkSuid + " not found.");
             }
 
+            Boolean createIfExists = (Boolean) request.arguments().get("create_if_exists");
+            if (createIfExists == null) createIfExists = Boolean.FALSE;
+
             // Check for existing views.
             Collection<CyNetworkView> existingViews = viewManager.getNetworkViews(network);
             CyNetworkView view;
 
-            if (!existingViews.isEmpty()) {
-                // Use existing view instead of creating a duplicate.
-                view = existingViews.iterator().next();
+            if (!existingViews.isEmpty() && !createIfExists) {
+                // Return existing: prefer current view if it belongs to this network.
+                CyNetworkView currentView = appManager.getCurrentNetworkView();
+                if (currentView != null && existingViews.contains(currentView)) {
+                    view = currentView;
+                } else {
+                    view = existingViews.iterator().next();
+                }
                 LOGGER.info(
                         "Network {} already has a view (SUID {}); returning existing",
                         networkSuid,

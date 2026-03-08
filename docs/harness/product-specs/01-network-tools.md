@@ -83,13 +83,17 @@ See `04-load-network-tools.md §4.2a` for the full tool schema and response exam
 {
   "name": "create_network_view",
   "title": "Create Cytoscape Desktop Network View",
-  "description": "Create a visual view for a network in Cytoscape Desktop that currently has no view. Sets the new view and its network as the current network and view.",
+  "description": "Create a visual view for a network in Cytoscape Desktop that currently has no view. Sets the new view and its network as the current network and view. Set create_if_exists to true to always create a new view even when one already exists.",
   "inputSchema": {
     "type": "object",
     "properties": {
       "network_suid": {
         "type": "integer",
         "description": "SUID of the network to create a view for."
+      },
+      "create_if_exists": {
+        "type": "boolean",
+        "description": "Optional. Default is false. When false and a view already exists, returns the existing current view without creating a duplicate. When true, always creates a new view."
       }
     },
     "required": ["network_suid"]

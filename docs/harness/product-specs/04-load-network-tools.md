@@ -182,7 +182,7 @@
 **Success response (non-Excel):**
 ```json
 {
-  "content": [{ "type": "text", "text": "{\"is_excel\":false,\"detected_extension\":\".csv\"}" }],
+  "content": [{ "type": "text", "text": "{\"is_excel\":false,\"detected_delimiter_char_code\":44}" }],
   "isError": false
 }
 ```

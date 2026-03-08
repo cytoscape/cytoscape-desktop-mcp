@@ -46,6 +46,15 @@ public class AnalyzeNetworkTool {
 
     private static final String TOOL_TITLE = "Analyze Cytoscape Desktop Network";
 
+    private static final String TOOL_EXAMPLES =
+            "\n\n## Examples\n\n"
+                    + "Example 1 — Compute network statistics of the current network in Cytoscape desktop:\n"
+                    + "{\"directed\": false}\n\n"
+                    + "Example 2 — Run network analysis treating edges as directed of current network in Cytoscape desktop:\n"
+                    + "{\"directed\": true}\n\n"
+                    + "Example 3 — Calculate centrality metrics for an undirected biological network in Cytoscape desktop:\n"
+                    + "{\"directed\": false}";
+
     private static final String TOOL_DESCRIPTION =
             "Run NetworkAnalyzer on the current network in Cytoscape Desktop to compute topological"
                     + " statistics such as Degree, BetweennessCentrality, and ClosenessCentrality."
@@ -63,12 +72,13 @@ public class AnalyzeNetworkTool {
                                     "directed",
                                     new McpSchema.InputProperty(
                                             "boolean",
-                                            "Required. True to treat the network as a directed graph; false"
-                                                    + " for undirected (typical for most biological"
-                                                    + " interaction networks). Affects which"
+                                            "Optional. Default is True."
+                                                    + " When True, treats the network as a directed graph; "
+                                                    + " When False, treats the network as undirected (typical for most biological"
+                                                    + " interaction networks). "
+                                                    + "Affects which"
                                                     + " centrality metrics NetworkAnalyzer computes"
-                                                    + " — directed mode adds in-degree/out-degree"
-                                                    + " metrics."))
+                                                    + " — directed mode adds in-degree/out-degree metrics."))
                             .build());
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -115,7 +125,7 @@ public class AnalyzeNetworkTool {
                     Tool.builder()
                             .name(TOOL_NAME)
                             .title(TOOL_TITLE)
-                            .description(TOOL_DESCRIPTION)
+                            .description(TOOL_DESCRIPTION + TOOL_EXAMPLES)
                             .inputSchema(MAPPER.readValue(INPUT_SCHEMA, JsonSchema.class))
                             .outputSchema(
                                     MAPPER.readValue(

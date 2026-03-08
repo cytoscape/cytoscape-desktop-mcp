@@ -118,7 +118,8 @@ public final class McpServerFactory {
                                 cxReaderFactory,
                                 networkReaderManager,
                                 networkFactory,
-                                networkViewFactory)
+                                networkViewFactory,
+                                layoutManager)
                         .toSpec());
         server.addTool(new GetLoadedNetworkViewsTool(networkManager, viewManager).toSpec());
         server.addTool(

@@ -32,6 +32,8 @@ import org.cytoscape.model.CyNode;
 import org.cytoscape.model.CyRow;
 import org.cytoscape.model.CyTable;
 import org.cytoscape.property.CyProperty;
+import org.cytoscape.view.layout.CyLayoutAlgorithm;
+import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
@@ -92,6 +94,8 @@ public class LoadNetworkViewToolTest {
     @Mock private CyNetworkReaderManager networkReaderManager;
     @Mock private CyNetworkFactory networkFactory;
     @Mock private CyNetworkViewFactory networkViewFactory;
+    @Mock private CyLayoutAlgorithmManager layoutAlgorithmManager;
+    @Mock private CyLayoutAlgorithm layoutAlgorithm;
     @Mock private CyNetworkReader networkReader;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView networkView;
@@ -120,6 +124,12 @@ public class LoadNetworkViewToolTest {
         props.setProperty("mcp.ndexbaseurl", "https://www.ndexbio.org");
         when(cyProperties.getProperties()).thenReturn(props);
 
+        // Stub layout manager — returns a mock algorithm with an empty TaskIterator
+        when(layoutAlgorithmManager.getDefaultLayout()).thenReturn(layoutAlgorithm);
+        when(layoutAlgorithmManager.getLayoutAttribute(any(), any())).thenReturn(null);
+        when(layoutAlgorithm.createTaskIterator(any(), any(), any(), any()))
+                .thenReturn(new TaskIterator());
+
         tool =
                 spy(
                         new LoadNetworkViewTool(
@@ -131,7 +141,8 @@ public class LoadNetworkViewToolTest {
                                 cxReaderFactory,
                                 networkReaderManager,
                                 networkFactory,
-                                networkViewFactory));
+                                networkViewFactory,
+                                layoutAlgorithmManager));
 
         // Prevent real HTTP connections — return an empty stream for any URL
         try {

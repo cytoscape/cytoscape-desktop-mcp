@@ -81,7 +81,7 @@ Call tool: inspect_tabular_file with { "file_path": $file_path }
 Capture from response:
   $is_excel            // boolean — true if Excel workbook, false otherwise
   $sheets              // array of sheet names (present when is_excel=true, null otherwise)
-  $detected_extension  // file extension string (present when is_excel=false, null otherwise)
+  $detected_delimiter_char_code  // integer ASCII code of detected delimiter (present when is_excel=false)
 
 if $is_excel=true, go to STEP 1b1
 if $is_excel=false, go to STEP 1b2
@@ -104,15 +104,15 @@ endif
 Go to Step 1b3
 
 Step 1b2 - non excel tabular config
-// $detected_extension already captured above from inspect_tabular_file response
+// $detected_delimiter_char_code already captured above from inspect_tabular_file response
 
 Ask: "Choose which delimiter character is used for separation of columnar data:"
 
-Say: {1 - comma, 2 - tab, 3 - space, 4 - Other} // list should denote highlight of the option as pre-selected based on the $detected_extension
+Say: {1 - comma, 2 - tab, 3 - space, 4 - Other} // list should denote highlight of the option as pre-selected based on the $detected_delimiter_char_code
 
 If user chooses 4 - Other, then ask them to type in the character or the ascii code expressed as integral value.
 
-Capture: $delimiter_char_code // this should be converted in all cases to ascii integer code.
+Capture: $delimiter_char_code = $detected_delimiter_char_code // auto-populated from detection, user can override. Convert to ascii integer code in all cases.
 
 go to Step 1b3
 
