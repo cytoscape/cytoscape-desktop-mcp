@@ -10,6 +10,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetFileColumnsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLayoutAlgorithmsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetVisualStyleDefaultsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.InspectTabularFileTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
@@ -135,6 +136,9 @@ public final class McpServerFactory {
                         .toSpec());
         server.addTool(new GetLayoutAlgorithmsTool(layoutManager).toSpec());
         server.addTool(new ApplyLayoutTool(appManager, layoutManager, syncTaskManager).toSpec());
+        server.addTool(
+                new GetVisualStyleDefaultsTool(appManager, vmmManager, renderingEngineManager)
+                        .toSpec());
         return server;
     }
 }

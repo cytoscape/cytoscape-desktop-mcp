@@ -3,9 +3,11 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Paint;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.cytoscape.view.model.ContinuousRange;
 import org.cytoscape.view.model.DiscreteRange;
 import org.cytoscape.view.model.Range;
 import org.cytoscape.view.model.VisualLexicon;
@@ -112,6 +114,51 @@ public class VisualPropertyService {
         } else {
             return String.valueOf(value);
         }
+    }
+
+    /**
+     * Returns an alphabetically sorted list of display-name strings for discrete-typed visual
+     * properties (NodeShape, ArrowShape, LineType). Returns null for non-discrete properties so the
+     * key is absent from JSON with @JsonInclude(NON_NULL).
+     */
+    public List<String> getAllowedValues(VisualProperty<?> vp) {
+        Range<?> range = vp.getRange();
+        if (range == null || !range.isDiscrete()) return null;
+        DiscreteRange<?> discreteRange = (DiscreteRange<?>) range;
+        return discreteRange.values().stream()
+                .map(
+                        v ->
+                                v instanceof VisualPropertyValue
+                                        ? ((VisualPropertyValue) v).getDisplayName()
+                                        : String.valueOf(v))
+                .sorted()
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns the minimum value for a continuous numeric range, or null if the property is discrete
+     * or non-numeric. Used to inform LLMs of valid value bounds.
+     */
+    public String getRangeMin(VisualProperty<?> vp) {
+        Range<?> range = vp.getRange();
+        if (range == null || range.isDiscrete() || !(range instanceof ContinuousRange)) return null;
+        ContinuousRange<?> cr = (ContinuousRange<?>) range;
+        if (!Number.class.isAssignableFrom(cr.getType())) return null;
+        Object min = cr.getMin();
+        return min != null ? String.valueOf(min) : null;
+    }
+
+    /**
+     * Returns the maximum value for a continuous numeric range, or null if the property is discrete
+     * or non-numeric. Used to inform LLMs of valid value bounds.
+     */
+    public String getRangeMax(VisualProperty<?> vp) {
+        Range<?> range = vp.getRange();
+        if (range == null || range.isDiscrete() || !(range instanceof ContinuousRange)) return null;
+        ContinuousRange<?> cr = (ContinuousRange<?>) range;
+        if (!Number.class.isAssignableFrom(cr.getType())) return null;
+        Object max = cr.getMax();
+        return max != null ? String.valueOf(max) : null;
     }
 
     /**

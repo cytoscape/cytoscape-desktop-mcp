@@ -39,6 +39,14 @@ Example 4 — Load network into cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
+    "excel_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
+    },
+    "interaction_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
+    },
     "node_attributes_sheet_target_key_column" : {
       "type" : "string",
       "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
@@ -93,14 +101,6 @@ Example 4 — Load network into cytoscape desktop:
       "items" : {
         "type" : "string"
       }
-    },
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
-    },
-    "interaction_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
     }
   },
   "required" : [ "source" ]
@@ -243,13 +243,13 @@ Example 3 — Focus Cytoscape desktop on a particular network before applying st
 {
   "type" : "object",
   "properties" : {
-    "network_suid" : {
-      "type" : "integer",
-      "description" : "Required. SUID of the target network in Cytoscape Desktop."
-    },
     "view_suid" : {
       "type" : "integer",
       "description" : "Required. SUID of the target network view in Cytoscape Desktop."
+    },
+    "network_suid" : {
+      "type" : "integer",
+      "description" : "Required. SUID of the target network in Cytoscape Desktop."
     }
   },
   "required" : [ "network_suid", "view_suid" ]
@@ -311,13 +311,13 @@ Example 4 — Force create a new view in Cytoscape desktop even though one alrea
 {
   "type" : "object",
   "properties" : {
-    "network_suid" : {
-      "type" : "integer",
-      "description" : "Required. SUID of the network in Cytoscape Desktop that needs a view."
-    },
     "create_if_exists" : {
       "type" : "boolean",
       "description" : "Optional. Default is false. When false and a view already exists, returns the existing current view (or first available) without creating a duplicate. When true, always creates a new view even if views already exist."
+    },
+    "network_suid" : {
+      "type" : "integer",
+      "description" : "Required. SUID of the network in Cytoscape Desktop that needs a view."
     }
   },
   "required" : [ "network_suid" ]
@@ -455,14 +455,6 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
-    },
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
-    },
     "file_path" : {
       "type" : "string",
       "description" : "Required. Absolute path to the tabular file."
@@ -470,6 +462,14 @@ Inspect the file first to determine input params as needed.
     "excel_sheet" : {
       "type" : "string",
       "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
+    },
+    "delimiter_char_code" : {
+      "type" : "integer",
+      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
+    },
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
     }
   },
   "required" : [ "file_path", "use_header_row" ]
@@ -667,7 +667,7 @@ Example 4 — Apply a layout to the current network view in Cytoscape desktop:
   "properties" : {
     "algorithm" : {
       "type" : "string",
-      "description" : "Required. Internal layout algorithm name to apply. Each algorithm has a 'name' (machine identifier) and a 'displayName' (human-readable label). Supply the 'name' value, not 'displayName'. Determine the layout name by choosing from list all layout algorithms available in Cytoscape Desktop ."
+      "description" : "Required. Internal layout algorithm name to apply. Each algorithm has a 'name' (machine identifier) and a 'displayName' (human-readable label). Supply the 'name' value, not 'displayName'. Determine the layout name by choosing from list of all layout algorithms available in Cytoscape Desktop ."
     }
   },
   "required" : [ "algorithm" ]
@@ -692,6 +692,130 @@ Example 4 — Apply a layout to the current network view in Cytoscape desktop:
     "status" : {
       "type" : "string",
       "description" : "Result status, e.g. 'success'."
+    }
+  }
+}
+```
+
+---
+
+### `get_visual_style_defaults`
+
+**Title:** Get Cytoscape Desktop Style Defaults
+
+**Description:** Get the current default values for all node and edge visual properties in the active visual style on the current network view in Cytoscape Desktop. Use when you need to inspect visual property defaults before modifying them. Returns property IDs, display names, value types, current values, allowed values for discrete types (shapes, arrows, line types), valid range bounds for numeric types, and visual property dependency (lock) relationships. Operates on the current desktop state — the result reflects whichever network view is currently selected. Read-only; does not modify state.
+
+## Examples
+
+Example 1 — Inspect the visual style defaults for the current network view:
+{}
+
+Example 2 — What are the default node and edge colors in the active style:
+{}
+
+Example 3 — Show me the current visual property defaults in Cytoscape:
+{}
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : { },
+  "required" : [ ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$defs" : {
+    "VisualPropertyEntry" : {
+      "type" : "object",
+      "properties" : {
+        "allowedValues" : {
+          "description" : "Alphabetically sorted valid values. Present only for discrete types (NodeShape, ArrowShape, LineType).",
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "currentValue" : {
+          "type" : "string",
+          "description" : "Current default value formatted as a string."
+        },
+        "displayName" : {
+          "type" : "string",
+          "description" : "Human-readable display name."
+        },
+        "id" : {
+          "type" : "string",
+          "description" : "Visual property ID string (e.g. NODE_FILL_COLOR)."
+        },
+        "maxValue" : {
+          "type" : "string",
+          "description" : "Maximum valid value. Present only for continuous numeric types (Double, Integer)."
+        },
+        "minValue" : {
+          "type" : "string",
+          "description" : "Minimum valid value. Present only for continuous numeric types (Double, Integer)."
+        },
+        "valueType" : {
+          "type" : "string",
+          "description" : "Value type: Paint, Double, Integer, NodeShape, ArrowShape, LineType, Font, String, or Boolean."
+        }
+      }
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "dependencies" : {
+      "description" : "Visual property dependencies (lock relationships). When enabled, changing one property in the group affects all others.",
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string",
+            "description" : "Human-readable dependency name (e.g. 'Lock node width and height')."
+          },
+          "enabled" : {
+            "type" : "boolean",
+            "description" : "Whether this dependency is currently enabled."
+          },
+          "id" : {
+            "type" : "string",
+            "description" : "Dependency ID string (e.g. 'nodeSizeLocked')."
+          },
+          "properties" : {
+            "description" : "Visual property IDs that are linked by this dependency.",
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      }
+    },
+    "edge_properties" : {
+      "description" : "Edge visual property defaults.",
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/$defs/VisualPropertyEntry"
+      }
+    },
+    "node_properties" : {
+      "description" : "Node visual property defaults.",
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/$defs/VisualPropertyEntry"
+      }
+    },
+    "style_name" : {
+      "type" : "string",
+      "description" : "Name of the active visual style."
     }
   }
 }

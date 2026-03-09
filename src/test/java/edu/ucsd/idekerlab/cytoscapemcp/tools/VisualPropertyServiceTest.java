@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Paint;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.junit.Test;
@@ -406,5 +407,89 @@ public class VisualPropertyServiceTest {
     public void roundTrip_double() {
         Double parsed = (Double) service.parseValue(BasicVisualLexicon.NODE_SIZE, 42.5);
         assertEquals("42.5", service.formatValue(parsed));
+    }
+
+    // ---- getAllowedValues ----
+
+    @Test
+    public void getAllowedValues_nodeShape_returnsSortedDisplayNames() {
+        List<String> values = service.getAllowedValues(BasicVisualLexicon.NODE_SHAPE);
+        assertNotNull(values);
+        assertFalse(values.isEmpty());
+        assertTrue("Should contain Ellipse", values.contains("Ellipse"));
+        assertTrue("Should contain Diamond", values.contains("Diamond"));
+        // Verify sorted
+        List<String> sorted = new java.util.ArrayList<>(values);
+        java.util.Collections.sort(sorted);
+        assertEquals("Values should be alphabetically sorted", sorted, values);
+    }
+
+    @Test
+    public void getAllowedValues_arrowShape_returnsSortedDisplayNames() {
+        List<String> values = service.getAllowedValues(BasicVisualLexicon.EDGE_TARGET_ARROW_SHAPE);
+        assertNotNull(values);
+        assertFalse(values.isEmpty());
+        // Verify sorted
+        List<String> sorted = new java.util.ArrayList<>(values);
+        java.util.Collections.sort(sorted);
+        assertEquals("Values should be alphabetically sorted", sorted, values);
+    }
+
+    @Test
+    public void getAllowedValues_lineType_returnsSortedDisplayNames() {
+        List<String> values = service.getAllowedValues(BasicVisualLexicon.EDGE_LINE_TYPE);
+        assertNotNull(values);
+        assertFalse(values.isEmpty());
+        // Verify sorted
+        List<String> sorted = new java.util.ArrayList<>(values);
+        java.util.Collections.sort(sorted);
+        assertEquals("Values should be alphabetically sorted", sorted, values);
+    }
+
+    @Test
+    public void getAllowedValues_paintProperty_returnsNull() {
+        assertNull(service.getAllowedValues(BasicVisualLexicon.NODE_FILL_COLOR));
+    }
+
+    @Test
+    public void getAllowedValues_doubleProperty_returnsNull() {
+        assertNull(service.getAllowedValues(BasicVisualLexicon.NODE_SIZE));
+    }
+
+    @Test
+    public void getAllowedValues_integerProperty_returnsNull() {
+        assertNull(service.getAllowedValues(BasicVisualLexicon.NODE_TRANSPARENCY));
+    }
+
+    // ---- getRangeMin / getRangeMax ----
+
+    @Test
+    public void getRangeMin_transparency_returnsZero() {
+        assertEquals("0", service.getRangeMin(BasicVisualLexicon.NODE_TRANSPARENCY));
+    }
+
+    @Test
+    public void getRangeMax_transparency_returns255() {
+        assertEquals("255", service.getRangeMax(BasicVisualLexicon.NODE_TRANSPARENCY));
+    }
+
+    @Test
+    public void getRangeMin_nodeSize_returnsZero() {
+        assertEquals("0.0", service.getRangeMin(BasicVisualLexicon.NODE_SIZE));
+    }
+
+    @Test
+    public void getRangeMin_discreteType_returnsNull() {
+        assertNull(service.getRangeMin(BasicVisualLexicon.NODE_SHAPE));
+    }
+
+    @Test
+    public void getRangeMax_discreteType_returnsNull() {
+        assertNull(service.getRangeMax(BasicVisualLexicon.NODE_SHAPE));
+    }
+
+    @Test
+    public void getRangeMin_paintType_returnsNull() {
+        assertNull(service.getRangeMin(BasicVisualLexicon.NODE_FILL_COLOR));
     }
 }
