@@ -106,61 +106,33 @@ docs/harness/product-specs/
 ```
 
 ## MCP Meta Descriptions 
-General rule of thumb for all mcp tool development is to remember that the tool through it's input/output and error/success responses and meta documentation needs to provide all info possible so that llm's can reason proprely to compose dynamic sequence of the desktop mcp tools as building blocks to dynamically complete larger flows that a user asks for.  But to this end each tool is encapsulated unto itself, it does not depend on or ever directly reference any other tool through meta description or code.
+First-class concern for every MCP tool is to remember that the tool must be self-describing and should leverage the MCP protocol mechanism of meta descriptions of the tool itself, input/output parameters and error/success response models to their fullest. 
 
-Research Summary: Consensus on 
-Tool Meta Best Practices                                                                                                                                                                │
+Take it as opportunity to provide as much salient and semantic description of the tool and its behavior as possible so that llm's can reason proprely to compose the tool into dynamic sequences of interacting with cytoscape desktop mcp tools as a whole of building blocks to complete larger unstructured flows that a user asks.  
 
-│                                                                                                                                                                                                            │
-│ Sources: https://modelcontextprotocol.io/docs/concepts/tools, https://arxiv.org/html/2602.14878v1, https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1382,                               │
-│ https://modelcontextprotocol.info/docs/tutorials/writing-effective-tools/, https://www.arsturn.com/blog/maximizing-your-mcp-experience-tips-for-effective-tool-descriptions                                │
-│                                                                                                                                                                                                            │
-│ Guidelines                                                                                                                                                                                                 │
-│                                                                                                                                                                                                            │
-│ ┌─────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────┬───────────────────┐  │
-│ │  #  │                                                                          Guideline                                                                           │  Applies to  │      Source       │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ G1  │ Lead with an imperative verb — one concise sentence for what the tool does                                                                                   │ Tool         │ MCP Spec,         │  │
-│ │     │                                                                                                                                                              │ description  │ SEP-1382          │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ G2  │ High-level purpose only in tool description — avoid parameter names, return-schema fields, implementation internals                                          │ Tool         │ SEP-1382          │  │
-│ │     │                                                                                                                                                              │ description  │                   │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ G3  │ Include activation criteria — "when to use" hint for tool selection                                                                                          │ Tool         │ arxiv, Arsturn    │  │
-│ │     │                                                                                                                                                              │ description  │                   │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ G4  │ State key side-effects — read-only vs. mutating, what gets created/changed                                                                                   │ Tool         │ arxiv             │  │
-│ │     │                                                                                                                                                              │ description  │                   │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ G5  │ 2–3 sentences for tool description                                                                                                                           │ Tool         │ arxiv, SEP-1382   │  │
-│ │     │                                                                                                                                                              │ description  │                   │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ G6  │ Consistent voice — imperative-declarative across all tools                                                                                                   │ Tool         │ Arsturn           │  │
-│ │     │                                                                                                                                                              │ description  │                   │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ G7  │ No parameter names in tool description — those belong in schema descriptions                                                                                 │ Tool         │ SEP-1382          │  │
-│ │     │                                                                                                                                                              │ description  │                   │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ P1  │ Every output field needs a @JsonPropertyDescription — LLMs use these to interpret results and reason about next steps                                        │ Output       │ SEP-1382, Writing │  │
-│ │     │                                                                                                                                                              │ params       │  Effective Tools  │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ P2  │ Conditional dependencies must be explicit — "Required when X. Ignored when Y." pattern helps LLMs reason about which params to populate                      │ Input params │ Writing Effective │  │
-│ │     │                                                                                                                                                              │              │  Tools            │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ P3  │ Consistent Required/Optional prefix — start each param description with "Required." or "Optional." for quick LLM scanning                                    │ Input params │ Arsturn           │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ P4  │ Avoid prompt-engineering in schema descriptions — descriptions like "this is the most important parameter" are subjective directives, not documentation      │ Input params │ SEP-1382          │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ P5  │ Fix typos — LLMs may misinterpret misspelled terms                                                                                                           │ All          │ General           │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │     │ Conditionally-required params use "Optional." prefix — JSON Schema required only supports unconditional requirements. Params that are required only under    │              │                   │  │
-│ │ P6  │ certain conditions (e.g. file_path required when source='network-file') must NOT be in .required() (which would reject all calls missing them). Instead, use │ Input params │ JSON Schema spec  │  │
-│ │     │  description prefix "Optional." followed by the conditional: "Required when source='tabular-file'." This is the correct pattern — the .required() list and   │              │ + MCP convention  │  │
-│ │     │ descriptions must agree.                                                                                                                                     │              │                   │  │
-│ ├─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────┼───────────────────┤  │
-│ │ P7  │ Description prefix must match .required() list — if a param is in .required(), its description must start with "Required." If not in .required(), it must    │ Input params │ Consistency audit │  │
-│ │     │ start with "Optional." even if conditionally required.                                                                                                       │              │                   │  │
-│ └─────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴──────────────┴───────────────────┘  │
-│                                              
+To this end each tool is encapsulated unto itself and it does not depend on or reference any other tool by name in any of the meta descriptions or code. Rather it's encouraged to reference other general functionality in descriptions for context as that creates a semenatic web across tools but not by tool name, that allows the LLM to reason and activate tools when they are functionally needed.
+
+Research Summary: Consensus on Tool Meta Best Practices
+
+Sources: https://modelcontextprotocol.io/docs/concepts/tools, https://arxiv.org/html/2602.14878v1, https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1382, https://modelcontextprotocol.info/docs/tutorials/writing-effective-tools/, https://www.arsturn.com/blog/maximizing-your-mcp-experience-tips-for-effective-tool-descriptions
+
+### Guidelines
+
+| # | Guideline | Applies to | Source |
+|---|-----------|------------|--------|
+| G1 | Lead with an imperative verb — one concise sentence for what the tool does | Tool description | MCP Spec, SEP-1382 |
+| G2 | High-level purpose only in tool description — avoid parameter names, return-schema fields, implementation internals | Tool description | SEP-1382 |
+| G3 | Include activation criteria — "when to use" hint for tool selection | Tool description | arxiv, Arsturn |
+| G4 | State key side-effects — read-only vs. mutating, what gets created/changed | Tool description | arxiv |
+| G5 | 2–3 sentences for tool description | Tool description | arxiv, SEP-1382 |
+| G6 | Consistent voice — imperative-declarative across all tools | Tool description | Arsturn |
+| G7 | No parameter names in tool description — those belong in schema descriptions | Tool description | SEP-1382 |
+| P1 | Every output field needs a `@JsonPropertyDescription` — LLMs use these to interpret results and reason about next steps | Output params | SEP-1382, Writing Effective Tools |
+| P2 | Conditional dependencies must be explicit — "Required when X. Ignored when Y." pattern helps LLMs reason about which params to populate | Input params | Writing Effective Tools |
+| P3 | Consistent Required/Optional prefix — start each param description with "Required." or "Optional." for quick LLM scanning | Input params | Arsturn |
+| P4 | Avoid prompt-engineering in schema descriptions — descriptions like "this is the most important parameter" are subjective directives, not documentation | Input params | SEP-1382 |
+| P5 | Fix typos — LLMs may misinterpret misspelled terms | All | General |
+| P6 | Conditionally-required params use "Optional." prefix — JSON Schema `required` only supports unconditional requirements. Params required only under certain conditions must NOT be in `.required()`. Instead, use description prefix "Optional." followed by the conditional: "Required when source='tabular-file'." The `.required()` list and descriptions must agree. | Input params | JSON Schema spec + MCP convention |
+| P7 | Description prefix must match `.required()` list — if a param is in `.required()`, its description must start with "Required." If not in `.required()`, it must start with "Optional." even if conditionally required. | Input params | Consistency audit |
 
 
