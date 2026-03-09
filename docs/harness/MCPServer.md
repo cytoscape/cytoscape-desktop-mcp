@@ -110,6 +110,10 @@ First-class concern for every MCP tool is to remember that the tool must be self
 
 Take it as opportunity to provide as much salient and semantic description of the tool and its behavior as possible so that llm's can reason proprely to compose the tool into dynamic sequences of interacting with cytoscape desktop mcp tools as a whole of building blocks to complete larger unstructured flows that a user asks.  
 
+Specifically for the Tool description, two sections are encouraged:  
+* First section - 2-3 sentences describing functionality the tool provides.
+* Second section - separated by two line breaks. Provide at least 3 to 4 agent prompt examples that shold trigger activation by an LLM of this tool. Each example shows the prompt snippet and the example input params if applicable that LLM woud have populated as well when requesting invocation. Refer to other tools in project for examples.
+
 To this end each tool is encapsulated unto itself and it does not depend on or reference any other tool by name in any of the meta descriptions or code. Rather it's encouraged to reference other general functionality in descriptions for context as that creates a semenatic web across tools but not by tool name, that allows the LLM to reason and activate tools when they are functionally needed.
 
 Research Summary: Consensus on Tool Meta Best Practices
