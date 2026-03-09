@@ -40,7 +40,7 @@ install: clean
 
 install-release:
 	@if [ -z "$(VERSION)" ]; then echo "Error: VERSION is required. Usage: make install-release VERSION=1.2.3"; exit 1; fi
-	$(GRADLEW) clean jar -Pversion=$(VERSION)
+	$(GRADLEW) clean jar -PreleaseVersion=$(VERSION)
 
 updateversion:
 	@echo "Edit the 'version' property in build.gradle directly."
