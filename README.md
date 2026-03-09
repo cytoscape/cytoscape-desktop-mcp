@@ -78,13 +78,21 @@ After startup, the MCP status can be viewed via the [MCP button](#mcp-toolbar-bu
 See [docs/AgentConfiguration.md](docs/AgentConfiguration.md) for step-by-step setup instructions for Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
 
 ### Cytoscape Desktop MCP Diagnostics
-* Most agents will have a `/mcp` command or UI settings panel which will show list of tools currently published by this server.
-* Use external MCP introspection tools against the Desktop MCP server running at `<CyRest Url>/mcp` to validate or view current tools catalog - [modelcontextprotocol/inspector](https://github.com/modelcontextprotocol/inspector?tab=readme-ov-file#running-the-inspector)
+* Most agents will have a `/mcp` command or UI settings panel which will show status of connection to the MCP server and a list of tools currently published by this server, check to see if it is denoted as 'connected'.
+* Check the MCP health endpoint  
+  ```bash
+  curl http://localhost:{rest.port}/mcp/health
+  ```
+  Replace `{rest.port}` with Cytoscape's CyREST port (shown in the Agent Configuration dialog). You should see `{"status":"ok","transport":"mcp-streamable-http"}`. A "connection refused" error means Cytoscape is not running or the port is wrong.
+* Use external MCP introspection tools against the Desktop MCP server running at `http://localhost:{rest.port}/mcp` to validate or view current tools catalog - [modelcontextprotocol/inspector](https://github.com/modelcontextprotocol/inspector?tab=readme-ov-file#running-the-inspector)
 
 
 ## Cytoscape Desktop MCP Tool Catalog
 The MCP server provides a human-readable catalog of every tool registered on the server formatted as Markdown with complete MCP Protocol JSON schema definitions for each tool's input and output. You can obtain the catalog through multiple options:
-*  When the app is loaded in Desktop, at runtime the MCP server exposes `GET <CyRest Url>/mcp/manifest` endpoint. 
+*  When the app is loaded in Desktop, at runtime the MCP server exposes `<CyRest Url>/mcp/manifest` endpoint which can be retrieved by browser or command line
+  ```bash
+  curl http://localhost:{rest.port}/mcp/manifest
+  ```
 * After any build locally, `make build` will generate the MCP manifest based on current code into a static file at `build/generated/manifest/MCPManifest.md` for same review.
 * Static copy of the catalog is also stored in repo at [MCPManifest.md](./MCPManifest.md)
 
@@ -92,9 +100,9 @@ The MCP server provides a human-readable catalog of every tool registered on the
 Invoking the tools requires some prompt engineering to provide key words or phrases which will activate the LLM to choose usage of a tool. Check out [MCPManifest.md](./MCPManifest.md) which contains 3 to 4 examples of Prompt snippets on each tool's description as reference of how to trigger LLM activation. 
 
 * an example of a simple prompt which will lead the LLM to reason over the available tools as a whole and orchestrate their usage as building blocks into a sequence to reach the requested end result:
-```
- > analyze a network in cytoscape desktop 
-```
+  ```
+   > analyze a network in cytoscape desktop 
+  ```
 
 
 ## Cytoscape Desktop MCP Configuration properties

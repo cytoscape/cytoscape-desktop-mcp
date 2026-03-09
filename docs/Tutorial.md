@@ -30,40 +30,24 @@ Replace `{rest.port}` with the CyREST port shown in the Agent Configuration dial
 
 ## Step 2: Connect Agent
 
-Click the **MCP** button in the bottom-left corner of Cytoscape to open the Agent Configuration dialog. It shows the current MCP endpoint URL and step-by-step instructions for your specific agent.
-
-Alternatively, follow the setup steps in **[AgentConfiguration.md](AgentConfiguration.md)**. Once connected, you should see the Cytoscape MCP tools available in your agent's tool list.
+Click the **MCP** button in the bottom-left corner of Cytoscape to open the Agent Configuration dialog. It shows the current MCP endpoint URL and step-by-step instructions for your most agents.
 
 ---
 
-## Step 3: Find a Network UUID on NDEx
+## Step 3: Use the tools from Agent
 
-1. Go to [https://www.ndexbio.org](https://www.ndexbio.org).
-2. Search for a network of interest (e.g. "STRING human").
-3. Click on a result to open its detail page.
-4. Copy the UUID from the URL — it looks like:
-   ```
-   https://www.ndexbio.org/viewer/networks/a7e43e3d-c7f8-11ec-8d17-005056ae23aa
-   ```
-   The UUID is `a7e43e3d-c7f8-11ec-8d17-005056ae23aa`.
+Invoking the MCP tools requires some prompt engineering to provide key words or phrases which will activate the LLM to choose usage of a tool. Check out [MCPManifest.md](https://github.com/cytoscape/cytoscape-desktop-mcp/blob/main/MCPManifest.md) which contains 3 to 4 examples of Prompt snippets on each tool's description as reference of how to trigger LLM activation. 
+
+* an example of a simple prompt which will lead the LLM to reason over the available tools as a whole and orchestrate their usage as building blocks into a sequence to reach the requested end result:
+```
+ > analyze a network in cytoscape desktop 
+```
 
 ---
 
-## Step 4: Load the Network into Cytoscape Desktop via Agent
+## Step 4: Verify in Cytoscape
 
-In Agent, type a prompt like:
-
-> "Load the network with NDEx ID a7e43e3d-c7f8-11ec-8d17-005056ae23aa into Cytoscape."
-
-Agent will call the `load_cytoscape_network_view` MCP tool published by Cytoscape Desktop. Within a few seconds the network should appear in Cytoscape Desktop as the active network view.
-
----
-
-## Step 5: Verify in Cytoscape
-
-Switch to Cytoscape Desktop. The loaded network should be visible in the **Network** panel and rendered in the main canvas. The network name typically matches what is stored in NDEx.
-
-To confirm the tool call was recorded, open **View > Show Task History** — you should see a `load_cytoscape_network_view` entry with a timestamp.
+Switch to Cytoscape Desktop. The loaded network should be visible in the **Network** panel and rendered in the main canvas. 
 
 ---
 
@@ -76,8 +60,7 @@ If you are using a custom NDEx instance, update the base URL via **Edit > Prefer
 ## What's Next?
 
 Explore the other available tools — ask your agent to:
-- List all networks currently loaded in Cytoscape
-- Switch the active network view to a different network
-- Create a new view for a network that has no view
+- List all networks loaded in Cytoscape desktop
+- Change the active network view to a different network
+- Apply a different layout in Cytoscaep desktop
 
-Additional tools can be added by extending the app. See `src/main/java/edu/ucsd/idekerlab/cytoscapemcp/tools/` for the implementation pattern.

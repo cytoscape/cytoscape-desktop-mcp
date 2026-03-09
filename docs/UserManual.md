@@ -52,62 +52,16 @@ Changes to `mcp.ndexbaseurl` take effect immediately (tool calls read it at invo
 ---
 
 ## Available MCP Tools
-
-### `load_cytoscape_network_view`
-
-Loads a network into Cytoscape Desktop from NDEx (by UUID), a network-format file, or a tabular data file, and sets it as the current active network view.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `network-id` | string | Yes | NDEx UUID, file path, or URL of the network to load |
-
-**Returns:** Confirmation with the loaded network name, or an error description.
-
----
-
-### `get_loaded_network_views`
-
-Returns all networks and views currently loaded in Cytoscape.
-
-**Returns:** A list of network names, network SUIDs, and their associated view SUIDs.
-
----
-
-### `set_current_network_view`
-
-Sets the active network view in Cytoscape by network or view ID.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `network-suid` | string | No | SUID of the network to activate |
-| `view-suid` | string | No | SUID of the specific view to activate |
-
----
-
-### `create_network_view`
-
-Creates a new view for an existing network that currently has no view.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `network-suid` | string | Yes | SUID of the network to create a view for |
+Check out [MCPManifest.md](https://github.com/cytoscape/cytoscape-desktop-mcp/blob/main/MCPManifest.md). It provides a catalog of all MCP Tools currently available. Each tool also contains 3 to 4 examples of Prompt snippets on each tool's description as reference of how to trigger LLM activation of the tool. 
 
 ---
 
 ## Connecting an AI Agent
 
-See **[AgentConfiguration.md](AgentConfiguration.md)** for step-by-step setup instructions covering Claude Desktop, Claude Code, GitHub Copilot (VS Code), GitHub Copilot CLI, and OpenAI Codex CLI.
+Click the **MCP** button in the bottom-left corner of Cytoscape to open the Agent Configuration dialog. It shows the current MCP endpoint URL and step-by-step instructions for your most agents.
 
 ---
 
 ## Troubleshooting
 
-**MCP button is red:** The MCP server had a startup failure or sever runtime failure. Run `curl http://localhost:{rest.port}/mcp/health` to confirm.
-
-**App does not appear in Preferences:** Confirm the JAR was installed through App Manager and Cytoscape was restarted.
+Follow [Desktop MCP diagnostic steps and tools](https://github.com/cytoscape/cytoscape-desktop-mcp?tab=readme-ov-file#cytoscape-desktop-mcp-diagnostics).
