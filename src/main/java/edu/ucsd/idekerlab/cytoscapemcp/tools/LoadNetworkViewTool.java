@@ -88,9 +88,11 @@ public class LoadNetworkViewTool {
     private static final String TOOL_TITLE = "Load Cytoscape Desktop Network";
 
     private static final String TOOL_DESCRIPTION =
-            "Load a network into Cytoscape Desktop from one of multiple sources such as NDEx (by Network Id), a network formatted file,"
-                    + " or a tabular formatted file with column mapping. Creates a new network root as a new collection"
-                    + " and view, and sets it as the current network on Cytoscape Desktop.";
+            "Create a new instance of a network as a collection(includes the network as root and a view) on Cytoscape Desktop. The network instance will be created from one of multiple data sources: NDEx (by Network Id), a network formatted file,"
+                    + " or a tabular formatted file with column mapping. Sets the new network collection instance and view as the current network view on desktop. "
+                    + " Use this whenever a new instance of a network is needed on the desktop. The same nettwork can be laoded as multiple collection instances and is allowed. "
+                    + " There may be other instances of the network loaded on the desktop but that is not of concern for this invocation. This tool will always create a new network collection instance regardless. "
+                    + " To use this tool most effectively, focus on determining the data source from which the new network instance shall be loaded first and foremost.";
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
@@ -105,8 +107,8 @@ public class LoadNetworkViewTool {
                     + " \"/path/to/data.csv\", \"source_column\": \"Gene_A\","
                     + " \"target_column\": \"Gene_B\", \"delimiter_char_code\": 44,"
                     + " \"use_header_row\": true}\"}\n\n"
-                    + "Example 4 — Load network into cytoscape desktop:\n"
-                    + "{\"source\": \"determine the source first to figure out rest of input params\"}\n\n";
+                    + "Example 4 — open network on cytoscape desktop:\n"
+                    + "{\"source\": \"determine the source such as ndex, or local file(network or tabular) first, then figure out rest of related input params\"}\n\n";
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(
@@ -116,8 +118,8 @@ public class LoadNetworkViewTool {
                                     "source",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Required. Determines which import path to use — the"
-                                                    + " remaining parameters depend on this value."
+                                            "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the"
+                                                    + " remaining input parameters depend on this value."
                                                     + " Must be one of: 'ndex' (load from NDEx by"
                                                     + " Network ID as UUID), 'network-file' (load a native network"
                                                     + " format file such as SIF, GML, XGMML, CX,"

@@ -58,7 +58,7 @@ public class AnalyzeNetworkTool {
     private static final String TOOL_DESCRIPTION =
             "Compute topological statistics (degree, betweenness centrality, closeness centrality)"
                     + " for the current network. Adds computed values as new columns to the node and"
-                    + " edge tables.";
+                    + " edge tables. Returns an error if no network is loaded and set to curent view on desktop.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

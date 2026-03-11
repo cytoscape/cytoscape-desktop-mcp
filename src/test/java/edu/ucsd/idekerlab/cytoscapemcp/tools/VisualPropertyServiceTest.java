@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Paint;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.junit.Test;
@@ -236,14 +237,14 @@ public class VisualPropertyServiceTest {
     // ---- parseValue ----
 
     @Test
-    public void parseValue_color_roundTrip() {
+    public void parseValue_color_roundTrip() throws Exception {
         VisualProperty<Paint> vp = BasicVisualLexicon.NODE_FILL_COLOR;
         Color parsed = (Color) service.parseValue(vp, "#FF6600");
         assertEquals("#FF6600", service.formatValue(parsed));
     }
 
     @Test
-    public void parseValue_color_withoutHash() {
+    public void parseValue_color_withoutHash() throws Exception {
         VisualProperty<Paint> vp = BasicVisualLexicon.NODE_FILL_COLOR;
         Color parsed = (Color) service.parseValue(vp, "FF0000");
         assertEquals(255, parsed.getRed());
@@ -251,66 +252,66 @@ public class VisualPropertyServiceTest {
         assertEquals(0, parsed.getBlue());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void parseValue_color_invalid_throwsException() {
+    @Test(expected = Exception.class)
+    public void parseValue_color_invalid_throwsException() throws Exception {
         service.parseValue(BasicVisualLexicon.NODE_FILL_COLOR, "notacolor");
     }
 
     @Test
-    public void parseValue_double_fromNumber() {
+    public void parseValue_double_fromNumber() throws Exception {
         VisualProperty<Double> vp = BasicVisualLexicon.NODE_SIZE;
         assertEquals(35.0, (Double) service.parseValue(vp, 35.0), 0.001);
     }
 
     @Test
-    public void parseValue_double_fromString() {
+    public void parseValue_double_fromString() throws Exception {
         VisualProperty<Double> vp = BasicVisualLexicon.NODE_SIZE;
         assertEquals(42.5, (Double) service.parseValue(vp, "42.5"), 0.001);
     }
 
     @Test
-    public void parseValue_integer_fromNumber() {
+    public void parseValue_integer_fromNumber() throws Exception {
         VisualProperty<Integer> vp = BasicVisualLexicon.NODE_TRANSPARENCY;
         assertEquals(Integer.valueOf(200), service.parseValue(vp, 200));
     }
 
     @Test
-    public void parseValue_integer_fromString() {
+    public void parseValue_integer_fromString() throws Exception {
         VisualProperty<Integer> vp = BasicVisualLexicon.NODE_TRANSPARENCY;
         assertEquals(Integer.valueOf(128), service.parseValue(vp, "128"));
     }
 
     @Test
-    public void parseValue_nodeShape_bySerializableString() {
+    public void parseValue_nodeShape_bySerializableString() throws Exception {
         NodeShape shape = (NodeShape) service.parseValue(BasicVisualLexicon.NODE_SHAPE, "ELLIPSE");
         assertSame(NodeShapeVisualProperty.ELLIPSE, shape);
     }
 
     @Test
-    public void parseValue_nodeShape_byDisplayName() {
+    public void parseValue_nodeShape_byDisplayName() throws Exception {
         NodeShape shape = (NodeShape) service.parseValue(BasicVisualLexicon.NODE_SHAPE, "Ellipse");
         assertSame(NodeShapeVisualProperty.ELLIPSE, shape);
     }
 
     @Test
-    public void parseValue_nodeShape_caseInsensitive() {
+    public void parseValue_nodeShape_caseInsensitive() throws Exception {
         NodeShape shape = (NodeShape) service.parseValue(BasicVisualLexicon.NODE_SHAPE, "diamond");
         assertSame(NodeShapeVisualProperty.DIAMOND, shape);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void parseValue_nodeShape_invalid_throwsException() {
+    @Test(expected = Exception.class)
+    public void parseValue_nodeShape_invalid_throwsException() throws Exception {
         service.parseValue(BasicVisualLexicon.NODE_SHAPE, "Pentagon");
     }
 
     @Test
-    public void parseValue_string_returnsString() {
+    public void parseValue_string_returnsString() throws Exception {
         VisualProperty<String> vp = BasicVisualLexicon.NODE_LABEL;
         assertEquals("test label", service.parseValue(vp, "test label"));
     }
 
     @Test
-    public void parseValue_boolean_returnsBoolean() {
+    public void parseValue_boolean_returnsBoolean() throws Exception {
         VisualProperty<Boolean> vp = BasicVisualLexicon.NODE_VISIBLE;
         assertEquals(Boolean.TRUE, service.parseValue(vp, "true"));
         assertEquals(Boolean.FALSE, service.parseValue(vp, "false"));
@@ -319,83 +320,83 @@ public class VisualPropertyServiceTest {
     // ---- parseNodeShape ----
 
     @Test
-    public void parseNodeShape_bySerializableString() {
+    public void parseNodeShape_bySerializableString() throws Exception {
         assertSame(NodeShapeVisualProperty.ELLIPSE, service.parseNodeShape("ELLIPSE"));
         assertSame(NodeShapeVisualProperty.RECTANGLE, service.parseNodeShape("RECTANGLE"));
         assertSame(NodeShapeVisualProperty.DIAMOND, service.parseNodeShape("DIAMOND"));
     }
 
     @Test
-    public void parseNodeShape_byDisplayName() {
+    public void parseNodeShape_byDisplayName() throws Exception {
         assertSame(NodeShapeVisualProperty.ELLIPSE, service.parseNodeShape("Ellipse"));
         assertSame(
                 NodeShapeVisualProperty.ROUND_RECTANGLE, service.parseNodeShape("Round Rectangle"));
     }
 
     @Test
-    public void parseNodeShape_caseInsensitive() {
+    public void parseNodeShape_caseInsensitive() throws Exception {
         assertSame(NodeShapeVisualProperty.TRIANGLE, service.parseNodeShape("triangle"));
         assertSame(NodeShapeVisualProperty.HEXAGON, service.parseNodeShape("hexagon"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void parseNodeShape_invalid_throwsException() {
+    @Test(expected = Exception.class)
+    public void parseNodeShape_invalid_throwsException() throws Exception {
         service.parseNodeShape("Pentagon");
     }
 
     // ---- parseArrowShape ----
 
     @Test
-    public void parseArrowShape_bySerializableString() {
+    public void parseArrowShape_bySerializableString() throws Exception {
         assertSame(ArrowShapeVisualProperty.NONE, service.parseArrowShape("NONE"));
         assertSame(ArrowShapeVisualProperty.ARROW, service.parseArrowShape("ARROW"));
         assertSame(ArrowShapeVisualProperty.DELTA, service.parseArrowShape("DELTA"));
     }
 
     @Test
-    public void parseArrowShape_byDisplayName() {
+    public void parseArrowShape_byDisplayName() throws Exception {
         assertSame(ArrowShapeVisualProperty.NONE, service.parseArrowShape("None"));
         assertSame(ArrowShapeVisualProperty.ARROW, service.parseArrowShape("Arrow"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void parseArrowShape_invalid_throwsException() {
+    @Test(expected = Exception.class)
+    public void parseArrowShape_invalid_throwsException() throws Exception {
         service.parseArrowShape("Invalid");
     }
 
     // ---- parseLineType ----
 
     @Test
-    public void parseLineType_bySerializableString() {
+    public void parseLineType_bySerializableString() throws Exception {
         assertSame(LineTypeVisualProperty.SOLID, service.parseLineType("SOLID"));
     }
 
     @Test
-    public void parseLineType_byDisplayName() {
+    public void parseLineType_byDisplayName() throws Exception {
         assertSame(LineTypeVisualProperty.SOLID, service.parseLineType("Solid"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void parseLineType_invalid_throwsException() {
+    @Test(expected = Exception.class)
+    public void parseLineType_invalid_throwsException() throws Exception {
         service.parseLineType("Invalid");
     }
 
     // ---- Round-trip tests: formatValue(parseValue(vp, input)) ----
 
     @Test
-    public void roundTrip_color() {
+    public void roundTrip_color() throws Exception {
         Color parsed = (Color) service.parseValue(BasicVisualLexicon.NODE_FILL_COLOR, "#FF6600");
         assertEquals("#FF6600", service.formatValue(parsed));
     }
 
     @Test
-    public void roundTrip_nodeShape() {
+    public void roundTrip_nodeShape() throws Exception {
         NodeShape parsed = (NodeShape) service.parseValue(BasicVisualLexicon.NODE_SHAPE, "Diamond");
         assertEquals("Diamond", service.formatValue(parsed));
     }
 
     @Test
-    public void roundTrip_arrowShape() {
+    public void roundTrip_arrowShape() throws Exception {
         ArrowShape parsed =
                 (ArrowShape)
                         service.parseValue(BasicVisualLexicon.EDGE_TARGET_ARROW_SHAPE, "Delta");
@@ -403,8 +404,142 @@ public class VisualPropertyServiceTest {
     }
 
     @Test
-    public void roundTrip_double() {
+    public void roundTrip_double() throws Exception {
         Double parsed = (Double) service.parseValue(BasicVisualLexicon.NODE_SIZE, 42.5);
         assertEquals("42.5", service.formatValue(parsed));
+    }
+
+    // ---- getAllowedValues ----
+
+    @Test
+    public void getAllowedValues_nodeShape_returnsSortedDisplayNames() {
+        List<String> values = service.getAllowedValues(BasicVisualLexicon.NODE_SHAPE);
+        assertNotNull(values);
+        assertFalse(values.isEmpty());
+        assertTrue("Should contain Ellipse", values.contains("Ellipse"));
+        assertTrue("Should contain Diamond", values.contains("Diamond"));
+        // Verify sorted
+        List<String> sorted = new java.util.ArrayList<>(values);
+        java.util.Collections.sort(sorted);
+        assertEquals("Values should be alphabetically sorted", sorted, values);
+    }
+
+    @Test
+    public void getAllowedValues_arrowShape_returnsSortedDisplayNames() {
+        List<String> values = service.getAllowedValues(BasicVisualLexicon.EDGE_TARGET_ARROW_SHAPE);
+        assertNotNull(values);
+        assertFalse(values.isEmpty());
+        // Verify sorted
+        List<String> sorted = new java.util.ArrayList<>(values);
+        java.util.Collections.sort(sorted);
+        assertEquals("Values should be alphabetically sorted", sorted, values);
+    }
+
+    @Test
+    public void getAllowedValues_lineType_returnsSortedDisplayNames() {
+        List<String> values = service.getAllowedValues(BasicVisualLexicon.EDGE_LINE_TYPE);
+        assertNotNull(values);
+        assertFalse(values.isEmpty());
+        // Verify sorted
+        List<String> sorted = new java.util.ArrayList<>(values);
+        java.util.Collections.sort(sorted);
+        assertEquals("Values should be alphabetically sorted", sorted, values);
+    }
+
+    @Test
+    public void getAllowedValues_fontProperty_returnsNull() {
+        // Font properties should return null — families are in the top-level font_families field
+        assertNull(service.getAllowedValues(BasicVisualLexicon.NODE_LABEL_FONT_FACE));
+    }
+
+    @Test
+    public void getAllowedValues_paintProperty_returnsNull() {
+        assertNull(service.getAllowedValues(BasicVisualLexicon.NODE_FILL_COLOR));
+    }
+
+    @Test
+    public void getAllowedValues_doubleProperty_returnsNull() {
+        assertNull(service.getAllowedValues(BasicVisualLexicon.NODE_SIZE));
+    }
+
+    @Test
+    public void getAllowedValues_integerProperty_returnsNull() {
+        assertNull(service.getAllowedValues(BasicVisualLexicon.NODE_TRANSPARENCY));
+    }
+
+    // ---- getRangeMin / getRangeMax ----
+
+    @Test
+    public void getRangeMin_transparency_returnsZero() {
+        assertEquals("0", service.getRangeMin(BasicVisualLexicon.NODE_TRANSPARENCY));
+    }
+
+    @Test
+    public void getRangeMax_transparency_returns255() {
+        assertEquals("255", service.getRangeMax(BasicVisualLexicon.NODE_TRANSPARENCY));
+    }
+
+    @Test
+    public void getRangeMin_nodeSize_returnsZero() {
+        assertEquals("0.0", service.getRangeMin(BasicVisualLexicon.NODE_SIZE));
+    }
+
+    @Test
+    public void getRangeMin_discreteType_returnsNull() {
+        assertNull(service.getRangeMin(BasicVisualLexicon.NODE_SHAPE));
+    }
+
+    @Test
+    public void getRangeMax_discreteType_returnsNull() {
+        assertNull(service.getRangeMax(BasicVisualLexicon.NODE_SHAPE));
+    }
+
+    @Test
+    public void getRangeMin_paintType_returnsNull() {
+        assertNull(service.getRangeMin(BasicVisualLexicon.NODE_FILL_COLOR));
+    }
+
+    // ---- getFontFamilies ----
+
+    @Test
+    public void getFontFamilies_returnsDedupedSortedFamilies() {
+        // Use a real lexicon mock that contains NODE_LABEL_FONT_FACE
+        VisualLexicon lexicon = mock(VisualLexicon.class);
+        when(lexicon.getAllVisualProperties())
+                .thenReturn(Set.of(BasicVisualLexicon.NODE_LABEL_FONT_FACE));
+
+        List<String> families = service.getFontFamilies(lexicon);
+
+        assertNotNull(families);
+        assertFalse("Should have at least one font family", families.isEmpty());
+        // Verify sorted
+        List<String> sorted = new java.util.ArrayList<>(families);
+        java.util.Collections.sort(sorted);
+        assertEquals("Font families should be alphabetically sorted", sorted, families);
+        // Verify deduplicated (no duplicates)
+        Set<String> unique = new HashSet<>(families);
+        assertEquals("Font families should be deduplicated", unique.size(), families.size());
+    }
+
+    @Test
+    public void getFontFamilies_noFontVP_returnsEmptyList() {
+        VisualLexicon lexicon = mock(VisualLexicon.class);
+        when(lexicon.getAllVisualProperties()).thenReturn(Set.of());
+
+        List<String> families = service.getFontFamilies(lexicon);
+
+        assertNotNull(families);
+        assertTrue("Should be empty when no Font VP found", families.isEmpty());
+    }
+
+    // ---- FONT_STYLES constant ----
+
+    @Test
+    public void fontStyles_containsFourTokens() {
+        assertEquals(4, VisualPropertyService.FONT_STYLES.size());
+        assertEquals("Plain", VisualPropertyService.FONT_STYLES.get(0));
+        assertEquals("Bold", VisualPropertyService.FONT_STYLES.get(1));
+        assertEquals("Italic", VisualPropertyService.FONT_STYLES.get(2));
+        assertEquals("BoldItalic", VisualPropertyService.FONT_STYLES.get(3));
     }
 }

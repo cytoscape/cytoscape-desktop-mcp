@@ -10,9 +10,12 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetFileColumnsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLayoutAlgorithmsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetVisualStyleDefaultsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.InspectTabularFileTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.SetVisualDefaultTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.VisualPropertyService;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.command.CommandExecutorTaskFactory;
@@ -135,6 +138,14 @@ public final class McpServerFactory {
                         .toSpec());
         server.addTool(new GetLayoutAlgorithmsTool(layoutManager).toSpec());
         server.addTool(new ApplyLayoutTool(appManager, layoutManager, syncTaskManager).toSpec());
+        VisualPropertyService vpService = new VisualPropertyService();
+        server.addTool(
+                new GetVisualStyleDefaultsTool(
+                                appManager, vmmManager, renderingEngineManager, vpService)
+                        .toSpec());
+        server.addTool(
+                new SetVisualDefaultTool(appManager, vmmManager, renderingEngineManager, vpService)
+                        .toSpec());
         return server;
     }
 }
