@@ -20,6 +20,11 @@ import org.cytoscape.view.presentation.property.values.LabelBackgroundShape;
 import org.cytoscape.view.presentation.property.values.LineType;
 import org.cytoscape.view.presentation.property.values.NodeShape;
 import org.cytoscape.view.presentation.property.values.VisualPropertyValue;
+import org.cytoscape.view.vizmap.VisualMappingFunction;
+import org.cytoscape.view.vizmap.mappings.ContinuousMapping;
+import org.cytoscape.view.vizmap.mappings.ContinuousMappingPoint;
+import org.cytoscape.view.vizmap.mappings.DiscreteMapping;
+import org.cytoscape.view.vizmap.mappings.PassthroughMapping;
 
 /** Service for visual property type conversion and discovery. */
 public class VisualPropertyService {
@@ -262,6 +267,52 @@ public class VisualPropertyService {
     public LineType parseLineType(String name) throws Exception {
         return parseNamedValue(
                 BasicVisualLexicon.EDGE_LINE_TYPE, LineType.class, name, "line type");
+    }
+
+    /**
+     * Extracts a {@link MappingInfo} summary from a visual mapping function. Returns null if the
+     * mapping is null (no mapping applied). Produces a human-readable summary string:
+     *
+     * <ul>
+     *   <li>Continuous: "column → firstEqualFormatted–lastEqualFormatted"
+     *   <li>Discrete: "column → N entries"
+     *   <li>Passthrough: "column (passthrough)"
+     * </ul>
+     */
+    public MappingInfo getMappingInfo(VisualMappingFunction<?, ?> mapping) {
+        if (mapping == null) return null;
+
+        String column = mapping.getMappingColumnName();
+
+        if (mapping instanceof ContinuousMapping<?, ?> cm) {
+            String summary = buildContinuousSummary(column, cm);
+            return new MappingInfo("ContinuousMapping", column, summary);
+        } else if (mapping instanceof DiscreteMapping<?, ?> dm) {
+            int count = dm.getAll().size();
+            return new MappingInfo(
+                    "DiscreteMapping", column, column + " \u2192 " + count + " entries");
+        } else if (mapping instanceof PassthroughMapping<?, ?>) {
+            return new MappingInfo("PassthroughMapping", column, column + " (passthrough)");
+        }
+        // Unknown mapping type — use class name as fallback.
+        return new MappingInfo(mapping.getClass().getSimpleName(), column, column);
+    }
+
+    /**
+     * Builds a continuous mapping summary showing the formatted equal values of the first and last
+     * breakpoints, e.g. "Degree → 10.0–50.0" or "Degree → #FF0000–#0000FF".
+     */
+    private String buildContinuousSummary(String column, ContinuousMapping<?, ?> cm) {
+        List<?> points = cm.getAllPoints();
+        if (points == null || points.isEmpty()) {
+            return column + " \u2192 (no breakpoints)";
+        }
+        ContinuousMappingPoint<?, ?> first = (ContinuousMappingPoint<?, ?>) points.get(0);
+        ContinuousMappingPoint<?, ?> last =
+                (ContinuousMappingPoint<?, ?>) points.get(points.size() - 1);
+        String firstVal = formatValue(first.getRange().equalValue);
+        String lastVal = formatValue(last.getRange().equalValue);
+        return column + " \u2192 " + firstVal + "\u2013" + lastVal;
     }
 
     // ---- Private helpers ----

@@ -39,17 +39,49 @@ Example 4 — open network on cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
-    "node_attributes_sheet_target_key_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+    "node_attributes_target_columns" : {
+      "type" : "array",
+      "description" : "Optional. Array of column names from sheet or file  to attach as properties on target nodes. Preview columns from the file(and sheet if applicable) to determine which columns are available.",
+      "items" : {
+        "type" : "string"
+      }
     },
-    "interaction_column" : {
+    "node_attributes_sheet_source_key_column" : {
       "type" : "string",
-      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
+      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
     },
-    "excel_sheet" : {
+    "target_column" : {
       "type" : "string",
-      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
+      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
+    },
+    "source" : {
+      "type" : "string",
+      "description" : "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the remaining input parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
+      "enum" : [ "ndex", "network-file", "tabular-file" ]
+    },
+    "node_attributes_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Applicable for Excel tabular files."
+    },
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
+    },
+    "file_path" : {
+      "type" : "string",
+      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
+    },
+    "delimiter_char_code" : {
+      "type" : "integer",
+      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab).  Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code. Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
+    },
+    "source_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the source (from) node. Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge. Required when source='tabular-file'."
+    },
+    "network_id" : {
+      "type" : "string",
+      "description" : "Optional. NDEx network Id expressed as UUID string (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
     },
     "node_attributes_source_columns" : {
       "type" : "array",
@@ -58,49 +90,17 @@ Example 4 — open network on cytoscape desktop:
         "type" : "string"
       }
     },
-    "network_id" : {
+    "excel_sheet" : {
       "type" : "string",
-      "description" : "Optional. NDEx network Id expressed as UUID string (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
+      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
     },
-    "source_column" : {
+    "interaction_column" : {
       "type" : "string",
-      "description" : "Optional. Column name for the source (from) node. Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge. Required when source='tabular-file'."
+      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
     },
-    "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab).  Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code. Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
-    },
-    "file_path" : {
+    "node_attributes_sheet_target_key_column" : {
       "type" : "string",
-      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
-    },
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
-    },
-    "node_attributes_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Applicable for Excel tabular files."
-    },
-    "source" : {
-      "type" : "string",
-      "description" : "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the remaining input parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
-      "enum" : [ "ndex", "network-file", "tabular-file" ]
-    },
-    "target_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
-    },
-    "node_attributes_sheet_source_key_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
-    },
-    "node_attributes_target_columns" : {
-      "type" : "array",
-      "description" : "Optional. Array of column names from sheet or file  to attach as properties on target nodes. Preview columns from the file(and sheet if applicable) to determine which columns are available.",
-      "items" : {
-        "type" : "string"
-      }
+      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
     }
   },
   "required" : [ "source" ]
@@ -455,21 +455,21 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
-    },
-    "file_path" : {
-      "type" : "string",
-      "description" : "Required. Absolute path to the tabular file."
+    "delimiter_char_code" : {
+      "type" : "integer",
+      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
     },
     "use_header_row" : {
       "type" : "boolean",
       "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
     },
-    "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
+    "file_path" : {
+      "type" : "string",
+      "description" : "Required. Absolute path to the tabular file."
+    },
+    "excel_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
     }
   },
   "required" : [ "file_path", "use_header_row" ]
@@ -844,7 +844,7 @@ Example 4 — Retrieve the full style state to plan a network visualization upda
 
 **Title:** Set Cytoscape Desktop Style Defaults
 
-**Description:** Sets default visual property values and/or toggles visual property dependency locks in the active Cytoscape Desktop visual style for nodes and/or edges — such as fill color, size, shape, border style, edge width, line type, font, or arrow shape. Use when you want to change how network elements appear by default; retrieve the current style defaults first to discover all valid property identifiers, their allowed value formats, available font families and styles, and dependency lock IDs, then provide only the entries you want to update. For font properties, compose the value as Family-Style-Size using a family name and style from the style defaults (e.g. Arial-Bold-14). For dependency toggles, provide the dependency ID and the desired enabled state from the style defaults response. Returns an error if no network is currently loaded, if a property identifier is not recognized, or if a value cannot be parsed or falls outside the valid range — each error message identifies the specific property and failure reason. State-mutating; modifies the active visual style and immediately updates the current view if one exists.
+**Description:** Sets default visual property values and/or toggles visual property dependency locks in the active Cytoscape Desktop visual style for nodes and/or edges — such as fill color, size, shape, border style, edge width, line type, font, or arrow shape. Use when you want to change how network elements appear by default; retrieve the current style defaults first to discover all valid property identifiers, their allowed value formats, available font families and styles, and dependency lock IDs, then provide only the entries you want to update. Returns an error if no network is currently loaded, if a property identifier is not recognized, or if a value cannot be parsed or falls outside the valid range — each error message identifies the specific property and failure reason. State-mutating; modifies the active visual style defaults and immediately rerenders the current view if one exists.
 
 ## Examples
 
@@ -875,17 +875,17 @@ Example 7 — Lock node size and set it to 50 in one call:
 {
   "type" : "object",
   "properties" : {
-    "node_properties" : {
+    "dependencies" : {
       "type" : "array",
-      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
+      "description" : "Optional. List of dependency locks to toggle on/off. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
     },
     "edge_properties" : {
       "type" : "array",
       "description" : "Optional. List of edge visual property updates. Each entry requires 'id' and 'currentValue' using the same format conventions as node properties — property identifiers, value types, allowed values, font families, and font styles are documented in the style defaults response.\n\nExamples: [{\"id\": \"EDGE_WIDTH\", \"currentValue\": \"3.0\"}], [{\"id\": \"EDGE_LINE_TYPE\", \"currentValue\": \"Dash\"}], [{\"id\": \"EDGE_LABEL_FONT_FACE\", \"currentValue\": \"Courier New-Italic-12\"}]"
     },
-    "dependencies" : {
+    "node_properties" : {
       "type" : "array",
-      "description" : "Optional. List of dependency lock toggles. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
+      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
     }
   },
   "required" : [ ]
@@ -952,6 +952,108 @@ Example 7 — Lock node size and set it to 50 in one call:
           }
         }
       }
+    }
+  }
+}
+```
+
+---
+
+### `get_mappable_properties`
+
+**Title:** List Cytoscape Desktop Mappable Properties
+
+**Description:** List all visual properties that support data-driven mappings in the active Cytoscape Desktop visual style, grouped by node and edge categories with each property's mapping compatibility type and any currently applied mapping. Use when you need to discover which visual properties can be mapped to data columns, determine what kind of mapping (continuous, discrete, or passthrough) each property supports, or inspect existing mappings before creating or replacing them. Read-only; does not modify state. Returns an error if no network is currently loaded or if the active network has no view, each with a descriptive message indicating the specific cause.
+
+## Examples
+
+Example 1 — List all mappable properties to see what styling options are available for data-driven visualization:
+{}
+
+Example 2 — What properties currently have data-driven mappings applied to the active style:
+{}
+
+Example 3 — Which node properties support continuous gradient mapping for numeric data columns:
+{}
+
+Example 4 — Check if any existing mappings will be overwritten before creating a new one:
+{}
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : { },
+  "required" : [ ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$defs" : {
+    "MappablePropertyEntry" : {
+      "type" : "object",
+      "properties" : {
+        "continuousSubType" : {
+          "type" : "string",
+          "description" : "Indicates what kind of continuous mapping this property supports. 'color-gradient' for color properties that interpolate between colors. 'continuous' for numeric properties that interpolate between numbers. 'discrete' for discrete-typed properties (shapes, line types) that use threshold-based switching in continuous mappings. Absent for properties that do not support continuous mapping at all (e.g. String, Boolean) — these properties only support discrete or passthrough mappings.\n\nExamples: \"color-gradient\", \"continuous\", \"discrete\""
+        },
+        "currentMapping" : {
+          "type" : "object",
+          "properties" : {
+            "column" : {
+              "type" : "string",
+              "description" : "Name of the data column driving this mapping.\n\nExamples: \"Degree\", \"GeneType\", \"name\""
+            },
+            "summary" : {
+              "type" : "string",
+              "description" : "Human-readable summary of the mapping. For continuous mappings shows the column name and the value range of the first and last breakpoints. For discrete mappings shows the column name and entry count. For passthrough mappings shows the column name with a passthrough indicator.\n\nExamples: \"Degree → 10.0–50.0\", \"GeneType → 5 entries\", \"name (passthrough)\""
+            },
+            "type" : {
+              "type" : "string",
+              "description" : "Mapping type: ContinuousMapping (numeric interpolation or color gradient), DiscreteMapping (explicit value-to-value map), or PassthroughMapping (column value used directly).\n\nExamples: \"ContinuousMapping\", \"DiscreteMapping\", \"PassthroughMapping\""
+            }
+          },
+          "description" : "Details of the mapping currently applied to this property in the active visual style. Absent when no mapping is applied — the property uses its default value instead."
+        },
+        "displayName" : {
+          "type" : "string",
+          "description" : "Human-readable display name for this visual property.\n\nExamples: \"Node Fill Color\", \"Node Size\", \"Edge Width\""
+        },
+        "id" : {
+          "type" : "string",
+          "description" : "Machine-readable visual property identifier. Use this ID when creating a mapping for this property.\n\nExamples: \"NODE_FILL_COLOR\", \"NODE_SIZE\", \"EDGE_WIDTH\""
+        },
+        "valueType" : {
+          "type" : "string",
+          "description" : "Value type: Paint, Double, Integer, NodeShape, ArrowShape, LineType, LabelBackgroundShape, EdgeStacking, Font, String, or Boolean.\n\nExamples: \"Paint\", \"Double\", \"NodeShape\""
+        }
+      }
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "edge_properties" : {
+      "description" : "Edge visual properties that support data-driven mappings — one entry per property whose value type has a plain-text representation (colors, numbers, shapes, line types, fonts, booleans). Each entry indicates the property's continuous mapping compatibility and any currently applied mapping.",
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/$defs/MappablePropertyEntry"
+      }
+    },
+    "node_properties" : {
+      "description" : "Node visual properties that support data-driven mappings — one entry per property whose value type has a plain-text representation (colors, numbers, shapes, line types, fonts, booleans). Each entry indicates the property's continuous mapping compatibility and any currently applied mapping.",
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/$defs/MappablePropertyEntry"
+      }
+    },
+    "style_name" : {
+      "type" : "string",
+      "description" : "Name of the active visual style applied to the current network.\n\nExamples: \"default\", \"Marquee\", \"galFiltered Style\""
     }
   }
 }
