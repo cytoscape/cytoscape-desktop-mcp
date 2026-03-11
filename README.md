@@ -101,7 +101,7 @@ Invoking the tools requires some prompt engineering to provide key words or phra
 
 * an example of a simple prompt which will lead the LLM to reason over the available tools as a whole and orchestrate their usage as building blocks into a sequence to reach the requested end result:
   ```
-   > analyze a network in cytoscape desktop 
+   > open a network using cytoscape desktop
   ```
 
 

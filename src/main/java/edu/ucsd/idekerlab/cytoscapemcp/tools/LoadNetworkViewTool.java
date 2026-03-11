@@ -107,8 +107,8 @@ public class LoadNetworkViewTool {
                     + " \"/path/to/data.csv\", \"source_column\": \"Gene_A\","
                     + " \"target_column\": \"Gene_B\", \"delimiter_char_code\": 44,"
                     + " \"use_header_row\": true}\"}\n\n"
-                    + "Example 4 — Create new instance of network on cytoscape desktop:\n"
-                    + "{\"source\": \"determine the source sucah as ndex, or local file(network or tabular) first, then figure out rest of related input params\"}\n\n";
+                    + "Example 4 — open network on cytoscape desktop:\n"
+                    + "{\"source\": \"determine the source such as ndex, or local file(network or tabular) first, then figure out rest of related input params\"}\n\n";
 
     static final String INPUT_SCHEMA =
             McpSchema.toJson(

@@ -28,8 +28,8 @@ Example 2 — Load network file into cytoscape desktop:
 Example 3 — Load tabular file into cytoscape desktop:
 {"source": "tabular-file", "file_path": "/path/to/data.csv", "source_column": "Gene_A", "target_column": "Gene_B", "delimiter_char_code": 44, "use_header_row": true}"}
 
-Example 4 — Create new instance of network on cytoscape desktop:
-{"source": "determine the source sucah as ndex, or local file(network or tabular) first, then figure out rest of related input params"}
+Example 4 — open network on cytoscape desktop:
+{"source": "determine the source such as ndex, or local file(network or tabular) first, then figure out rest of related input params"}
 
 
 
@@ -39,9 +39,17 @@ Example 4 — Create new instance of network on cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
-    "network_id" : {
+    "node_attributes_sheet_target_key_column" : {
       "type" : "string",
-      "description" : "Optional. NDEx network Id expressed as UUID string (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
+      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+    },
+    "interaction_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
+    },
+    "excel_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
     },
     "node_attributes_source_columns" : {
       "type" : "array",
@@ -50,17 +58,42 @@ Example 4 — Create new instance of network on cytoscape desktop:
         "type" : "string"
       }
     },
-    "excel_sheet" : {
+    "network_id" : {
       "type" : "string",
-      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
+      "description" : "Optional. NDEx network Id expressed as UUID string (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
     },
-    "interaction_column" : {
+    "source_column" : {
       "type" : "string",
-      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
+      "description" : "Optional. Column name for the source (from) node. Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge. Required when source='tabular-file'."
     },
-    "node_attributes_sheet_target_key_column" : {
+    "delimiter_char_code" : {
+      "type" : "integer",
+      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab).  Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code. Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
+    },
+    "file_path" : {
       "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
+    },
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
+    },
+    "node_attributes_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Applicable for Excel tabular files."
+    },
+    "source" : {
+      "type" : "string",
+      "description" : "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the remaining input parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
+      "enum" : [ "ndex", "network-file", "tabular-file" ]
+    },
+    "target_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
+    },
+    "node_attributes_sheet_source_key_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
     },
     "node_attributes_target_columns" : {
       "type" : "array",
@@ -68,39 +101,6 @@ Example 4 — Create new instance of network on cytoscape desktop:
       "items" : {
         "type" : "string"
       }
-    },
-    "node_attributes_sheet_source_key_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
-    },
-    "target_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
-    },
-    "source" : {
-      "type" : "string",
-      "description" : "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the remaining input parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
-      "enum" : [ "ndex", "network-file", "tabular-file" ]
-    },
-    "node_attributes_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Applicable for Excel tabular files."
-    },
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
-    },
-    "file_path" : {
-      "type" : "string",
-      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
-    },
-    "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab).  Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code. Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
-    },
-    "source_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the source (from) node. Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge. Required when source='tabular-file'."
     }
   },
   "required" : [ "source" ]
@@ -243,13 +243,13 @@ Example 3 — Focus Cytoscape desktop on a particular network before applying st
 {
   "type" : "object",
   "properties" : {
-    "view_suid" : {
-      "type" : "integer",
-      "description" : "Required. SUID of the target network view in Cytoscape Desktop."
-    },
     "network_suid" : {
       "type" : "integer",
       "description" : "Required. SUID of the target network in Cytoscape Desktop."
+    },
+    "view_suid" : {
+      "type" : "integer",
+      "description" : "Required. SUID of the target network view in Cytoscape Desktop."
     }
   },
   "required" : [ "network_suid", "view_suid" ]
@@ -311,13 +311,13 @@ Example 4 — Force create a new view in Cytoscape desktop even though one alrea
 {
   "type" : "object",
   "properties" : {
-    "create_if_exists" : {
-      "type" : "boolean",
-      "description" : "Optional. Default is false. When false and a view already exists, returns the existing current view (or first available) without creating a duplicate. When true, always creates a new view even if views already exist."
-    },
     "network_suid" : {
       "type" : "integer",
       "description" : "Required. SUID of the network in Cytoscape Desktop that needs a view."
+    },
+    "create_if_exists" : {
+      "type" : "boolean",
+      "description" : "Optional. Default is false. When false and a view already exists, returns the existing current view (or first available) without creating a duplicate. When true, always creates a new view even if views already exist."
     }
   },
   "required" : [ "network_suid" ]
@@ -455,17 +455,17 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
+    "excel_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
     },
     "file_path" : {
       "type" : "string",
       "description" : "Required. Absolute path to the tabular file."
     },
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
     },
     "delimiter_char_code" : {
       "type" : "integer",
@@ -844,7 +844,7 @@ Example 4 — Retrieve the full style state to plan a network visualization upda
 
 **Title:** Set Cytoscape Desktop Style Defaults
 
-**Description:** Sets default visual property values in the active Cytoscape Desktop visual style for nodes and/or edges — such as fill color, size, shape, border style, edge width, line type, font, or arrow shape. Use when you want to change how network elements appear by default; retrieve the current style defaults first to discover all valid property identifiers, their allowed value formats, and available font families and styles, then provide only the entries you want to update. For font properties, compose the value as Family-Style-Size using a family name and style from the style defaults (e.g. Arial-Bold-14). Returns an error if no network is currently loaded, if a property identifier is not recognized, or if a value cannot be parsed or falls outside the valid range — each error message identifies the specific property and failure reason. State-mutating; modifies the active visual style and immediately updates the current view if one exists.
+**Description:** Sets default visual property values and/or toggles visual property dependency locks in the active Cytoscape Desktop visual style for nodes and/or edges — such as fill color, size, shape, border style, edge width, line type, font, or arrow shape. Use when you want to change how network elements appear by default; retrieve the current style defaults first to discover all valid property identifiers, their allowed value formats, available font families and styles, and dependency lock IDs, then provide only the entries you want to update. For font properties, compose the value as Family-Style-Size using a family name and style from the style defaults (e.g. Arial-Bold-14). For dependency toggles, provide the dependency ID and the desired enabled state from the style defaults response. Returns an error if no network is currently loaded, if a property identifier is not recognized, or if a value cannot be parsed or falls outside the valid range — each error message identifies the specific property and failure reason. State-mutating; modifies the active visual style and immediately updates the current view if one exists.
 
 ## Examples
 
@@ -863,19 +863,29 @@ Example 4 — Update the default node label font obtained from the current style
 Example 5 — Set the node label font to bold Arial at 16pt:
 {"node_properties": [{"id": "NODE_LABEL_FONT_FACE", "currentValue": "Arial-Bold-16"}]}
 
+Example 6 — Lock node width and height so NODE_SIZE controls both dimensions:
+{"dependencies": [{"id": "nodeSizeLocked", "enabled": true}]}
+
+Example 7 — Lock node size and set it to 50 in one call:
+{"dependencies": [{"id": "nodeSizeLocked", "enabled": true}], "node_properties": [{"id": "NODE_SIZE", "currentValue": "50.0"}]}
+
 **Input Schema:**
 
 ```json
 {
   "type" : "object",
   "properties" : {
+    "node_properties" : {
+      "type" : "array",
+      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
+    },
     "edge_properties" : {
       "type" : "array",
       "description" : "Optional. List of edge visual property updates. Each entry requires 'id' and 'currentValue' using the same format conventions as node properties — property identifiers, value types, allowed values, font families, and font styles are documented in the style defaults response.\n\nExamples: [{\"id\": \"EDGE_WIDTH\", \"currentValue\": \"3.0\"}], [{\"id\": \"EDGE_LINE_TYPE\", \"currentValue\": \"Dash\"}], [{\"id\": \"EDGE_LABEL_FONT_FACE\", \"currentValue\": \"Courier New-Italic-12\"}]"
     },
-    "node_properties" : {
+    "dependencies" : {
       "type" : "array",
-      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
+      "description" : "Optional. List of dependency lock toggles. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
     }
   },
   "required" : [ ]
@@ -900,6 +910,27 @@ Example 5 — Set the node label font to bold Arial at 16pt:
     "style_name" : {
       "type" : "string",
       "description" : "Name of the active visual style that was modified.\n\nExamples: \"default\", \"Marquee\""
+    },
+    "updated_dependencies" : {
+      "description" : "Dependencies that were toggled, each showing its new enabled state. Absent when no dependency toggles were requested.",
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string",
+            "description" : "Human-readable display name of the toggled dependency.\n\nExamples: \"Lock node width and height\", \"Edge color to arrows\""
+          },
+          "enabled" : {
+            "type" : "boolean",
+            "description" : "New enabled state after the toggle was applied."
+          },
+          "id" : {
+            "type" : "string",
+            "description" : "Machine-readable dependency identifier that was toggled.\n\nExamples: \"nodeSizeLocked\", \"arrowColorMatchesEdge\""
+          }
+        }
+      }
     },
     "updated_properties" : {
       "description" : "Properties that were updated, each showing its new default value as confirmed by reading back from the style after mutation.",

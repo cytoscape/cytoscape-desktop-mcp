@@ -2,6 +2,7 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -20,11 +21,13 @@ import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.model.CyNetwork;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.VisualLexicon;
+import org.cytoscape.view.model.VisualLexiconNode;
 import org.cytoscape.view.model.VisualProperty;
 import org.cytoscape.view.presentation.RenderingEngineManager;
 import org.cytoscape.view.presentation.property.BasicVisualLexicon;
 import org.cytoscape.view.presentation.property.NodeShapeVisualProperty;
 import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualPropertyDependency;
 import org.cytoscape.view.vizmap.VisualStyle;
 
 import static org.junit.Assert.assertEquals;
@@ -405,6 +408,139 @@ public class SetVisualDefaultToolTest {
     // Schema tests
     // -----------------------------------------------------------------------
 
+    // -----------------------------------------------------------------------
+    // Success: toggle dependency enable=true
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void toggleDependency_enableTrue_succeeds() throws Exception {
+        stubSuccessPath();
+        VisualPropertyDependency<Double> dep = createNodeSizeDep(false);
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Set.of(dep));
+
+        String response =
+                callTool(
+                        "{\"dependencies\": [{\"id\": \"nodeSizeLocked\","
+                                + " \"enabled\": true}]}");
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain status success", response.contains("\"status\":\"success\""));
+        assertTrue(
+                "Should contain updated_dependencies",
+                response.contains("\"updated_dependencies\""));
+        assertTrue("Should contain nodeSizeLocked", response.contains("nodeSizeLocked"));
+        assertTrue("Should show enabled true", response.contains("\"enabled\":true"));
+        assertTrue("Dependency should be enabled", dep.isDependencyEnabled());
+    }
+
+    // -----------------------------------------------------------------------
+    // Success: toggle dependency enable=false
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void toggleDependency_enableFalse_succeeds() throws Exception {
+        stubSuccessPath();
+        VisualPropertyDependency<Double> dep = createNodeSizeDep(true);
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Set.of(dep));
+
+        String response =
+                callTool(
+                        "{\"dependencies\": [{\"id\": \"nodeSizeLocked\","
+                                + " \"enabled\": false}]}");
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain status success", response.contains("\"status\":\"success\""));
+        assertTrue("Should show enabled false", response.contains("\"enabled\":false"));
+        assertFalse("Dependency should be disabled", dep.isDependencyEnabled());
+    }
+
+    // -----------------------------------------------------------------------
+    // Error: unknown dependency ID
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void unknownDependencyId_returnsError() throws Exception {
+        stubSuccessPath();
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Set.of());
+
+        String response =
+                callTool("{\"dependencies\": [{\"id\": \"bogusLock\"," + " \"enabled\": true}]}");
+
+        assertTrue("Should be an error response", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should describe unknown dependency", response.contains("Unknown dependency ID"));
+        assertTrue("Should include the bad ID", response.contains("bogusLock"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Error: missing 'enabled' field
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void missingEnabledField_returnsError() throws Exception {
+        stubSuccessPath();
+        VisualPropertyDependency<Double> dep = createNodeSizeDep(false);
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Set.of(dep));
+
+        String response = callTool("{\"dependencies\": [{\"id\": \"nodeSizeLocked\"}]}");
+
+        assertTrue("Should be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should describe missing enabled", response.contains("Missing 'enabled'"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Success: combined property update + dependency toggle
+    // -----------------------------------------------------------------------
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void dependencyWithPropertyUpdate_succeeds() throws Exception {
+        stubSuccessPath();
+        VisualPropertyDependency<Double> dep = createNodeSizeDep(false);
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Set.of(dep));
+        when(style.getDefaultValue(BasicVisualLexicon.NODE_SIZE)).thenReturn(50.0);
+
+        String response =
+                callTool(
+                        "{\"dependencies\": [{\"id\": \"nodeSizeLocked\","
+                                + " \"enabled\": true}], \"node_properties\":"
+                                + " [{\"id\": \"NODE_SIZE\", \"currentValue\": \"50.0\"}]}");
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain status success", response.contains("\"status\":\"success\""));
+        assertTrue(
+                "Should contain updated_properties", response.contains("\"updated_properties\""));
+        assertTrue(
+                "Should contain updated_dependencies",
+                response.contains("\"updated_dependencies\""));
+        assertTrue("Should contain size value", response.contains("50.0"));
+        assertTrue("Should contain nodeSizeLocked", response.contains("nodeSizeLocked"));
+        verify(style).setDefaultValue(eq(BasicVisualLexicon.NODE_SIZE), any());
+        assertTrue("Dependency should be enabled", dep.isDependencyEnabled());
+    }
+
+    // -----------------------------------------------------------------------
+    // Success: empty dependencies array — omits from response
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void emptyDependenciesArray_omitsFromResponse() throws Exception {
+        stubSuccessPath();
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Set.of());
+
+        String response = callTool("{\"dependencies\": []}");
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain status success", response.contains("\"status\":\"success\""));
+        assertFalse(
+                "Should not contain updated_dependencies",
+                response.contains("\"updated_dependencies\""));
+    }
+
+    // -----------------------------------------------------------------------
+    // Schema tests
+    // -----------------------------------------------------------------------
+
     @Test
     public void inputSchema_isValidJson() throws Exception {
         JsonNode schema = MAPPER.readTree(SetVisualDefaultTool.INPUT_SCHEMA);
@@ -415,8 +551,10 @@ public class SetVisualDefaultToolTest {
         assertNotNull(props);
         assertTrue(props.has("node_properties"));
         assertTrue(props.has("edge_properties"));
+        assertTrue(props.has("dependencies"));
         assertEquals("array", props.get("node_properties").get("type").asText());
         assertEquals("array", props.get("edge_properties").get("type").asText());
+        assertEquals("array", props.get("dependencies").get("type").asText());
     }
 
     @Test
@@ -438,6 +576,35 @@ public class SetVisualDefaultToolTest {
         when(style.getTitle()).thenReturn("Test Style");
         // Allow findPropertyById to find any property in our test set.
         when(lexicon.getAllVisualProperties()).thenReturn(ALL_TEST_PROPS);
+        // Default: no dependencies (tests that need them override this)
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Set.of());
+    }
+
+    /**
+     * Creates a real {@link VisualPropertyDependency} for nodeSizeLocked. VisualPropertyDependency
+     * is final so it cannot be mocked — we build real VisualLexiconNode stubs for its constructor.
+     */
+    @SuppressWarnings("unchecked")
+    private VisualPropertyDependency<Double> createNodeSizeDep(boolean enabled) {
+        Set<VisualProperty<Double>> depProps = new HashSet<>();
+        depProps.add(BasicVisualLexicon.NODE_WIDTH);
+        depProps.add(BasicVisualLexicon.NODE_HEIGHT);
+
+        VisualLexiconNode parentNode = new VisualLexiconNode(BasicVisualLexicon.NODE, null);
+        VisualLexiconNode widthNode =
+                new VisualLexiconNode(BasicVisualLexicon.NODE_WIDTH, parentNode);
+        VisualLexiconNode heightNode =
+                new VisualLexiconNode(BasicVisualLexicon.NODE_HEIGHT, parentNode);
+        VisualLexicon depLexicon = org.mockito.Mockito.mock(VisualLexicon.class);
+        when(depLexicon.getVisualLexiconNode(BasicVisualLexicon.NODE_WIDTH)).thenReturn(widthNode);
+        when(depLexicon.getVisualLexiconNode(BasicVisualLexicon.NODE_HEIGHT))
+                .thenReturn(heightNode);
+
+        VisualPropertyDependency<Double> dep =
+                new VisualPropertyDependency<>(
+                        "nodeSizeLocked", "Lock node width and height", depProps, depLexicon);
+        dep.setDependency(enabled);
+        return dep;
     }
 
     private String callTool(String arguments) throws Exception {

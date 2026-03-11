@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.swing.SwingUtilities;
 
@@ -26,6 +27,7 @@ import org.cytoscape.view.model.VisualLexicon;
 import org.cytoscape.view.model.VisualProperty;
 import org.cytoscape.view.presentation.RenderingEngineManager;
 import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualPropertyDependency;
 import org.cytoscape.view.vizmap.VisualStyle;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -50,19 +52,22 @@ public class SetVisualDefaultTool {
     private static final String TOOL_TITLE = "Set Cytoscape Desktop Style Defaults";
 
     private static final String TOOL_DESCRIPTION =
-            "Sets default visual property values in the active Cytoscape Desktop visual style"
-                    + " for nodes and/or edges — such as fill color, size, shape, border style,"
-                    + " edge width, line type, font, or arrow shape. Use when you want to change"
-                    + " how network elements appear by default; retrieve the current style defaults"
-                    + " first to discover all valid property identifiers, their allowed value"
-                    + " formats, and available font families and styles, then provide only the"
-                    + " entries you want to update. For font properties, compose the value as"
-                    + " Family-Style-Size using a family name and style from the style defaults"
-                    + " (e.g. Arial-Bold-14). Returns an error if no network is currently loaded,"
-                    + " if a property identifier is not recognized, or if a value cannot be parsed"
-                    + " or falls outside the valid range — each error message identifies the"
-                    + " specific property and failure reason. State-mutating; modifies the active"
-                    + " visual style and immediately updates the current view if one exists.";
+            "Sets default visual property values and/or toggles visual property dependency locks"
+                    + " in the active Cytoscape Desktop visual style for nodes and/or edges — such"
+                    + " as fill color, size, shape, border style, edge width, line type, font, or"
+                    + " arrow shape. Use when you want to change how network elements appear by"
+                    + " default; retrieve the current style defaults first to discover all valid"
+                    + " property identifiers, their allowed value formats, available font families"
+                    + " and styles, and dependency lock IDs, then provide only the entries you want"
+                    + " to update. For font properties, compose the value as Family-Style-Size"
+                    + " using a family name and style from the style defaults (e.g."
+                    + " Arial-Bold-14). For dependency toggles, provide the dependency ID and the"
+                    + " desired enabled state from the style defaults response. Returns an error if"
+                    + " no network is currently loaded, if a property identifier is not recognized,"
+                    + " or if a value cannot be parsed or falls outside the valid range — each"
+                    + " error message identifies the specific property and failure reason."
+                    + " State-mutating; modifies the active visual style and immediately updates"
+                    + " the current view if one exists.";
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
@@ -85,7 +90,15 @@ public class SetVisualDefaultTool {
                     + " \"currentValue\": \"SansSerif-Bold-14\"}]}\n\n"
                     + "Example 5 — Set the node label font to bold Arial at 16pt:\n"
                     + "{\"node_properties\": [{\"id\": \"NODE_LABEL_FONT_FACE\","
-                    + " \"currentValue\": \"Arial-Bold-16\"}]}";
+                    + " \"currentValue\": \"Arial-Bold-16\"}]}\n\n"
+                    + "Example 6 — Lock node width and height so NODE_SIZE controls both"
+                    + " dimensions:\n"
+                    + "{\"dependencies\": [{\"id\": \"nodeSizeLocked\","
+                    + " \"enabled\": true}]}\n\n"
+                    + "Example 7 — Lock node size and set it to 50 in one call:\n"
+                    + "{\"dependencies\": [{\"id\": \"nodeSizeLocked\","
+                    + " \"enabled\": true}], \"node_properties\":"
+                    + " [{\"id\": \"NODE_SIZE\", \"currentValue\": \"50.0\"}]}";
 
     private static final String NOTE_NO_VIEW =
             "Style defaults updated but no network view is active; changes will appear when a"
@@ -112,6 +125,11 @@ public class SetVisualDefaultTool {
                                     + " confirmed by reading back from the style after mutation.")
                     @JsonProperty("updated_properties")
                     List<UpdatedPropertyEntry> updatedProperties,
+            @JsonPropertyDescription(
+                            "Dependencies that were toggled, each showing its new enabled state."
+                                    + " Absent when no dependency toggles were requested.")
+                    @JsonProperty("updated_dependencies")
+                    List<UpdatedDependencyEntry> updatedDependencies,
             @JsonPropertyDescription(
                             "Informational note present only when no network view is currently"
                                     + " active. The style defaults were updated successfully but the"
@@ -141,6 +159,26 @@ public class SetVisualDefaultTool {
                                     + "\n\nExamples: \"#FF6600\", \"3.0\", \"Arial-Bold-14\"")
                     @JsonProperty("currentValue")
                     String currentValue) {}
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record UpdatedDependencyEntry(
+            @JsonPropertyDescription(
+                            "Machine-readable dependency identifier that was toggled."
+                                    + "\n\nExamples: \"nodeSizeLocked\","
+                                    + " \"arrowColorMatchesEdge\"")
+                    @JsonProperty("id")
+                    String id,
+            @JsonPropertyDescription(
+                            "Human-readable display name of the toggled dependency."
+                                    + "\n\nExamples: \"Lock node width and height\","
+                                    + " \"Edge color to arrows\"")
+                    @JsonProperty("displayName")
+                    String displayName,
+            @JsonPropertyDescription("New enabled state after the toggle was applied.")
+                    @JsonProperty("enabled")
+                    boolean enabled) {}
+
+    private record DependencyUpdate(VisualPropertyDependency<?> dep, boolean enabled) {}
 
     // -- Schemas --------------------------------------------------------------
 
@@ -189,6 +227,24 @@ public class SetVisualDefaultTool {
                                                     + " [{\"id\": \"EDGE_LABEL_FONT_FACE\","
                                                     + " \"currentValue\":"
                                                     + " \"Courier New-Italic-12\"}]"))
+                            .property(
+                                    "dependencies",
+                                    new McpSchema.InputProperty(
+                                            "array",
+                                            "Optional. List of dependency lock toggles."
+                                                    + " Each entry requires an 'id' field matching"
+                                                    + " a dependency identifier from the style"
+                                                    + " defaults response and an 'enabled' field"
+                                                    + " (true/false) indicating whether the lock"
+                                                    + " should be active. Retrieve the current"
+                                                    + " style defaults first to discover available"
+                                                    + " dependency IDs and their current enabled"
+                                                    + " state."
+                                                    + "\n\nExamples:"
+                                                    + " [{\"id\": \"nodeSizeLocked\","
+                                                    + " \"enabled\": true}],"
+                                                    + " [{\"id\": \"arrowColorMatchesEdge\","
+                                                    + " \"enabled\": false}]"))
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(SetVisualDefaultsResponse.class);
@@ -260,15 +316,21 @@ public class SetVisualDefaultTool {
 
             List<Map<String, Object>> nodeInput = safeList(args.get("node_properties"));
             List<Map<String, Object>> edgeInput = safeList(args.get("edge_properties"));
+            List<Map<String, Object>> depInput = safeList(args.get("dependencies"));
 
             // Validate all entries before making any mutations (fail-fast)
             List<PropertyUpdate> updates = new ArrayList<>();
+            List<DependencyUpdate> depUpdates = new ArrayList<>();
             try {
                 for (Map<String, Object> entry : nodeInput) {
                     updates.add(resolveUpdate(lexicon, entry));
                 }
                 for (Map<String, Object> entry : edgeInput) {
                     updates.add(resolveUpdate(lexicon, entry));
+                }
+                Set<VisualPropertyDependency<?>> allDeps = style.getAllVisualPropertyDependencies();
+                for (Map<String, Object> entry : depInput) {
+                    depUpdates.add(resolveDependencyUpdate(allDeps, entry));
                 }
             } catch (Exception e) {
                 return validationError(e.getMessage());
@@ -280,6 +342,9 @@ public class SetVisualDefaultTool {
                         () -> {
                             for (PropertyUpdate u : updates) {
                                 setDefault(style, u.vp(), u.parsedValue());
+                            }
+                            for (DependencyUpdate du : depUpdates) {
+                                du.dep().setDependency(du.enabled());
                             }
                             if (view != null) {
                                 style.apply(view);
@@ -316,12 +381,24 @@ public class SetVisualDefaultTool {
                                 vpService.formatValue(newDefault)));
             }
 
+            List<UpdatedDependencyEntry> confirmedDeps = null;
+            if (!depUpdates.isEmpty()) {
+                confirmedDeps = new ArrayList<>();
+                for (DependencyUpdate du : depUpdates) {
+                    confirmedDeps.add(
+                            new UpdatedDependencyEntry(
+                                    du.dep().getIdString(),
+                                    du.dep().getDisplayName(),
+                                    du.dep().isDependencyEnabled()));
+                }
+            }
+
             String note = view == null ? NOTE_NO_VIEW : null;
 
             return CallToolResult.builder()
                     .structuredContent(
                             new SetVisualDefaultsResponse(
-                                    "success", style.getTitle(), confirmed, note))
+                                    "success", style.getTitle(), confirmed, confirmedDeps, note))
                     .build();
 
         } catch (Exception e) {
@@ -397,6 +474,60 @@ public class SetVisualDefaultTool {
         }
 
         return new PropertyUpdate(vp, parsed);
+    }
+
+    /** Resolves and validates a single dependency toggle entry ({id, enabled}). */
+    private DependencyUpdate resolveDependencyUpdate(
+            Set<VisualPropertyDependency<?>> allDeps, Map<String, Object> entry) {
+        Object idRaw = entry.get("id");
+        if (idRaw == null) {
+            throw new IllegalArgumentException("Each dependency entry must include an 'id' field.");
+        }
+        String id = String.valueOf(idRaw);
+
+        Object enabledRaw = entry.get("enabled");
+        if (enabledRaw == null) {
+            throw new IllegalArgumentException(
+                    "Missing 'enabled' field for dependency '"
+                            + id
+                            + "'. Each entry must include both 'id' and 'enabled'.");
+        }
+
+        boolean enabled;
+        if (enabledRaw instanceof Boolean b) {
+            enabled = b;
+        } else {
+            String s = String.valueOf(enabledRaw);
+            if ("true".equalsIgnoreCase(s)) {
+                enabled = true;
+            } else if ("false".equalsIgnoreCase(s)) {
+                enabled = false;
+            } else {
+                throw new IllegalArgumentException(
+                        "Invalid 'enabled' value '"
+                                + enabledRaw
+                                + "' for dependency '"
+                                + id
+                                + "'. Must be true or false.");
+            }
+        }
+
+        VisualPropertyDependency<?> match = null;
+        for (VisualPropertyDependency<?> dep : allDeps) {
+            if (dep.getIdString().equals(id)) {
+                match = dep;
+                break;
+            }
+        }
+        if (match == null) {
+            throw new IllegalArgumentException(
+                    "Unknown dependency ID '"
+                            + id
+                            + "'. Call get_visual_style_defaults to retrieve valid dependency IDs"
+                            + " and their current state.");
+        }
+
+        return new DependencyUpdate(match, enabled);
     }
 
     /** Type-safe helper to call {@code style.setDefaultValue} without unchecked cast warnings. */
