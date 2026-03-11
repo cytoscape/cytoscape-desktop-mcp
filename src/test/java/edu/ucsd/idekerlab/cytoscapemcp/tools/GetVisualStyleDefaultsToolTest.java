@@ -1,6 +1,7 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -75,7 +76,12 @@ public class GetVisualStyleDefaultsToolTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        tool = new GetVisualStyleDefaultsTool(appManager, vmmManager, renderingEngineManager);
+        tool =
+                new GetVisualStyleDefaultsTool(
+                        appManager,
+                        vmmManager,
+                        renderingEngineManager,
+                        new VisualPropertyService());
     }
 
     @After
@@ -191,6 +197,87 @@ public class GetVisualStyleDefaultsToolTest {
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
         assertFalse(
                 "Should not contain allowedValues for Paint", response.contains("allowedValues"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Font property omits allowedValues (references top-level font_families)
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void fontProperty_omitsAllowedValues() throws Exception {
+        stubSuccessPath();
+
+        Set<VisualProperty<?>> nodeDescendants = new HashSet<>();
+        nodeDescendants.add(BasicVisualLexicon.NODE_LABEL_FONT_FACE);
+        stubDescendants(BasicVisualLexicon.NODE, nodeDescendants);
+        stubDescendants(BasicVisualLexicon.EDGE, Collections.emptySet());
+
+        when(style.getDefaultValue(BasicVisualLexicon.NODE_LABEL_FONT_FACE))
+                .thenReturn(new Font("Dialog", Font.PLAIN, 12));
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Collections.emptySet());
+
+        String response = callTool();
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain Font value", response.contains("Dialog-Plain-12"));
+        // Font properties should NOT have allowedValues — they reference font_families instead.
+        // Since NODE_LABEL_FONT_FACE is the only property in node_properties, allowedValues
+        // should be entirely absent from the response (NON_NULL omits null fields).
+        assertFalse(
+                "Font property should not have allowedValues", response.contains("allowedValues"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Response contains font_families with family names
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void response_containsFontFamilies() throws Exception {
+        stubSuccessPath();
+
+        // Stub NODE_LABEL_FONT_FACE in the lexicon so getFontFamilies() can find it
+        stubDescendants(BasicVisualLexicon.NODE, Collections.emptySet());
+        stubDescendants(BasicVisualLexicon.EDGE, Collections.emptySet());
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Collections.emptySet());
+
+        // The lexicon.getAllVisualProperties() is used by findPropertyById; add
+        // NODE_LABEL_FONT_FACE
+        Set<VisualProperty<?>> allVPs = new HashSet<>();
+        allVPs.add(BasicVisualLexicon.NODE_LABEL_FONT_FACE);
+        when(lexicon.getAllVisualProperties()).thenReturn(allVPs);
+
+        String response = callTool();
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain font_families field", response.contains("font_families"));
+        assertTrue("Should contain font_styles field", response.contains("font_styles"));
+        // font_styles should include the four standard tokens
+        assertTrue("Should contain Plain", response.contains("Plain"));
+        assertTrue("Should contain Bold", response.contains("Bold"));
+        assertTrue("Should contain Italic", response.contains("Italic"));
+        assertTrue("Should contain BoldItalic", response.contains("BoldItalic"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Response contains font_styles with the four standard tokens
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void response_containsFontStyles() throws Exception {
+        stubSuccessPath();
+        stubDescendants(BasicVisualLexicon.NODE, Collections.emptySet());
+        stubDescendants(BasicVisualLexicon.EDGE, Collections.emptySet());
+        when(style.getAllVisualPropertyDependencies()).thenReturn(Collections.emptySet());
+
+        String response = callTool();
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain font_styles field", response.contains("font_styles"));
+        // Verify all four standard style tokens appear in order in the response
+        assertTrue("Should contain Plain token", response.contains("Plain"));
+        assertTrue("Should contain Bold token", response.contains("Bold"));
+        assertTrue("Should contain Italic token", response.contains("Italic"));
+        assertTrue("Should contain BoldItalic token", response.contains("BoldItalic"));
     }
 
     // -----------------------------------------------------------------------

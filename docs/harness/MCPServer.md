@@ -110,11 +110,18 @@ First-class concern for every MCP tool is to remember that the tool must be self
 
 Take it as opportunity to provide as much salient and semantic description of the tool and its behavior as possible so that llm's can reason proprely to compose the tool into dynamic sequences of interacting with cytoscape desktop mcp tools as a whole of building blocks to complete larger unstructured flows that a user asks.  
 
-Specifically for the Tool description, two sections are encouraged:  
-* First section - 2-3 sentences describing functionality the tool provides.
-* Second section - separated by two line breaks. Provide at least 3 to 4 agent prompt examples that shold trigger activation by an LLM of this tool. Each example shows the prompt snippet and the example input params if applicable that LLM woud have populated as well when requesting invocation. Refer to other tools in project for examples.
+### Tool description, two sections are encouraged:  
+* First section - 3-7 sentences describing functionality the tool provides, if more than is ok, but that is generally a good size. Include one additional sentence to mention error response handling and how the tool may emit error responses instead of successful responses and highlight that the error response should proivde clear indicator of reason and highlight any specific error message or types of errors if they are prominently known in the tool's implementation.
+* Second section - Examples. Separated by two line breaks after description. Provide at least 3 to 4 agent prompt examples that shold trigger activation by an LLM of this tool. Each example shows the prompt snippet and the example input params if applicable that LLM woud have populated as well when requesting invocation. Refer to other tools in project for examples.
 
-To this end each tool is encapsulated unto itself and it does not depend on or reference any other tool by name in any of the meta descriptions or code. Rather it's encouraged to reference other general functionality in descriptions for context as that creates a semenatic web across tools but not by tool name, that allows the LLM to reason and activate tools when they are functionally needed.
+### Tool input parameter descriptions
+In addition to desribing each input parameter meaning and intent, must highlight whether the parameter is optional or required. State if presence of other parameters on the tool determine the optional/required aspect, thereby capturing the parameter's semantic relationship in the tool. Often, tools will have groups of parameters with some optional and some required, so clearly stating this aspect helps the LLM know how invoke the tool. Include 2-3 examlple values as additional last sentence in the parameter description, separated by two line breaks.
+
+### Output schema descriptions
+Tools should define a structured content model for tool output, not just string. The structured content should be Json as it works over the mcp protocol. Use Java record with jackson annoations which provide abitity to add schema level descriptions to all nodes in the content model. Take full advantage of this json schema and add a description for every element, attribute, sub-elelment of the response model and then set the tool output schema to that of the json schema definition. Include 2-3 examlple values as additional last sentence in the shcema description when the element has scalar value types, separated by two line breaks.
+
+### Meta descriptions summary
+The design goal for each tool is to be encapsulated unto itself and it does not depend on or reference any other tool by name in any of the meta descriptions or code. Rather it's encouraged to reference other general functionality in descriptions for context as that creates a semenatic web across tools but not by tool name, that allows the LLM to reason and activate tools when they are functionally needed.
 
 Research Summary: Consensus on Tool Meta Best Practices
 

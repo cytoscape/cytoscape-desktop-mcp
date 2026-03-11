@@ -9,9 +9,6 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -48,110 +45,54 @@ public class GetVisualStyleDefaultsTool {
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
-                    + "Example 1 — Inspect the visual style defaults for the current network view:\n"
+                    + "Example 1 — Inspect the visual style defaults before applying style changes:\n"
                     + "{}\n\n"
                     + "Example 2 — What are the default node and edge colors in the active style:\n"
                     + "{}\n\n"
-                    + "Example 3 — Show me the current visual property defaults in Cytoscape:\n"
+                    + "Example 3 — Discover available node shapes, label fonts, and edge line types"
+                    + " with their current values:\n"
+                    + "{}\n\n"
+                    + "Example 4 — Retrieve the full style state to plan a network visualization"
+                    + " update:\n"
                     + "{}";
 
     private static final String TOOL_DESCRIPTION =
-            "Get the current default values for all node and edge visual properties in the active"
-                    + " visual style on the current network view in Cytoscape Desktop. Use when you"
-                    + " need to inspect visual property defaults before modifying them. Returns"
-                    + " property IDs, display names, value types, current values, allowed values for"
-                    + " discrete types (shapes, arrows, line types), valid range bounds for numeric"
-                    + " types, and visual property dependency (lock) relationships. Operates on the"
-                    + " current desktop state — the result reflects whichever network view is"
-                    + " currently selected. Read-only; does not modify state.";
+            "Retrieves all default visual property values for the active Cytoscape Desktop visual"
+                    + " style, including node properties, edge properties, available font families"
+                    + " and styles, and visual property dependency locks. Use when you need to"
+                    + " inspect current styling for the active network, discover all valid property"
+                    + " identifiers and their allowed value formats, or audit the full style state"
+                    + " before applying any visual changes. Read-only; does not modify state."
+                    + " Returns an error if no network is currently loaded or if the active network"
+                    + " has no view, each with a descriptive message indicating the specific cause.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    // -- Response records -----------------------------------------------------
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private record VisualPropertyEntry(
-            @JsonPropertyDescription("Visual property ID string (e.g. NODE_FILL_COLOR).")
-                    @JsonProperty("id")
-                    String id,
-            @JsonPropertyDescription("Human-readable display name.") @JsonProperty("displayName")
-                    String displayName,
-            @JsonPropertyDescription(
-                            "Value type: Paint, Double, Integer, NodeShape, ArrowShape, LineType,"
-                                    + " Font, String, or Boolean.")
-                    @JsonProperty("valueType")
-                    String valueType,
-            @JsonPropertyDescription("Current default value formatted as a string.")
-                    @JsonProperty("currentValue")
-                    String currentValue,
-            @JsonPropertyDescription(
-                            "Alphabetically sorted valid values. Present only for discrete types"
-                                    + " (NodeShape, ArrowShape, LineType).")
-                    @JsonProperty("allowedValues")
-                    List<String> allowedValues,
-            @JsonPropertyDescription(
-                            "Minimum valid value. Present only for continuous numeric types (Double,"
-                                    + " Integer).")
-                    @JsonProperty("minValue")
-                    String minValue,
-            @JsonPropertyDescription(
-                            "Maximum valid value. Present only for continuous numeric types (Double,"
-                                    + " Integer).")
-                    @JsonProperty("maxValue")
-                    String maxValue) {}
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private record DependencyEntry(
-            @JsonPropertyDescription("Dependency ID string (e.g. 'nodeSizeLocked').")
-                    @JsonProperty("id")
-                    String id,
-            @JsonPropertyDescription(
-                            "Human-readable dependency name (e.g. 'Lock node width and height').")
-                    @JsonProperty("displayName")
-                    String displayName,
-            @JsonPropertyDescription("Whether this dependency is currently enabled.")
-                    @JsonProperty("enabled")
-                    boolean enabled,
-            @JsonPropertyDescription("Visual property IDs that are linked by this dependency.")
-                    @JsonProperty("properties")
-                    List<String> properties) {}
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private record GetVisualStyleDefaultsResult(
-            @JsonPropertyDescription("Name of the active visual style.") @JsonProperty("style_name")
-                    String styleName,
-            @JsonPropertyDescription("Node visual property defaults.")
-                    @JsonProperty("node_properties")
-                    List<VisualPropertyEntry> nodeProperties,
-            @JsonPropertyDescription("Edge visual property defaults.")
-                    @JsonProperty("edge_properties")
-                    List<VisualPropertyEntry> edgeProperties,
-            @JsonPropertyDescription(
-                            "Visual property dependencies (lock relationships). When enabled,"
-                                    + " changing one property in the group affects all others.")
-                    @JsonProperty("dependencies")
-                    List<DependencyEntry> dependencies) {}
+    // Response model classes are package-level: VisualPropertyEntry, DependencyEntry,
+    // VisualStyleDefaults — shared with SetVisualDefaultTool.
 
     // -- Schemas --------------------------------------------------------------
 
     static final String INPUT_SCHEMA = McpSchema.toJson(McpSchema.InputSchema.builder().build());
 
-    static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(GetVisualStyleDefaultsResult.class);
+    static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(VisualStyleDefaults.class);
 
     // -- Dependencies ---------------------------------------------------------
 
     private final CyApplicationManager appManager;
     private final VisualMappingManager vmmManager;
     private final RenderingEngineManager renderingEngineManager;
-    private final VisualPropertyService vpService = new VisualPropertyService();
+    private final VisualPropertyService vpService;
 
     public GetVisualStyleDefaultsTool(
             CyApplicationManager appManager,
             VisualMappingManager vmmManager,
-            RenderingEngineManager renderingEngineManager) {
+            RenderingEngineManager renderingEngineManager,
+            VisualPropertyService vpService) {
         this.appManager = appManager;
         this.vmmManager = vmmManager;
         this.renderingEngineManager = renderingEngineManager;
+        this.vpService = vpService;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -209,6 +150,9 @@ public class GetVisualStyleDefaultsTool {
             List<VisualPropertyEntry> edgeProps =
                     collectProperties(lexicon, style, BasicVisualLexicon.EDGE);
 
+            // Collect font families (shared top-level field, avoids duplicating in each VP)
+            List<String> fontFamilies = vpService.getFontFamilies(lexicon);
+
             // Collect dependencies
             Set<VisualPropertyDependency<?>> deps = style.getAllVisualPropertyDependencies();
             List<DependencyEntry> dependencies = new ArrayList<>();
@@ -229,8 +173,13 @@ public class GetVisualStyleDefaultsTool {
 
             return CallToolResult.builder()
                     .structuredContent(
-                            new GetVisualStyleDefaultsResult(
-                                    style.getTitle(), nodeProps, edgeProps, dependencies))
+                            new VisualStyleDefaults(
+                                    style.getTitle(),
+                                    fontFamilies,
+                                    VisualPropertyService.FONT_STYLES,
+                                    nodeProps,
+                                    edgeProps,
+                                    dependencies))
                     .build();
         } catch (Exception e) {
             LOGGER.error("Error retrieving visual style defaults", e);

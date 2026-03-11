@@ -55,8 +55,8 @@ public class GetLoadedNetworkViewsTool {
 
     private static final String TOOL_DESCRIPTION =
             "List all network collections currently loaded in Cytoscape Desktop with their views,"
-                    + " node counts, and edge counts. Call this first to discover network and view"
-                    + " identifiers required by other tools. Read-only; does not modify state.";
+                    + " node counts, and edge counts. Use this to discover currently available network SUID and view SUID"
+                    + " identifiers present on the desktop. Read-only; does not modify state.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
