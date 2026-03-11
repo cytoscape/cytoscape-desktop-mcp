@@ -59,14 +59,11 @@ public class SetVisualDefaultTool {
                     + " default; retrieve the current style defaults first to discover all valid"
                     + " property identifiers, their allowed value formats, available font families"
                     + " and styles, and dependency lock IDs, then provide only the entries you want"
-                    + " to update. For font properties, compose the value as Family-Style-Size"
-                    + " using a family name and style from the style defaults (e.g."
-                    + " Arial-Bold-14). For dependency toggles, provide the dependency ID and the"
-                    + " desired enabled state from the style defaults response. Returns an error if"
+                    + " to update. Returns an error if"
                     + " no network is currently loaded, if a property identifier is not recognized,"
                     + " or if a value cannot be parsed or falls outside the valid range — each"
                     + " error message identifies the specific property and failure reason."
-                    + " State-mutating; modifies the active visual style and immediately updates"
+                    + " State-mutating; modifies the active visual style defaults and immediately rerenders"
                     + " the current view if one exists.";
 
     private static final String TOOL_EXAMPLES =
@@ -231,7 +228,7 @@ public class SetVisualDefaultTool {
                                     "dependencies",
                                     new McpSchema.InputProperty(
                                             "array",
-                                            "Optional. List of dependency lock toggles."
+                                            "Optional. List of dependency locks to toggle on/off."
                                                     + " Each entry requires an 'id' field matching"
                                                     + " a dependency identifier from the style"
                                                     + " defaults response and an 'enabled' field"
