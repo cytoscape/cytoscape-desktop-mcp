@@ -64,6 +64,33 @@ public class VisualPropertyService {
                     String.class,
                     Boolean.class);
 
+    /**
+     * Returns {@code true} if the VP is a node property, {@code false} if edge, {@code null} if
+     * neither (network-level). Uses the lexicon's descendant hierarchy.
+     */
+    @SuppressWarnings("unchecked")
+    public Boolean isNodeProperty(VisualLexicon lexicon, VisualProperty<?> vp) {
+        Set<VisualProperty<?>> nodeDescendants =
+                (Set<VisualProperty<?>>)
+                        (Set<?>) lexicon.getAllDescendants(BasicVisualLexicon.NODE);
+        if (nodeDescendants.contains(vp)) return true;
+        Set<VisualProperty<?>> edgeDescendants =
+                (Set<VisualProperty<?>>)
+                        (Set<?>) lexicon.getAllDescendants(BasicVisualLexicon.EDGE);
+        if (edgeDescendants.contains(vp)) return false;
+        return null;
+    }
+
+    /**
+     * Returns {@code "node"}, {@code "edge"}, or {@code null} (network-level). Convenience wrapper
+     * around {@link #isNodeProperty(VisualLexicon, VisualProperty)}.
+     */
+    public String getTableName(VisualLexicon lexicon, VisualProperty<?> vp) {
+        Boolean isNode = isNodeProperty(lexicon, vp);
+        if (isNode == null) return null;
+        return isNode ? "node" : "edge";
+    }
+
     /** Finds a VisualProperty by its ID string in the given lexicon. Returns null if not found. */
     public VisualProperty<?> findPropertyById(VisualLexicon lexicon, String idString) {
         for (VisualProperty<?> vp : lexicon.getAllVisualProperties()) {

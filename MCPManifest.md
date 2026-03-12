@@ -39,6 +39,18 @@ Example 4 — open network on cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
+    "excel_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
+    },
+    "interaction_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
+    },
+    "node_attributes_sheet_target_key_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+    },
     "node_attributes_target_columns" : {
       "type" : "array",
       "description" : "Optional. Array of column names from sheet or file  to attach as properties on target nodes. Preview columns from the file(and sheet if applicable) to determine which columns are available.",
@@ -89,18 +101,6 @@ Example 4 — open network on cytoscape desktop:
       "items" : {
         "type" : "string"
       }
-    },
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
-    },
-    "interaction_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
-    },
-    "node_attributes_sheet_target_key_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
     }
   },
   "required" : [ "source" ]
@@ -243,13 +243,13 @@ Example 3 — Focus Cytoscape desktop on a particular network before applying st
 {
   "type" : "object",
   "properties" : {
-    "network_suid" : {
-      "type" : "integer",
-      "description" : "Required. SUID of the target network in Cytoscape Desktop."
-    },
     "view_suid" : {
       "type" : "integer",
       "description" : "Required. SUID of the target network view in Cytoscape Desktop."
+    },
+    "network_suid" : {
+      "type" : "integer",
+      "description" : "Required. SUID of the target network in Cytoscape Desktop."
     }
   },
   "required" : [ "network_suid", "view_suid" ]
@@ -311,13 +311,13 @@ Example 4 — Force create a new view in Cytoscape desktop even though one alrea
 {
   "type" : "object",
   "properties" : {
-    "network_suid" : {
-      "type" : "integer",
-      "description" : "Required. SUID of the network in Cytoscape Desktop that needs a view."
-    },
     "create_if_exists" : {
       "type" : "boolean",
       "description" : "Optional. Default is false. When false and a view already exists, returns the existing current view (or first available) without creating a duplicate. When true, always creates a new view even if views already exist."
+    },
+    "network_suid" : {
+      "type" : "integer",
+      "description" : "Required. SUID of the network in Cytoscape Desktop that needs a view."
     }
   },
   "required" : [ "network_suid" ]
@@ -455,10 +455,6 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
-    },
     "use_header_row" : {
       "type" : "boolean",
       "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
@@ -470,6 +466,10 @@ Inspect the file first to determine input params as needed.
     "excel_sheet" : {
       "type" : "string",
       "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
+    },
+    "delimiter_char_code" : {
+      "type" : "integer",
+      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
     }
   },
   "required" : [ "file_path", "use_header_row" ]
@@ -875,6 +875,10 @@ Example 7 — Lock node size and set it to 50 in one call:
 {
   "type" : "object",
   "properties" : {
+    "node_properties" : {
+      "type" : "array",
+      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
+    },
     "dependencies" : {
       "type" : "array",
       "description" : "Optional. List of dependency locks to toggle on/off. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
@@ -882,10 +886,6 @@ Example 7 — Lock node size and set it to 50 in one call:
     "edge_properties" : {
       "type" : "array",
       "description" : "Optional. List of edge visual property updates. Each entry requires 'id' and 'currentValue' using the same format conventions as node properties — property identifiers, value types, allowed values, font families, and font styles are documented in the style defaults response.\n\nExamples: [{\"id\": \"EDGE_WIDTH\", \"currentValue\": \"3.0\"}], [{\"id\": \"EDGE_LINE_TYPE\", \"currentValue\": \"Dash\"}], [{\"id\": \"EDGE_LABEL_FONT_FACE\", \"currentValue\": \"Courier New-Italic-12\"}]"
-    },
-    "node_properties" : {
-      "type" : "array",
-      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
     }
   },
   "required" : [ ]
@@ -1054,6 +1054,61 @@ Example 4 — Check if any existing mappings will be overwritten before creating
     "style_name" : {
       "type" : "string",
       "description" : "Name of the active visual style applied to the current network.\n\nExamples: \"default\", \"Marquee\", \"galFiltered Style\""
+    }
+  }
+}
+```
+
+---
+
+### `get_compatible_columns`
+
+**Title:** Get Cytoscape Desktop Mapping Columns
+
+**Description:** List data columns from the active network that are compatible with one or more visual properties for data-driven mapping in the active Cytoscape Desktop visual style, with each column's mapping type support (continuous, discrete, passthrough) and sample values. Use when you need to determine which data columns can drive a mapping for specific visual properties, or to check whether a column supports continuous interpolation, discrete value-to-value mapping, or passthrough before creating a mapping. Accepts one or more property identifiers to batch-query multiple properties in a single call — useful when planning mappings for several visual properties at once. Read-only; does not modify state. Returns an error if no network is currently loaded, if the active network has no view, or if any requested property identifier is not recognized or not applicable to nodes or edges, each with a descriptive message indicating the specific cause.
+
+## Examples
+
+Example 1 — Check which data columns can drive a color mapping on nodes:
+{"property_ids": ["NODE_FILL_COLOR"]}
+
+Example 2 — Query compatible columns for multiple node properties at once to plan a complete node styling:
+{"property_ids": ["NODE_FILL_COLOR", "NODE_SIZE", "NODE_LABEL"]}
+
+Example 3 — Find columns compatible with edge width and edge color for edge styling:
+{"property_ids": ["EDGE_WIDTH", "EDGE_STROKE_UNSELECTED_PAINT"]}
+
+Example 4 — Batch query for data columns related to speparate node and edge properties in one call:
+{"property_ids": ["NODE_FILL_COLOR", "EDGE_WIDTH"]}
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : {
+    "property_ids" : {
+      "type" : "array",
+      "description" : "Required. One or more visual property identifiers to query compatible data columns for. Use the property IDs returned by the mappable properties listing (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Accepts a single property for focused queries or multiple properties to batch-retrieve compatible columns for several visual properties in one call.\n\nExamples: [\"NODE_FILL_COLOR\"], [\"NODE_SIZE\", \"NODE_LABEL\", \"NODE_SHAPE\"]",
+      "items" : {
+        "type" : "string"
+      }
+    }
+  },
+  "required" : [ "property_ids" ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "properties" : {
+      "type" : "object",
+      "description" : "Map from visual property ID to its compatible columns and metadata. Each key is a property ID string as provided in the request (e.g. NODE_FILL_COLOR, EDGE_WIDTH). Each value contains the property's display name, value type, which table it reads from, and the list of compatible data columns with their mapping support flags."
     }
   }
 }
