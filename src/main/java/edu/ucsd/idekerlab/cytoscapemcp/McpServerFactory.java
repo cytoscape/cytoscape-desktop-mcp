@@ -12,11 +12,13 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.GetFileColumnsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLayoutAlgorithmsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetMappablePropertiesTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetStylesTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetVisualStyleDefaultsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.InspectTabularFileTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetVisualDefaultTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.SwitchCurrentStyleTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.VisualPropertyService;
 
 import org.cytoscape.application.CyApplicationManager;
@@ -32,6 +34,7 @@ import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.view.presentation.RenderingEngineManager;
 import org.cytoscape.view.vizmap.VisualMappingFunctionFactory;
 import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualStyleFactory;
 import org.cytoscape.work.SynchronousTaskManager;
 import org.cytoscape.work.TaskManager;
 
@@ -77,6 +80,7 @@ public final class McpServerFactory {
      * @param syncTaskManager synchronous task manager (nullable)
      * @param commandExecutorTaskFactory command executor for invoking registered app commands
      *     (nullable)
+     * @param visualStyleFactory factory for creating new visual styles (nullable)
      */
     public static McpSyncServer create(
             McpTransportProvider transportProvider,
@@ -98,7 +102,8 @@ public final class McpServerFactory {
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
             SynchronousTaskManager<?> syncTaskManager,
-            CommandExecutorTaskFactory commandExecutorTaskFactory) {
+            CommandExecutorTaskFactory commandExecutorTaskFactory,
+            VisualStyleFactory visualStyleFactory) {
 
         // Explicitly supply jsonMapper and jsonSchemaValidator to bypass McpJsonDefaults,
         // which uses ServiceLoader with the Thread context classloader — that classloader
@@ -126,7 +131,9 @@ public final class McpServerFactory {
                                 networkViewFactory,
                                 layoutManager)
                         .toSpec());
-        server.addTool(new GetLoadedNetworkViewsTool(networkManager, viewManager).toSpec());
+        server.addTool(
+                new GetLoadedNetworkViewsTool(appManager, networkManager, viewManager, vmmManager)
+                        .toSpec());
         server.addTool(
                 new SetCurrentNetworkViewTool(appManager, networkManager, viewManager).toSpec());
         server.addTool(
@@ -155,6 +162,9 @@ public final class McpServerFactory {
         server.addTool(
                 new GetCompatibleColumnsTool(appManager, renderingEngineManager, vpService)
                         .toSpec());
+        server.addTool(new GetStylesTool(vmmManager).toSpec());
+        server.addTool(
+                new SwitchCurrentStyleTool(appManager, vmmManager, visualStyleFactory).toSpec());
         return server;
     }
 }

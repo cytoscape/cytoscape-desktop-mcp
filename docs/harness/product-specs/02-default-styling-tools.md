@@ -80,6 +80,49 @@
 }
 ```
 
+## 5. Use Case: User Chooses a Different Style
+
+### 5.1 Get available styles
+
+**Trigger**: User asks "what styles do I have?", "list styles", "switch to a different style"
+
+Call tool: `get_styles`
+
+Optionally also call: `get_loaded_network_views` to see which view is current and its style.
+
+Present results:
+"Here are the visual styles available in Cytoscape Desktop:
+
+| # | Style Name |
+|---|------------|
+| 1 | default |
+| 2 | Marquee |
+| 3 | Nested Network Style |
+
+Your current view is using the 'default' style. Which style would you like to apply?
+(enter the number or name)"
+
+### 5.2 Switch to chosen style
+
+Call tool: `switch_current_style` with `{"name": "<chosen_style>"}`
+
+If success → "Switched the current view to the '<style_name>' style."
+If error → Present error message and suggest alternatives.
+
+### 5.3 Create a new named style
+
+**Trigger**: User asks "create a new style called X" or "make a copy of this style as X"
+
+Ask: "Which existing style would you like to base the new style on?"
+- Present style list from `get_styles`
+- User picks one → `{"name": "X", "create_from": "<source_style>"}`
+
+If success → Retrieve style defaults for the newly active style, then inform user:
+"Created style 'X' based on '<source_style>'. Here are its current defaults —
+what would you like to change?"
+
+Then proceed with property changes using the standard STEP 1–4 flow.
+
 ## 6. Edge Cases and Error Handling
 
 ### 6.1 No Network Loaded
