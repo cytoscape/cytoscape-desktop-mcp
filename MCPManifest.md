@@ -39,10 +39,6 @@ Example 4 — open network on cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
-    "node_attributes_sheet_target_key_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
-    },
     "interaction_column" : {
       "type" : "string",
       "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
@@ -101,6 +97,10 @@ Example 4 — open network on cytoscape desktop:
       "items" : {
         "type" : "string"
       }
+    },
+    "node_attributes_sheet_target_key_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
     }
   },
   "required" : [ "source" ]
@@ -469,10 +469,6 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
-    },
     "file_path" : {
       "type" : "string",
       "description" : "Required. Absolute path to the tabular file."
@@ -484,6 +480,10 @@ Inspect the file first to determine input params as needed.
     "delimiter_char_code" : {
       "type" : "integer",
       "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
+    },
+    "excel_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
     }
   },
   "required" : [ "file_path", "use_header_row" ]
