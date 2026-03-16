@@ -12,13 +12,28 @@ If your agent is not listed below, consult its documentation for configuring an 
 
 ## Claude Desktop
 
-Open Claude Desktop and go to **Settings > Connectors**. Click **Add custom connector**. Enter the URL and save — active immediately, no restart needed.
-
+Open Claude Desktop and go to **Settings > Developer > Edit Config**. This will highlight the `claude_desktop_config.json` file in your file explorer/finder, open that .json file and add this mcp config block direct to the json:
 ```
-http://localhost:{rest.port}/mcp
+{
+  "mcpServers": {
+    "cytoscape": {
+      "command": "npx",
+      "args": [
+        "mcp-remote@latest",
+        "http://localhost:1234/mcp",
+        "--allow-http"
+      ]
+    }
+  },
+  "preferences": {
+    ...
+  }
+}
 ```
 
-To verify: click the **+** button in the chat input and select **Connectors**.
+Restart Claude Desktop.
+
+To verify: the 'cytoscape' mcp connectdor will show up in **Settings > Connectors**  and also **Customize > Connectors**.
 
 ---
 
