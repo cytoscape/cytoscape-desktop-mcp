@@ -65,9 +65,7 @@ public class GetMappablePropertiesTool {
                     + " when you need to discover which visual properties can be mapped to data"
                     + " columns, determine what kind of mapping (continuous, discrete, or"
                     + " passthrough) each property supports, or inspect existing mappings before"
-                    + " creating or replacing them. Read-only; does not modify state. Returns an"
-                    + " error if no network is currently loaded or if the active network has no"
-                    + " view, each with a descriptive message indicating the specific cause.";
+                    + " creating or replacing them. Read-only; does not modify state.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

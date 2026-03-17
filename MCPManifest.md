@@ -39,13 +39,49 @@ Example 4 — open network on cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
-    "interaction_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
+    "node_attributes_target_columns" : {
+      "type" : "array",
+      "description" : "Optional. Array of column names from sheet or file  to attach as properties on target nodes. Preview columns from the file(and sheet if applicable) to determine which columns are available.",
+      "items" : {
+        "type" : "string"
+      }
     },
-    "excel_sheet" : {
+    "node_attributes_sheet_source_key_column" : {
       "type" : "string",
-      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
+      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+    },
+    "target_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
+    },
+    "source" : {
+      "type" : "string",
+      "description" : "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the remaining input parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
+      "enum" : [ "ndex", "network-file", "tabular-file" ]
+    },
+    "node_attributes_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Applicable for Excel tabular files."
+    },
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
+    },
+    "file_path" : {
+      "type" : "string",
+      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
+    },
+    "delimiter_char_code" : {
+      "type" : "integer",
+      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab).  Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code. Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
+    },
+    "source_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the source (from) node. Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge. Required when source='tabular-file'."
+    },
+    "network_id" : {
+      "type" : "string",
+      "description" : "Optional. NDEx network Id expressed as UUID string (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
     },
     "node_attributes_source_columns" : {
       "type" : "array",
@@ -54,49 +90,13 @@ Example 4 — open network on cytoscape desktop:
         "type" : "string"
       }
     },
-    "network_id" : {
+    "excel_sheet" : {
       "type" : "string",
-      "description" : "Optional. NDEx network Id expressed as UUID string (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
+      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
     },
-    "source_column" : {
+    "interaction_column" : {
       "type" : "string",
-      "description" : "Optional. Column name for the source (from) node. Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge. Required when source='tabular-file'."
-    },
-    "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab).  Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code. Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
-    },
-    "file_path" : {
-      "type" : "string",
-      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
-    },
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
-    },
-    "node_attributes_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Applicable for Excel tabular files."
-    },
-    "source" : {
-      "type" : "string",
-      "description" : "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the remaining input parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
-      "enum" : [ "ndex", "network-file", "tabular-file" ]
-    },
-    "target_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
-    },
-    "node_attributes_sheet_source_key_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
-    },
-    "node_attributes_target_columns" : {
-      "type" : "array",
-      "description" : "Optional. Array of column names from sheet or file  to attach as properties on target nodes. Preview columns from the file(and sheet if applicable) to determine which columns are available.",
-      "items" : {
-        "type" : "string"
-      }
+      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
     },
     "node_attributes_sheet_target_key_column" : {
       "type" : "string",
@@ -469,21 +469,21 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "file_path" : {
-      "type" : "string",
-      "description" : "Required. Absolute path to the tabular file."
-    },
     "use_header_row" : {
       "type" : "boolean",
       "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
     },
-    "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
+    "file_path" : {
+      "type" : "string",
+      "description" : "Required. Absolute path to the tabular file."
     },
     "excel_sheet" : {
       "type" : "string",
       "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
+    },
+    "delimiter_char_code" : {
+      "type" : "integer",
+      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
     }
   },
   "required" : [ "file_path", "use_header_row" ]
@@ -717,7 +717,7 @@ Example 4 — Apply a layout to the current network view in Cytoscape desktop:
 
 **Title:** Get Cytoscape Desktop Style Defaults
 
-**Description:** Retrieves all default visual property values for the active Cytoscape Desktop visual style, including node properties, edge properties, available font families and styles, and visual property dependency locks. Use when you need to inspect current styling for the active network, discover all valid property identifiers and their allowed value formats, or audit the full style state before applying any visual changes. Read-only; does not modify state. Returns an error if no network is currently loaded or if the active network has no view, each with a descriptive message indicating the specific cause.
+**Description:** Retrieves all default visual property values for the active Cytoscape Desktop visual style. Use when you need to inspect current styling for the active network, discover all valid property identifiers and their allowed value formats, or audit the full style state before applying any visual changes. See the output schema for the complete result structure including node/edge properties, font options, and dependency locks. Read-only; does not modify state.
 
 ## Examples
 
@@ -858,7 +858,7 @@ Example 4 — Retrieve the full style state to plan a network visualization upda
 
 **Title:** Set Cytoscape Desktop Style Defaults
 
-**Description:** Sets default visual property values and/or toggles visual property dependency locks in the active Cytoscape Desktop visual style for nodes and/or edges — such as fill color, size, shape, border style, edge width, line type, font, or arrow shape. Use when you want to change how network elements appear by default; retrieve the current style defaults first to discover all valid property identifiers, their allowed value formats, available font families and styles, and dependency lock IDs, then provide only the entries you want to update. The prior retrieval of style defaults includes the active style name — mention this name as confirmation to the user before invoking this tool so they know which style is being modified. The only way a style can be edited is through this tool which requires the style be set on current view. Returns an error if no network is currently loaded, if a property identifier is not recognized, or if a value cannot be parsed or falls outside the valid range — each error message identifies the specific property and failure reason. State-mutating; modifies the active visual style defaults and immediately rerenders the current view.
+**Description:** Sets default visual property values and/or toggles visual property dependency locks in the active Cytoscape Desktop visual style for nodes and/or edges — such as fill color, size, shape, border style, edge width, line type, font, or arrow shape. Use when you want to change how network elements appear by default; retrieve the current style defaults first to discover all valid property identifiers, their allowed value formats, available font families and styles, and dependency lock IDs, then provide only the entries you want to update. The prior retrieval of style defaults includes the active style name — mention this name as confirmation to the user before invoking this tool so they know which style is being modified. The only way a style can be edited is through this tool which requires the style be set on current view. State-mutating; modifies the active visual style defaults and immediately rerenders the current view.
 
 ## Examples
 
@@ -889,17 +889,17 @@ Example 7 — Lock node size and set it to 50 in one call:
 {
   "type" : "object",
   "properties" : {
-    "node_properties" : {
+    "dependencies" : {
       "type" : "array",
-      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
+      "description" : "Optional. List of dependency locks to toggle on/off. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
     },
     "edge_properties" : {
       "type" : "array",
       "description" : "Optional. List of edge visual property updates. Each entry requires 'id' and 'currentValue' using the same format conventions as node properties — property identifiers, value types, allowed values, font families, and font styles are documented in the style defaults response.\n\nExamples: [{\"id\": \"EDGE_WIDTH\", \"currentValue\": \"3.0\"}], [{\"id\": \"EDGE_LINE_TYPE\", \"currentValue\": \"Dash\"}], [{\"id\": \"EDGE_LABEL_FONT_FACE\", \"currentValue\": \"Courier New-Italic-12\"}]"
     },
-    "dependencies" : {
+    "node_properties" : {
       "type" : "array",
-      "description" : "Optional. List of dependency locks to toggle on/off. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
+      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
     }
   },
   "required" : [ ]
@@ -977,7 +977,7 @@ Example 7 — Lock node size and set it to 50 in one call:
 
 **Title:** List Cytoscape Desktop Mappable Properties
 
-**Description:** List all visual properties that support data-driven mappings in the active Cytoscape Desktop visual style, grouped by node and edge categories with each property's mapping compatibility type and any currently applied mapping. Use when you need to discover which visual properties can be mapped to data columns, determine what kind of mapping (continuous, discrete, or passthrough) each property supports, or inspect existing mappings before creating or replacing them. Read-only; does not modify state. Returns an error if no network is currently loaded or if the active network has no view, each with a descriptive message indicating the specific cause.
+**Description:** List all visual properties that support data-driven mappings in the active Cytoscape Desktop visual style, grouped by node and edge categories with each property's mapping compatibility type and any currently applied mapping. Use when you need to discover which visual properties can be mapped to data columns, determine what kind of mapping (continuous, discrete, or passthrough) each property supports, or inspect existing mappings before creating or replacing them. Read-only; does not modify state.
 
 ## Examples
 
@@ -1079,7 +1079,7 @@ Example 4 — Check if any existing mappings will be overwritten before creating
 
 **Title:** Get Cytoscape Desktop Mapping Columns
 
-**Description:** List data columns from the active network that are compatible with one or more visual properties for data-driven mapping in the active Cytoscape Desktop visual style, with each column's mapping type support (continuous, discrete, passthrough) and sample values. Use when you need to determine which data columns can drive a mapping for specific visual properties, or to check whether a column supports continuous interpolation, discrete value-to-value mapping, or passthrough before creating a mapping. Accepts one or more property identifiers to batch-query multiple properties in a single call — useful when planning mappings for several visual properties at once. Read-only; does not modify state. Returns an error if no network is currently loaded, if the active network has no view, or if any requested property identifier is not recognized or not applicable to nodes or edges, each with a descriptive message indicating the specific cause.
+**Description:** List data columns from the active Cytoscape Desktop network that are compatible with one or more visual properties for data-driven mapping, with each column's supported mapping types (continuous, discrete, passthrough) and sample values. Use when planning which data columns can drive a mapping for specific visual properties, or to verify mapping type support before creating a mapping. Always batch multiple property IDs in a single call — see property_ids for input details and the output schema for result structure. Read-only; does not modify state.
 
 ## Examples
 
@@ -1123,6 +1123,135 @@ Example 4 — Batch query for data columns related to speparate node and edge pr
     "properties" : {
       "type" : "object",
       "description" : "Map from visual property ID to its compatible columns and metadata. Each key is a property ID string as provided in the request (e.g. NODE_FILL_COLOR, EDGE_WIDTH). Each value contains the property's display name, value type, which table it reads from, and the list of compatible data columns with their mapping support flags."
+    }
+  }
+}
+```
+
+---
+
+### `get_column_range`
+
+**Title:** Get Cytoscape Desktop Column Range
+
+**Description:** Computes min, max, mean, and non-null count for numeric node or edge table columns in the active Cytoscape Desktop network. Use before setting up continuous mapping breakpoints to understand a column's data range. Always batch multiple columns in a single call to avoid redundant round trips — see column_names for input details and the output schema for result and per-column error structure. Read-only; does not modify state.
+
+## Examples
+
+Example 1 — Get the range of a single degree column to plan continuous mapping breakpoints for node size:
+{"column_names": ["Degree"], "table": "node"}
+
+Example 2 — Batch: get ranges for three node columns in one call to plan multiple continuous mappings without extra round trips:
+{"column_names": ["Degree", "BetweennessCentrality", "expression"], "table": "node"}
+
+Example 3 — Batch: check ranges for two edge columns before creating continuous mappings for edge width and edge opacity:
+{"column_names": ["weight", "confidence"], "table": "edge"}
+
+Example 4 — Batch: inspect all numeric node columns needed to configure a full visual style in a single round trip:
+{"column_names": ["Degree", "ClusterCoefficient", "Score"], "table": "node"}
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : {
+    "table" : {
+      "type" : "string",
+      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
+      "enum" : [ "node", "edge" ]
+    },
+    "column_names" : {
+      "type" : "array",
+      "description" : "Required. One or more column names to compute range statistics for. Pass all columns you need in a single call — each is processed independently and its result (or per-column error) appears in the response map. Must be a non-empty list. Each column must be a numeric type (Integer, Long, or Double).\n\nExamples: [\"Degree\"], [\"Degree\", \"BetweennessCentrality\", \"expression\"]",
+      "items" : {
+        "type" : "string",
+        "description" : "Name of a numeric column in the specified table."
+      }
+    }
+  },
+  "required" : [ "column_names", "table" ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "columns" : {
+      "type" : "object",
+      "description" : "Map of column name to range statistics or per-column error. Each key is a column name from the request."
+    }
+  }
+}
+```
+
+---
+
+### `get_column_distinct_values`
+
+**Title:** Get Cytoscape Desktop Column Values
+
+**Description:** Enumerates distinct non-null values with occurrence counts for node or edge table columns in the active Cytoscape Desktop network. Use before creating discrete mappings to discover the full set of categorical values a column contains. Always batch multiple columns in a single call to avoid redundant round trips — see column_names for input details and the output schema for result and per-column error structure. Read-only; does not modify state.
+
+## Examples
+
+Example 1 — Enumerate distinct values in a single column to plan a discrete color mapping:
+{"column_names": ["GeneType"], "table": "node"}
+
+Example 2 — Batch: enumerate values for two columns in one call to plan discrete mappings for both node color and node shape without extra round trips:
+{"column_names": ["GeneType", "community"], "table": "node"}
+
+Example 3 — Batch: list distinct values for multiple edge columns to map each interaction type and confidence tier to a different visual style:
+{"column_names": ["interaction", "tier"], "table": "edge"}
+
+Example 4 — Batch: resolve all categorical columns needed for a full discrete visual style in a single round trip:
+{"column_names": ["GeneType", "community", "isHub"], "table": "node"}
+
+Example 5 — Limit returned values for a high-cardinality column:
+{"column_names": ["name"], "table": "node", "max_values": 10}
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : {
+    "table" : {
+      "type" : "string",
+      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
+      "enum" : [ "node", "edge" ]
+    },
+    "column_names" : {
+      "type" : "array",
+      "description" : "Required. One or more column names to enumerate distinct values for. Pass all columns you need in a single call — each is processed independently and its result (or per-column error) appears in the response map. Must be a non-empty list. Works with any non-list column type: String, Integer, Long, Double, or Boolean.\n\nExamples: [\"GeneType\"], [\"GeneType\", \"community\", \"interaction\"]",
+      "items" : {
+        "type" : "string",
+        "description" : "Name of a column in the specified table."
+      }
+    },
+    "max_values" : {
+      "type" : "integer",
+      "description" : "Optional. Maximum number of distinct values to return per column. Default 50. Values are sorted by count descending and clipped to this limit before returning. Compare values.size() to count to detect clipping. Increase if you need the full value set for a high-cardinality column.\n\nExamples: 50, 100, 200"
+    }
+  },
+  "required" : [ "column_names", "table" ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "columns" : {
+      "type" : "object",
+      "description" : "Map of column name to distinct-values result or per-column error. Each key is a column name from the request."
     }
   }
 }
@@ -1181,7 +1310,7 @@ Example 3 — Show me the style names in Cytoscape:
 
 **Title:** Switch Cytoscape Desktop Style
 
-**Description:** Switches the current network view to use an existing visual style or creates a new named style and applies it. Use when the user wants to change which style is applied to current network view. User can choose style from list of existing  styles or they can choose to create a new style which gets automatically created with initial state cloned from style on current  network views and in either case the chosen or new style is applied to curent network view. Returns an error with a descriptive message if the style name is not found when create=false or  a style by the new name already exists when create=true, or no network view is currently active — each error message is a well-formed sentence explaining the issue so the next step can be determined.
+**Description:** Switches the current network view to use an existing visual style, or creates a new named style cloned from the current style and applies it. Use when the user wants to change which style is applied to the current network view. Returns an error if the style name is not found when create=false, a style by the new name already exists when create=true, or no network view is currently active.
 
 ## Examples
 

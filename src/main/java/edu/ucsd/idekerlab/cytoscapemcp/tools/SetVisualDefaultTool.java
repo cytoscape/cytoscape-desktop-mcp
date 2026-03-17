@@ -61,10 +61,7 @@ public class SetVisualDefaultTool {
                     + " and styles, and dependency lock IDs, then provide only the entries you want"
                     + " to update. The prior retrieval of style defaults includes the active style name —"
                     + " mention this name as confirmation to the user before invoking this tool so they know which"
-                    + " style is being modified. The only way a style can be edited is through this tool which requires the style be set on current view. Returns an error if"
-                    + " no network is currently loaded, if a property identifier is not recognized,"
-                    + " or if a value cannot be parsed or falls outside the valid range — each"
-                    + " error message identifies the specific property and failure reason."
+                    + " style is being modified. The only way a style can be edited is through this tool which requires the style be set on current view."
                     + " State-mutating; modifies the active visual style defaults and immediately"
                     + " rerenders the current view.";
 

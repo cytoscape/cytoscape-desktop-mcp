@@ -52,16 +52,12 @@ public class SwitchCurrentStyleTool {
                     + "{\"name\": \"My Analysis Style\", \"create\": true}";
 
     private static final String TOOL_DESCRIPTION =
-            "Switches the current network view to use an existing visual style or creates a new"
-                    + " named style and applies it. Use when the user wants to change which style is"
-                    + " applied to current network view. User can choose style from list of existing "
-                    + " styles or they can choose to create a new style which gets automatically created with initial state cloned from style on current "
-                    + " network views and in either case the chosen or new style is applied to curent network view."
-                    + " Returns an error"
-                    + " with a descriptive message if the style name is not found when create=false or "
-                    + " a style by the new name already exists when create=true, or no network view is"
-                    + " currently active — each error message is a well-formed sentence explaining the"
-                    + " issue so the next step can be determined.";
+            "Switches the current network view to use an existing visual style, or creates a new"
+                    + " named style cloned from the current style and applies it. Use when the user"
+                    + " wants to change which style is applied to the current network view. Returns"
+                    + " an error if the style name is not found when create=false, a style by the"
+                    + " new name already exists when create=true, or no network view is currently"
+                    + " active.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

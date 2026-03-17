@@ -64,19 +64,14 @@ public class GetCompatibleColumnsTool {
                     + "{\"property_ids\": [\"NODE_FILL_COLOR\", \"EDGE_WIDTH\"]}";
 
     private static final String TOOL_DESCRIPTION =
-            "List data columns from the active network that are compatible with one or more visual"
-                    + " properties for data-driven mapping in the active Cytoscape Desktop visual"
-                    + " style, with each column's mapping type support (continuous, discrete,"
-                    + " passthrough) and sample values. Use when you need to determine which data"
-                    + " columns can drive a mapping for specific visual properties, or to check"
-                    + " whether a column supports continuous interpolation, discrete value-to-value"
-                    + " mapping, or passthrough before creating a mapping. Accepts one or more"
-                    + " property identifiers to batch-query multiple properties in a single call —"
-                    + " useful when planning mappings for several visual properties at once."
-                    + " Read-only; does not modify state. Returns an error if no network is"
-                    + " currently loaded, if the active network has no view, or if any requested"
-                    + " property identifier is not recognized or not applicable to nodes or edges,"
-                    + " each with a descriptive message indicating the specific cause.";
+            "List data columns from the active Cytoscape Desktop network that are compatible with"
+                    + " one or more visual properties for data-driven mapping, with each column's"
+                    + " supported mapping types (continuous, discrete, passthrough) and sample"
+                    + " values. Use when planning which data columns can drive a mapping for"
+                    + " specific visual properties, or to verify mapping type support before"
+                    + " creating a mapping. Always batch multiple property IDs in a single call —"
+                    + " see property_ids for input details and the output schema for result"
+                    + " structure. Read-only; does not modify state.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
