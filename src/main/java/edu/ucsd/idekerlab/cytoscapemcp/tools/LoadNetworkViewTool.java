@@ -225,26 +225,25 @@ public class LoadNetworkViewTool {
                                                     + " Preview columns from the file and node attributes sheet to determine which columns are available."
                                                     + " Required when"
                                                     + " node_attributes_sheet is provided."))
-                            .property(
+                            .dataColumn(
                                     "node_attributes_source_columns",
-                                    new McpSchema.InputProperty(
-                                            "array",
-                                            "Optional. Array of column names from the sheet or file "
-                                                    + " to attach as properties on"
-                                                    + " source nodes."
-                                                    + " Preview columns from the file(and sheet if applicable) to determine which columns are available.",
-                                            new McpSchema.InputProperty("string", null),
-                                            null))
-                            .property(
+                                    "Optional. DataColumn array specifying columns from the sheet or file"
+                                            + " to attach as properties on source nodes, each with an inferred data type."
+                                            + " Copy DataColumn objects from get_file_columns output."
+                                            + " Preview columns from the file (and sheet if applicable) to determine which columns are available.")
+                            .dataColumn(
                                     "node_attributes_target_columns",
-                                    new McpSchema.InputProperty(
-                                            "array",
-                                            "Optional. Array of column names from sheet or file "
-                                                    + " to attach as properties on"
-                                                    + " target nodes."
-                                                    + " Preview columns from the file(and sheet if applicable) to determine which columns are available.",
-                                            new McpSchema.InputProperty("string", null),
-                                            null))
+                                    "Optional. DataColumn array specifying columns from the sheet or file"
+                                            + " to attach as properties on target nodes, each with an inferred data type."
+                                            + " Copy DataColumn objects from get_file_columns output."
+                                            + " Preview columns from the file (and sheet if applicable) to determine which columns are available.")
+                            .dataColumn(
+                                    "edge_columns",
+                                    "Optional. DataColumn array specifying inferred types for tabular file columns"
+                                            + " that will become edge attributes (any column not assigned as source,"
+                                            + " target, interaction, or node attribute). If absent, those columns are"
+                                            + " added to the edge table as string."
+                                            + " Copy DataColumn objects from get_file_columns output.")
                             .build());
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -292,6 +291,7 @@ public class LoadNetworkViewTool {
     private final CyNetworkFactory networkFactory;
     private final CyNetworkViewFactory networkViewFactory;
     private final CyLayoutAlgorithmManager layoutAlgorithmManager;
+    private final TabularTypeConverter typeConverter;
 
     public LoadNetworkViewTool(
             CyProperty<Properties> cyProperties,
@@ -304,6 +304,32 @@ public class LoadNetworkViewTool {
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
             CyLayoutAlgorithmManager layoutAlgorithmManager) {
+        this(
+                cyProperties,
+                appManager,
+                networkManager,
+                viewManager,
+                taskManager,
+                cxReaderFactory,
+                networkReaderManager,
+                networkFactory,
+                networkViewFactory,
+                layoutAlgorithmManager,
+                new TabularTypeConverter());
+    }
+
+    public LoadNetworkViewTool(
+            CyProperty<Properties> cyProperties,
+            CyApplicationManager appManager,
+            CyNetworkManager networkManager,
+            CyNetworkViewManager viewManager,
+            TaskManager<?, ?> taskManager,
+            InputStreamTaskFactory cxReaderFactory,
+            CyNetworkReaderManager networkReaderManager,
+            CyNetworkFactory networkFactory,
+            CyNetworkViewFactory networkViewFactory,
+            CyLayoutAlgorithmManager layoutAlgorithmManager,
+            TabularTypeConverter typeConverter) {
         this.cyProperties = cyProperties;
         this.appManager = appManager;
         this.networkManager = networkManager;
@@ -314,6 +340,7 @@ public class LoadNetworkViewTool {
         this.networkFactory = networkFactory;
         this.networkViewFactory = networkViewFactory;
         this.layoutAlgorithmManager = layoutAlgorithmManager;
+        this.typeConverter = typeConverter;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -343,25 +370,30 @@ public class LoadNetworkViewTool {
 
     private CallToolResult handle(McpSyncServerExchange exchange, CallToolRequest request) {
         LOGGER.info("Tool call received: {} params={}", TOOL_NAME, request.arguments());
-        String source = extractString(request, "source");
-        if (source == null) {
-            return error(
-                    "'source' is required. Must be 'ndex', 'network-file',"
-                            + " or 'tabular-file'.");
-        }
-        switch (source) {
-            case "ndex":
-                return handleNdexImport(request);
-            case "network-file":
-                return handleNetworkFileImport(request);
-            case "tabular-file":
-                return handleTabularImport(request);
-            default:
+        try {
+            String source = extractString(request, "source");
+            if (source == null) {
                 return error(
-                        "Invalid source: '"
-                                + source
-                                + "'. Must be 'ndex',"
-                                + " 'network-file', or 'tabular-file'.");
+                        "'source' is required. Must be 'ndex', 'network-file',"
+                                + " or 'tabular-file'.");
+            }
+            switch (source) {
+                case "ndex":
+                    return handleNdexImport(request);
+                case "network-file":
+                    return handleNetworkFileImport(request);
+                case "tabular-file":
+                    return handleTabularImport(request);
+                default:
+                    return error(
+                            "Invalid source: '"
+                                    + source
+                                    + "'. Must be 'ndex',"
+                                    + " 'network-file', or 'tabular-file'.");
+            }
+        } catch (Exception e) {
+            LOGGER.error("Unexpected error in {}", TOOL_NAME, e);
+            return error("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -577,14 +609,11 @@ public class LoadNetworkViewTool {
         String nodeAttrSheetTargetKeyCol =
                 extractString(request, "node_attributes_sheet_target_key_column");
 
-        @SuppressWarnings("unchecked")
-        List<String> nodeAttrSourceCols =
-                (List<String>) request.arguments().get("node_attributes_source_columns");
-        @SuppressWarnings("unchecked")
-        List<String> nodeAttrTargetCols =
-                (List<String>) request.arguments().get("node_attributes_target_columns");
-        if (nodeAttrSourceCols == null) nodeAttrSourceCols = Collections.emptyList();
-        if (nodeAttrTargetCols == null) nodeAttrTargetCols = Collections.emptyList();
+        List<DataColumn> nodeAttrSourceCols =
+                parseDataColumns(request.arguments().get("node_attributes_source_columns"));
+        List<DataColumn> nodeAttrTargetCols =
+                parseDataColumns(request.arguments().get("node_attributes_target_columns"));
+        List<DataColumn> edgeCols = parseDataColumns(request.arguments().get("edge_columns"));
 
         LOGGER.info(
                 "Tabular import: file={} source={} target={} excelSheet={} delimiter={}",
@@ -602,10 +631,17 @@ public class LoadNetworkViewTool {
             return error("No data rows found in file: " + filePath);
         }
 
+        // Build name→DataColumn lookup maps for typed column creation
+        Map<String, DataColumn> edgeColMap = toColMap(edgeCols);
+        Map<String, DataColumn> srcColMap = toColMap(nodeAttrSourceCols);
+        Map<String, DataColumn> tgtColMap = toColMap(nodeAttrTargetCols);
+
         // Determine which columns are node-attribute columns (to exclude from edge attrs)
         Set<String> nodeAttrColSet = new java.util.HashSet<>();
-        nodeAttrColSet.addAll(nodeAttrSourceCols);
-        nodeAttrColSet.addAll(nodeAttrTargetCols);
+        for (DataColumn dc : nodeAttrSourceCols)
+            if (dc.name() != null) nodeAttrColSet.add(dc.name());
+        for (DataColumn dc : nodeAttrTargetCols)
+            if (dc.name() != null) nodeAttrColSet.add(dc.name());
 
         // -- Build CyNetwork from rows -----------------------------------------
         // CyNetworkFactory.createNetwork() always produces a new root network (collection).
@@ -657,7 +693,7 @@ public class LoadNetworkViewTool {
                 edgeRow.set(CyNetwork.NAME, srcName + " () " + tgtName);
             }
 
-            // Add remaining columns as edge attributes
+            // Add remaining columns as edge attributes (with inferred types if available)
             for (Map.Entry<String, String> entry : row.entrySet()) {
                 String col = entry.getKey();
                 if (col.equals(finalSourceCol)
@@ -669,8 +705,13 @@ public class LoadNetworkViewTool {
                                 && (excelSheet == null || excelSheet.equals(nodeAttrSheet)))) {
                     continue;
                 }
-                createColumnIfAbsent(edgeTable, col);
-                edgeRow.set(col, entry.getValue());
+                Class<?> colType =
+                        edgeColMap.containsKey(col)
+                                ? edgeColMap.get(col).inferredTypeClass()
+                                : String.class;
+                createColumnIfAbsent(edgeTable, col, colType);
+                Object colVal = typeConverter.coerceToColumnType(entry.getValue(), colType);
+                if (colVal != null) edgeRow.set(col, colVal);
             }
         }
 
@@ -706,7 +747,9 @@ public class LoadNetworkViewTool {
                             sourceCol,
                             targetCol,
                             nodeAttrSourceCols,
-                            nodeAttrTargetCols);
+                            nodeAttrTargetCols,
+                            srcColMap,
+                            tgtColMap);
             nodeAttrsImported = result.imported();
             warning = result.warning();
         }
@@ -740,8 +783,10 @@ public class LoadNetworkViewTool {
             String nodeAttrSheetTargetKeyCol,
             String sourceCol,
             String targetCol,
-            List<String> nodeAttrSourceCols,
-            List<String> nodeAttrTargetCols) {
+            List<DataColumn> nodeAttrSourceCols,
+            List<DataColumn> nodeAttrTargetCols,
+            Map<String, DataColumn> srcColMap,
+            Map<String, DataColumn> tgtColMap) {
 
         if (nodeAttrSourceCols.isEmpty() && nodeAttrTargetCols.isEmpty()) {
             return new NodeAttrImportResult(null, null);
@@ -784,11 +829,14 @@ public class LoadNetworkViewTool {
                 if (matchedNode == null) continue;
                 matchCount++;
                 CyRow nodeRow = network.getRow(matchedNode);
-                for (String col : nodeAttrSourceCols) {
-                    String val = attrRow.get(col);
+                for (DataColumn dc : nodeAttrSourceCols) {
+                    String val = attrRow.get(dc.name());
                     if (val != null) {
-                        createColumnIfAbsent(nodeTable, col);
-                        nodeRow.set(col, val);
+                        DataColumn lookup = srcColMap.getOrDefault(dc.name(), dc);
+                        Class<?> colType = lookup.inferredTypeClass();
+                        createColumnIfAbsent(nodeTable, dc.name(), colType);
+                        Object converted = typeConverter.coerceToColumnType(val, colType);
+                        if (converted != null) nodeRow.set(dc.name(), converted);
                     }
                 }
             }
@@ -803,11 +851,14 @@ public class LoadNetworkViewTool {
                 if (matchedNode == null) continue;
                 matchCount++;
                 CyRow nodeRow = network.getRow(matchedNode);
-                for (String col : nodeAttrTargetCols) {
-                    String val = attrRow.get(col);
+                for (DataColumn dc : nodeAttrTargetCols) {
+                    String val = attrRow.get(dc.name());
                     if (val != null) {
-                        createColumnIfAbsent(nodeTable, col);
-                        nodeRow.set(col, val);
+                        DataColumn lookup = tgtColMap.getOrDefault(dc.name(), dc);
+                        Class<?> colType = lookup.inferredTypeClass();
+                        createColumnIfAbsent(nodeTable, dc.name(), colType);
+                        Object converted = typeConverter.coerceToColumnType(val, colType);
+                        if (converted != null) nodeRow.set(dc.name(), converted);
                     }
                 }
             }
@@ -956,17 +1007,44 @@ public class LoadNetworkViewTool {
     }
 
     /**
-     * Creates a {@code String}-typed column in {@code table} with the given name if it does not
-     * already exist. Silently skips reserved columns (SUID, shared name, selected).
+     * Creates a typed column in {@code table} with the given name if it does not already exist.
+     * Silently skips if the column already exists or creation fails.
      */
-    private void createColumnIfAbsent(CyTable table, String name) {
+    private void createColumnIfAbsent(CyTable table, String name, Class<?> type) {
         if (table.getColumn(name) == null) {
             try {
-                table.createColumn(name, String.class, false);
+                table.createColumn(name, type, false);
             } catch (Exception e) {
                 LOGGER.debug("Could not create column '{}': {}", name, e.getMessage());
             }
         }
+    }
+
+    /** Convenience overload that creates a String-typed column. */
+    private void createColumnIfAbsent(CyTable table, String name) {
+        createColumnIfAbsent(table, name, String.class);
+    }
+
+    /**
+     * Parses a raw JSON argument value into a {@link List} of {@link DataColumn} objects. Jackson
+     * deserializes each {@code {"name":"...","inferred_data_type":"..."}} map directly to a {@link
+     * DataColumn} record using its {@code @JsonProperty} annotations. Returns an empty list if
+     * {@code raw} is null.
+     */
+    private List<DataColumn> parseDataColumns(Object raw) {
+        if (raw == null) return List.of();
+        return MAPPER.convertValue(
+                raw, new com.fasterxml.jackson.core.type.TypeReference<List<DataColumn>>() {});
+    }
+
+    /** Builds a name → {@link DataColumn} lookup map from the given list. */
+    private Map<String, DataColumn> toColMap(List<DataColumn> cols) {
+        if (cols == null || cols.isEmpty()) return Map.of();
+        Map<String, DataColumn> map = new LinkedHashMap<>();
+        for (DataColumn dc : cols) {
+            if (dc != null && dc.name() != null) map.put(dc.name(), dc);
+        }
+        return map;
     }
 
     private String extractString(CallToolRequest request, String key) {

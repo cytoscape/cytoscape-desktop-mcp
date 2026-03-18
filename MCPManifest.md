@@ -39,68 +39,111 @@ Example 4 — open network on cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
-    "node_attributes_target_columns" : {
-      "type" : "array",
-      "description" : "Optional. Array of column names from sheet or file  to attach as properties on target nodes. Preview columns from the file(and sheet if applicable) to determine which columns are available.",
-      "items" : {
-        "type" : "string"
-      }
-    },
-    "node_attributes_sheet_source_key_column" : {
+    "node_attributes_sheet_target_key_column" : {
       "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
     },
-    "target_column" : {
+    "interaction_column" : {
       "type" : "string",
-      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
+      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
+    },
+    "network_id" : {
+      "type" : "string",
+      "description" : "Optional. NDEx network Id expressed as UUID string (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
+    },
+    "delimiter_char_code" : {
+      "type" : "integer",
+      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab).  Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code. Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
+    },
+    "file_path" : {
+      "type" : "string",
+      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
     },
     "source" : {
       "type" : "string",
       "description" : "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the remaining input parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
       "enum" : [ "ndex", "network-file", "tabular-file" ]
     },
+    "target_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
+    },
     "node_attributes_sheet" : {
       "type" : "string",
       "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Applicable for Excel tabular files."
-    },
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
-    },
-    "file_path" : {
-      "type" : "string",
-      "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
-    },
-    "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the column delimiter (e.g. 44=comma, 9=tab).  Use the file extension, or to be more thorough - inspect the source file to determine the delimiter char code. Required when source='tabular-file' and file is not Excel. Ignored for Excel files."
-    },
-    "source_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the source (from) node. Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge. Required when source='tabular-file'."
-    },
-    "network_id" : {
-      "type" : "string",
-      "description" : "Optional. NDEx network Id expressed as UUID string (e.g. 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'). Required when source='ndex'. Ignored otherwise."
-    },
-    "node_attributes_source_columns" : {
-      "type" : "array",
-      "description" : "Optional. Array of column names from the sheet or file  to attach as properties on source nodes. Preview columns from the file(and sheet if applicable) to determine which columns are available.",
-      "items" : {
-        "type" : "string"
-      }
     },
     "excel_sheet" : {
       "type" : "string",
       "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
     },
-    "interaction_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the edge interaction type. Preview columns from the file(and sheet if applicable) to determine which is best for graph edge name. Applicable when source='tabular-file'."
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
     },
-    "node_attributes_sheet_target_key_column" : {
+    "node_attributes_sheet_source_key_column" : {
       "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+    },
+    "source_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the source (from) node. Preview columns from the file(and sheet if applicable) to determine which is best for source node on a graph edge. Required when source='tabular-file'."
+    },
+    "node_attributes_source_columns" : {
+      "type" : "array",
+      "description" : "Optional. DataColumn array specifying columns from the sheet or file to attach as properties on source nodes, each with an inferred data type. Copy DataColumn objects from get_file_columns output. Preview columns from the file (and sheet if applicable) to determine which columns are available.",
+      "items" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
+        "type" : "object",
+        "properties" : {
+          "inferred_data_type" : {
+            "type" : "string",
+            "enum" : [ "string", "integer", "long", "double", "boolean" ],
+            "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. When passing this column to load_network_view, preserve this value so the Cytoscape table is created with the correct type instead of defaulting to string."
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "Column name exactly as it appears in the file header."
+          }
+        }
+      }
+    },
+    "node_attributes_target_columns" : {
+      "type" : "array",
+      "description" : "Optional. DataColumn array specifying columns from the sheet or file to attach as properties on target nodes, each with an inferred data type. Copy DataColumn objects from get_file_columns output. Preview columns from the file (and sheet if applicable) to determine which columns are available.",
+      "items" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
+        "type" : "object",
+        "properties" : {
+          "inferred_data_type" : {
+            "type" : "string",
+            "enum" : [ "string", "integer", "long", "double", "boolean" ],
+            "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. When passing this column to load_network_view, preserve this value so the Cytoscape table is created with the correct type instead of defaulting to string."
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "Column name exactly as it appears in the file header."
+          }
+        }
+      }
+    },
+    "edge_columns" : {
+      "type" : "array",
+      "description" : "Optional. DataColumn array specifying inferred types for tabular file columns that will become edge attributes (any column not assigned as source, target, interaction, or node attribute). If absent, those columns are added to the edge table as string. Copy DataColumn objects from get_file_columns output.",
+      "items" : {
+        "$schema" : "https://json-schema.org/draft/2020-12/schema",
+        "type" : "object",
+        "properties" : {
+          "inferred_data_type" : {
+            "type" : "string",
+            "enum" : [ "string", "integer", "long", "double", "boolean" ],
+            "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. When passing this column to load_network_view, preserve this value so the Cytoscape table is created with the correct type instead of defaulting to string."
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "Column name exactly as it appears in the file header."
+          }
+        }
+      }
     }
   },
   "required" : [ "source" ]
@@ -469,21 +512,21 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
-    },
     "file_path" : {
       "type" : "string",
       "description" : "Required. Absolute path to the tabular file."
     },
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
     },
     "delimiter_char_code" : {
       "type" : "integer",
       "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
+    },
+    "excel_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
     }
   },
   "required" : [ "file_path", "use_header_row" ]
@@ -498,14 +541,25 @@ Inspect the file first to determine input params as needed.
   "type" : "object",
   "properties" : {
     "columns" : {
-      "description" : "Column header names from the file. Ordinal names ('Column 1', 'Column 2', ...) if use_header_row was false.",
+      "description" : "Columns found in the file, each with its name and an inferred data type. Pass this list directly as node_attributes_source_columns, node_attributes_target_columns, or edge_columns when calling load_network_view — the inferred types ensure Cytoscape creates table columns correctly instead of defaulting everything to string.",
       "type" : "array",
       "items" : {
-        "type" : "string"
+        "type" : "object",
+        "properties" : {
+          "inferred_data_type" : {
+            "type" : "string",
+            "enum" : [ "string", "integer", "long", "double", "boolean" ],
+            "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. When passing this column to load_network_view, preserve this value so the Cytoscape table is created with the correct type instead of defaulting to string."
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "Column name exactly as it appears in the file header."
+          }
+        }
       }
     },
     "sample_rows" : {
-      "description" : "Up to the first three data rows in the file, each as an array of string values aligned with columns. The first three rows are included in the response to help determine if column header row is included or not.",
+      "description" : "Up to the first three data rows in the file, each as an array of string values aligned with columns. The first three rows are included in the response to help determine if column header row is present and infer the data type of the column from the sample values.",
       "type" : "array",
       "items" : {
         "type" : "array",
@@ -889,17 +943,17 @@ Example 7 — Lock node size and set it to 50 in one call:
 {
   "type" : "object",
   "properties" : {
-    "dependencies" : {
+    "node_properties" : {
       "type" : "array",
-      "description" : "Optional. List of dependency locks to toggle on/off. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
+      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
     },
     "edge_properties" : {
       "type" : "array",
       "description" : "Optional. List of edge visual property updates. Each entry requires 'id' and 'currentValue' using the same format conventions as node properties — property identifiers, value types, allowed values, font families, and font styles are documented in the style defaults response.\n\nExamples: [{\"id\": \"EDGE_WIDTH\", \"currentValue\": \"3.0\"}], [{\"id\": \"EDGE_LINE_TYPE\", \"currentValue\": \"Dash\"}], [{\"id\": \"EDGE_LABEL_FONT_FACE\", \"currentValue\": \"Courier New-Italic-12\"}]"
     },
-    "node_properties" : {
+    "dependencies" : {
       "type" : "array",
-      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
+      "description" : "Optional. List of dependency locks to toggle on/off. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
     }
   },
   "required" : [ ]
@@ -1220,11 +1274,6 @@ Example 5 — Limit returned values for a high-cardinality column:
 {
   "type" : "object",
   "properties" : {
-    "table" : {
-      "type" : "string",
-      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
-      "enum" : [ "node", "edge" ]
-    },
     "column_names" : {
       "type" : "array",
       "description" : "Required. One or more column names to enumerate distinct values for. Pass all columns you need in a single call — each is processed independently and its result (or per-column error) appears in the response map. Must be a non-empty list. Works with any non-list column type: String, Integer, Long, Double, or Boolean.\n\nExamples: [\"GeneType\"], [\"GeneType\", \"community\", \"interaction\"]",
@@ -1232,6 +1281,11 @@ Example 5 — Limit returned values for a high-cardinality column:
         "type" : "string",
         "description" : "Name of a column in the specified table."
       }
+    },
+    "table" : {
+      "type" : "string",
+      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
+      "enum" : [ "node", "edge" ]
     },
     "max_values" : {
       "type" : "integer",

@@ -34,7 +34,7 @@ public class GetFileColumnsToolTest {
     private static final String INITIALIZED_NOTIFICATION =
             "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}";
 
-    private final GetFileColumnsTool tool = new GetFileColumnsTool();
+    private final GetFileColumnsTool tool = new GetFileColumnsTool(new TabularTypeConverter());
     private InMemoryTransport transport;
 
     @After
@@ -57,9 +57,9 @@ public class GetFileColumnsToolTest {
         JsonNode result = extractResult(response);
         JsonNode columns = result.get("columns");
         assertEquals(3, columns.size());
-        assertEquals("Gene1", columns.get(0).asText());
-        assertEquals("Gene2", columns.get(1).asText());
-        assertEquals("Score", columns.get(2).asText());
+        assertEquals("Gene1", columns.get(0).get("name").asText());
+        assertEquals("Gene2", columns.get(1).get("name").asText());
+        assertEquals("Score", columns.get(2).get("name").asText());
 
         JsonNode sampleRows = result.get("sample_rows");
         assertTrue("Should have sample rows", sampleRows.size() > 0);
@@ -75,8 +75,8 @@ public class GetFileColumnsToolTest {
         JsonNode result = extractResult(response);
         JsonNode columns = result.get("columns");
         assertEquals(3, columns.size());
-        assertEquals("Gene1", columns.get(0).asText());
-        assertEquals("Score", columns.get(2).asText());
+        assertEquals("Gene1", columns.get(0).get("name").asText());
+        assertEquals("Score", columns.get(2).get("name").asText());
     }
 
     @Test
@@ -88,8 +88,8 @@ public class GetFileColumnsToolTest {
         JsonNode result = extractResult(response);
         JsonNode columns = result.get("columns");
         assertEquals(3, columns.size());
-        assertEquals("Gene1", columns.get(0).asText());
-        assertEquals("Gene2", columns.get(1).asText());
+        assertEquals("Gene1", columns.get(0).get("name").asText());
+        assertEquals("Gene2", columns.get(1).get("name").asText());
     }
 
     @Test
@@ -101,9 +101,9 @@ public class GetFileColumnsToolTest {
         JsonNode result = extractResult(response);
         JsonNode columns = result.get("columns");
         assertEquals(3, columns.size());
-        assertEquals("Column 1", columns.get(0).asText());
-        assertEquals("Column 2", columns.get(1).asText());
-        assertEquals("Column 3", columns.get(2).asText());
+        assertEquals("Column 1", columns.get(0).get("name").asText());
+        assertEquals("Column 2", columns.get(1).get("name").asText());
+        assertEquals("Column 3", columns.get(2).get("name").asText());
 
         // First data row (which was the header line) should appear in sample_rows
         JsonNode sampleRows = result.get("sample_rows");
@@ -124,9 +124,9 @@ public class GetFileColumnsToolTest {
         JsonNode result = extractResult(response);
         JsonNode columns = result.get("columns");
         assertEquals(3, columns.size());
-        assertEquals("Gene1", columns.get(0).asText());
-        assertEquals("Gene2", columns.get(1).asText());
-        assertEquals("Score", columns.get(2).asText());
+        assertEquals("Gene1", columns.get(0).get("name").asText());
+        assertEquals("Gene2", columns.get(1).get("name").asText());
+        assertEquals("Score", columns.get(2).get("name").asText());
 
         JsonNode sampleRows = result.get("sample_rows");
         assertTrue("Should have sample rows", sampleRows.size() > 0);
@@ -142,8 +142,8 @@ public class GetFileColumnsToolTest {
         JsonNode result = extractResult(response);
         JsonNode columns = result.get("columns");
         assertEquals(2, columns.size());
-        assertEquals("Source", columns.get(0).asText());
-        assertEquals("Target", columns.get(1).asText());
+        assertEquals("Source", columns.get(0).get("name").asText());
+        assertEquals("Target", columns.get(1).get("name").asText());
     }
 
     @Test
@@ -155,9 +155,9 @@ public class GetFileColumnsToolTest {
         JsonNode result = extractResult(response);
         JsonNode columns = result.get("columns");
         assertEquals(3, columns.size());
-        assertEquals("Column 1", columns.get(0).asText());
-        assertEquals("Column 2", columns.get(1).asText());
-        assertEquals("Column 3", columns.get(2).asText());
+        assertEquals("Column 1", columns.get(0).get("name").asText());
+        assertEquals("Column 2", columns.get(1).get("name").asText());
+        assertEquals("Column 3", columns.get(2).get("name").asText());
 
         // Row 0 (the header row) should appear in sample_rows
         JsonNode sampleRows = result.get("sample_rows");
@@ -259,6 +259,49 @@ public class GetFileColumnsToolTest {
         JsonNode props = MAPPER.readTree(GetFileColumnsTool.OUTPUT_SCHEMA).get("properties");
         assertNotNull("properties node must exist", props);
         assertFalse("sample_rows property must exist", props.at("/sample_rows").isMissingNode());
+    }
+
+    // -----------------------------------------------------------------------
+    // Type inference integration tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void csvWithNumericScore_inferredTypeIsDouble() throws Exception {
+        String path = fixturePath("genes_comma.csv");
+        String response = callTool(buildArgs(path, 44, true, null));
+
+        assertNoError(response);
+        JsonNode columns = extractResult(response).get("columns");
+        // Score column (index 2) has values like 0.95 — should be inferred as double
+        JsonNode scoreCol = columns.get(2);
+        assertEquals("Score", scoreCol.get("name").asText());
+        assertEquals("double", scoreCol.get("inferred_data_type").asText());
+    }
+
+    @Test
+    public void csvWithStringColumns_geneColumnsAreString() throws Exception {
+        String path = fixturePath("genes_comma.csv");
+        String response = callTool(buildArgs(path, 44, true, null));
+
+        assertNoError(response);
+        JsonNode columns = extractResult(response).get("columns");
+        // Gene1 and Gene2 contain gene names (strings)
+        assertEquals("string", columns.get(0).get("inferred_data_type").asText());
+        assertEquals("string", columns.get(1).get("inferred_data_type").asText());
+    }
+
+    @Test
+    public void columnsHaveInferredDataTypeField() throws Exception {
+        String path = fixturePath("genes_comma.csv");
+        String response = callTool(buildArgs(path, 44, true, null));
+
+        assertNoError(response);
+        JsonNode columns = extractResult(response).get("columns");
+        for (int i = 0; i < columns.size(); i++) {
+            assertFalse(
+                    "Column " + i + " should have inferred_data_type",
+                    columns.get(i).get("inferred_data_type").isMissingNode());
+        }
     }
 
     // -----------------------------------------------------------------------

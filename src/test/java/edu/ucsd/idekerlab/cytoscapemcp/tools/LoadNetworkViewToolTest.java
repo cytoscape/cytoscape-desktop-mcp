@@ -142,7 +142,8 @@ public class LoadNetworkViewToolTest {
                                 networkReaderManager,
                                 networkFactory,
                                 networkViewFactory,
-                                layoutAlgorithmManager));
+                                layoutAlgorithmManager,
+                                new TabularTypeConverter()));
 
         // Prevent real HTTP connections — return an empty stream for any URL
         try {
@@ -665,7 +666,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":\"Gene2\","
                                 + "\"delimiter_char_code\":44,"
                                 + "\"use_header_row\":true,"
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"node_attributes_source_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // node_attributes_source_columns triggers node set iteration (non-Excel uses source_column
@@ -698,7 +699,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"use_header_row\":true,"
                                 + "\"node_attributes_sheet\":\"Sheet1\","
                                 + "\"node_attributes_sheet_source_key_column\":\"Gene1\","
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"node_attributes_source_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(tabularNetwork, atLeastOnce()).getNodeList();
@@ -730,7 +731,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":\"Gene2\","
                                 + "\"delimiter_char_code\":44,"
                                 + "\"use_header_row\":true,"
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"node_attributes_source_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // TP53 appears in the Gene1 (source_column) of the first data row; Score=0.95
@@ -759,7 +760,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":\"Gene2\","
                                 + "\"delimiter_char_code\":44,"
                                 + "\"use_header_row\":true,"
-                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+                                + "\"node_attributes_target_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // MDM2 appears in the Gene2 (target_column) of the first data row; Score=0.95
@@ -792,8 +793,8 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":\"Gene2\","
                                 + "\"delimiter_char_code\":44,"
                                 + "\"use_header_row\":true,"
-                                + "\"node_attributes_source_columns\":[\"Score\"],"
-                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+                                + "\"node_attributes_source_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}],"
+                                + "\"node_attributes_target_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // Source import (keyed by Gene1): TP53 row → set Score=0.95 on srcNode
@@ -826,7 +827,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"use_header_row\":true,"
                                 + "\"node_attributes_sheet\":\"Sheet1\","
                                 + "\"node_attributes_sheet_source_key_column\":\"Gene1\","
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"node_attributes_source_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // TP53 is in Gene1 col of Sheet1; Score numeric cell 0.95 → cellStringValue → "0.95"
@@ -857,7 +858,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"use_header_row\":true,"
                                 + "\"node_attributes_sheet\":\"Sheet1\","
                                 + "\"node_attributes_sheet_target_key_column\":\"Gene2\","
-                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+                                + "\"node_attributes_target_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // MDM2 is in Gene2 col of Sheet1; Score numeric cell 0.95 → "0.95"
@@ -893,8 +894,8 @@ public class LoadNetworkViewToolTest {
                                 + "\"node_attributes_sheet\":\"Sheet1\","
                                 + "\"node_attributes_sheet_source_key_column\":\"Gene1\","
                                 + "\"node_attributes_sheet_target_key_column\":\"Gene2\","
-                                + "\"node_attributes_source_columns\":[\"Score\"],"
-                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+                                + "\"node_attributes_source_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}],"
+                                + "\"node_attributes_target_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(srcNodeRow).set("Score", "0.95");
@@ -923,7 +924,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":\"Gene2\","
                                 + "\"delimiter_char_code\":44,"
                                 + "\"use_header_row\":true,"
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"node_attributes_source_columns\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // No CSV gene name matches "NONEXISTENT" → importNodeAttributes returns imported=false
@@ -931,6 +932,125 @@ public class LoadNetworkViewToolTest {
                 "Should contain node_attributes_imported false",
                 response.contains("node_attributes_imported") && response.contains("false"));
         assertTrue("Should contain no-match warning", response.contains("No matching node IDs"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Typed column creation
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void tabularCsv_typedNodeAttr_setsDoubleValue() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        // Pass Score as DataColumn with inferred_data_type=double
+        callToolRaw(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":\""
+                        + csvPath
+                        + "\","
+                        + "\"source_column\":\"Gene1\","
+                        + "\"target_column\":\"Gene2\","
+                        + "\"delimiter_char_code\":44,"
+                        + "\"use_header_row\":true,"
+                        + "\"node_attributes_source_columns\":"
+                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]}}}");
+
+        // Score=0.95 coerced to Double.class → set as 0.95 (Double)
+        verify(mockNodeTable).createColumn("Score", Double.class, false);
+        verify(srcNodeRow).set("Score", 0.95);
+    }
+
+    @Test
+    public void tabularCsv_edgeColumns_typedCreation() throws Exception {
+        stubTabularNetwork();
+        String csvPath = fixturePath("genes_comma.csv");
+
+        callToolRaw(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":\""
+                        + csvPath
+                        + "\","
+                        + "\"source_column\":\"Gene1\","
+                        + "\"target_column\":\"Gene2\","
+                        + "\"delimiter_char_code\":44,"
+                        + "\"use_header_row\":true,"
+                        + "\"edge_columns\":"
+                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]}}}");
+
+        // Score column should be created as Double on the edge table (called once per row since
+        // the mock CyTable does not track column state)
+        verify(mockEdgeTable, atLeastOnce()).createColumn("Score", Double.class, false);
+    }
+
+    @Test
+    public void tabularCsv_typedNodeAttr_parseFails_skipsSet() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        // Pass Gene1 (string values like "TP53") declared as integer — coercion must fail silently
+        callToolRaw(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":\""
+                        + csvPath
+                        + "\","
+                        + "\"source_column\":\"Gene1\","
+                        + "\"target_column\":\"Gene2\","
+                        + "\"delimiter_char_code\":44,"
+                        + "\"use_header_row\":true,"
+                        + "\"node_attributes_source_columns\":"
+                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"integer\"}]}}}");
+
+        // "0.95" cannot be parsed as integer → coerceToColumnType returns null → set is skipped
+        verify(srcNodeRow, never()).set(org.mockito.ArgumentMatchers.eq("Score"), any());
+    }
+
+    @Test
+    public void tabularCsv_missingInferredType_fallsBackToString() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        // Pass DataColumn without inferred_data_type → should default to String
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":\""
+                                + csvPath
+                                + "\","
+                                + "\"source_column\":\"Gene1\","
+                                + "\"target_column\":\"Gene2\","
+                                + "\"delimiter_char_code\":44,"
+                                + "\"use_header_row\":true,"
+                                + "\"node_attributes_source_columns\":"
+                                + "[{\"name\":\"Score\"}]}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        // Column is created as String (default) and value is set as "0.95"
+        verify(mockNodeTable).createColumn("Score", String.class, false);
+        verify(srcNodeRow).set("Score", "0.95");
     }
 
     // -----------------------------------------------------------------------
@@ -1165,21 +1285,25 @@ public class LoadNetworkViewToolTest {
                     "node_attributes_sheet_source_key_column",
                     "node_attributes_sheet_target_key_column",
                     "node_attributes_source_columns",
-                    "node_attributes_target_columns"
+                    "node_attributes_target_columns",
+                    "edge_columns"
                 }) {
             assertFalse("Missing property: " + key, props.path(key).isMissingNode());
         }
     }
 
     @Test
-    public void inputSchema_arrayPropertiesHaveStringItems() throws Exception {
+    public void inputSchema_arrayPropertiesHaveDataColumnItems() throws Exception {
         JsonNode schema = MAPPER.readTree(LoadNetworkViewTool.INPUT_SCHEMA);
+        // node_attributes_source/target_columns are now DataColumn arrays — items type is "object"
         assertEquals(
-                "string",
+                "object",
                 schema.at("/properties/node_attributes_source_columns/items/type").asText());
         assertEquals(
-                "string",
+                "object",
                 schema.at("/properties/node_attributes_target_columns/items/type").asText());
+        // edge_columns is also a DataColumn array
+        assertEquals("object", schema.at("/properties/edge_columns/items/type").asText());
     }
 
     @Test

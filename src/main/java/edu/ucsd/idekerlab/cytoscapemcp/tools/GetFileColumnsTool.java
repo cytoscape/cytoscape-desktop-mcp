@@ -77,13 +77,18 @@ public class GetFileColumnsTool {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record GetFileColumnsCallResult(
             @JsonPropertyDescription(
-                            "Column header names from the file. Ordinal names ('Column 1',"
-                                    + " 'Column 2', ...) if use_header_row was false.")
+                            "Columns found in the file, each with its name and an inferred data"
+                                    + " type. Pass this list directly as"
+                                    + " node_attributes_source_columns,"
+                                    + " node_attributes_target_columns, or edge_columns when"
+                                    + " calling load_network_view — the inferred types ensure"
+                                    + " Cytoscape creates table columns correctly instead of"
+                                    + " defaulting everything to string.")
                     @JsonProperty("columns")
-                    List<String> columns,
+                    List<DataColumn> columns,
             @JsonPropertyDescription(
                             "Up to the first three data rows in the file, each as an array of string values"
-                                    + " aligned with columns. The first three rows are included in the response to help determine if column header row is included or not.")
+                                    + " aligned with columns. The first three rows are included in the response to help determine if column header row is present and infer the data type of the column from the sample values.")
                     @JsonProperty("sample_rows")
                     List<List<String>> sampleRows) {}
 
@@ -122,6 +127,12 @@ public class GetFileColumnsTool {
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(GetFileColumnsCallResult.class);
+
+    private final TabularTypeConverter typeConverter;
+
+    public GetFileColumnsTool(TabularTypeConverter typeConverter) {
+        this.typeConverter = typeConverter;
+    }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
@@ -204,14 +215,14 @@ public class GetFileColumnsTool {
             }
 
             int colCount = firstRow.getLastCellNum();
-            List<String> columns;
+            List<String> columnNames;
             int sampleStart;
 
             if (useHeaderRow) {
-                columns = readRowCells(firstRow, colCount, fmt);
+                columnNames = readRowCells(firstRow, colCount, fmt);
                 sampleStart = firstRowIndex + 1;
             } else {
-                columns = ordinalNames(colCount);
+                columnNames = ordinalNames(colCount);
                 sampleStart = firstRowIndex;
             }
 
@@ -222,7 +233,7 @@ public class GetFileColumnsTool {
                 sampleRows.add(readRowCells(row, colCount, fmt));
             }
 
-            return buildResult(columns, sampleRows);
+            return buildResult(columnNames, sampleRows);
         }
     }
 
@@ -248,13 +259,13 @@ public class GetFileColumnsTool {
             }
 
             String[] firstParts = firstLine.split(delimPattern, -1);
-            List<String> columns;
+            List<String> columnNames;
             List<List<String>> sampleRows = new ArrayList<>();
 
             if (useHeaderRow) {
-                columns = trimAll(firstParts);
+                columnNames = trimAll(firstParts);
             } else {
-                columns = ordinalNames(firstParts.length);
+                columnNames = ordinalNames(firstParts.length);
                 sampleRows.add(trimAll(firstParts));
             }
 
@@ -264,7 +275,7 @@ public class GetFileColumnsTool {
                 sampleRows.add(trimAll(line.split(delimPattern, -1)));
             }
 
-            return buildResult(columns, sampleRows);
+            return buildResult(columnNames, sampleRows);
         }
     }
 
@@ -286,7 +297,25 @@ public class GetFileColumnsTool {
         return list;
     }
 
-    private CallToolResult buildResult(List<String> columns, List<List<String>> sampleRows) {
+    /**
+     * Infers types from sample rows and constructs the result. Each column name is paired with a
+     * {@link DataColumn.CyDataType} inferred from up to three sample values.
+     */
+    private CallToolResult buildResult(List<String> columnNames, List<List<String>> sampleRows) {
+        List<DataColumn> columns = new ArrayList<>(columnNames.size());
+        for (int i = 0; i < columnNames.size(); i++) {
+            List<String> samples = new ArrayList<>(sampleRows.size());
+            for (List<String> row : sampleRows) {
+                if (i < row.size()) {
+                    String val = row.get(i);
+                    if (val != null && !val.isBlank()) {
+                        samples.add(val);
+                    }
+                }
+            }
+            DataColumn.CyDataType type = typeConverter.inferType(samples);
+            columns.add(new DataColumn(columnNames.get(i), type));
+        }
         return CallToolResult.builder()
                 .structuredContent(new GetFileColumnsCallResult(columns, sampleRows))
                 .build();

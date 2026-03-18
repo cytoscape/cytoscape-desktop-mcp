@@ -21,6 +21,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetVisualDefaultTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SwitchCurrentStyleTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.TabularTypeConverter;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.VisualPropertyService;
 
 import org.cytoscape.application.CyApplicationManager;
@@ -119,6 +120,9 @@ public final class McpServerFactory {
                         .jsonSchemaValidator(new DefaultJsonSchemaValidator(objectMapper))
                         .build();
 
+        // Shared stateless helper for column-type inference and value coercion.
+        TabularTypeConverter typeConverter = new TabularTypeConverter();
+
         // Register tools.
         server.addTool(
                 new LoadNetworkViewTool(
@@ -131,7 +135,8 @@ public final class McpServerFactory {
                                 networkReaderManager,
                                 networkFactory,
                                 networkViewFactory,
-                                layoutManager)
+                                layoutManager,
+                                typeConverter)
                         .toSpec());
         server.addTool(
                 new GetLoadedNetworkViewsTool(appManager, networkManager, viewManager, vmmManager)
@@ -143,7 +148,7 @@ public final class McpServerFactory {
                                 appManager, networkManager, viewManager, networkViewFactory)
                         .toSpec());
         server.addTool(new InspectTabularFileTool().toSpec());
-        server.addTool(new GetFileColumnsTool().toSpec());
+        server.addTool(new GetFileColumnsTool(typeConverter).toSpec());
         server.addTool(
                 new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory)
                         .toSpec());
