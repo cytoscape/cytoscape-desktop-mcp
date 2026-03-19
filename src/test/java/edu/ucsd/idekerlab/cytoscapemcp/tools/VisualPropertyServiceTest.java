@@ -597,4 +597,44 @@ public class VisualPropertyServiceTest {
         assertEquals(Double.class, result.getClass());
         assertEquals(2.0, (Double) result, 0.0001);
     }
+
+    // ---- parseColumnKey ----
+
+    @Test
+    public void parseColumnKey_string() {
+        Object result = service.parseColumnKey("kinase", String.class);
+        assertEquals("kinase", result);
+    }
+
+    @Test
+    public void parseColumnKey_integer() {
+        Object result = service.parseColumnKey("23", Integer.class);
+        assertEquals(Integer.class, result.getClass());
+        assertEquals(23, result);
+    }
+
+    @Test
+    public void parseColumnKey_long() {
+        Object result = service.parseColumnKey("9999999999", Long.class);
+        assertEquals(Long.class, result.getClass());
+        assertEquals(9999999999L, result);
+    }
+
+    @Test
+    public void parseColumnKey_double() {
+        Object result = service.parseColumnKey("1.5", Double.class);
+        assertEquals(Double.class, result.getClass());
+        assertEquals(1.5, (Double) result, 0.0001);
+    }
+
+    @Test
+    public void parseColumnKey_boolean() {
+        Object result = service.parseColumnKey("true", Boolean.class);
+        assertEquals(Boolean.TRUE, result);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void parseColumnKey_invalidInteger_throws() {
+        service.parseColumnKey("abc", Integer.class);
+    }
 }

@@ -486,4 +486,30 @@ public class VisualPropertyService {
         if (columnType == Boolean.class) return Boolean.valueOf(String.valueOf(rawValue));
         return rawValue;
     }
+
+    /**
+     * Parses a string JSON-object key to the typed Java value expected as a DiscreteMapping key.
+     * JSON object keys are always strings; this method converts them to the appropriate column
+     * type.
+     *
+     * @throws IllegalArgumentException if the string cannot be parsed as the specified type.
+     */
+    public Object parseColumnKey(String strKey, Class<?> columnType) {
+        try {
+            if (columnType == Integer.class) return Integer.parseInt(strKey);
+            if (columnType == Long.class) return Long.parseLong(strKey);
+            if (columnType == Double.class) return Double.parseDouble(strKey);
+            if (columnType == String.class) return strKey;
+            if (columnType == Boolean.class) return Boolean.valueOf(strKey);
+            throw new IllegalArgumentException(
+                    "Unsupported column type: " + columnType.getSimpleName());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "Entry key '"
+                            + strKey
+                            + "' cannot be parsed as "
+                            + columnType.getSimpleName()
+                            + ".");
+        }
+    }
 }

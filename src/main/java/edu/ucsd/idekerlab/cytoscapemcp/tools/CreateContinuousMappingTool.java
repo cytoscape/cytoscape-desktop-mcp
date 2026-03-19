@@ -87,10 +87,12 @@ public class CreateContinuousMappingTool {
                     + " {\"value\": 0.5, \"lesser\": 3.0, \"equal\": 3.0, \"greater\": 3.0},"
                     + " {\"value\": 1.0, \"lesser\": 8.0, \"equal\": 8.0,"
                     + " \"greater\": 8.0}]}\n\n"
-                    + "Example 4 — \"Change node color based on centrality\": recognize this as a"
-                    + " continuous mapping request, then ask the user which centrality column to use"
-                    + " and for at least two break points (a low value with its color and a high"
-                    + " value with its color) before invoking the tool.";
+                    + "Example 4 — \"Change node color based on centrality\": before invoking,"
+                    + " confirm with the user that they want continuous gradient interpolation —"
+                    + " color varying smoothly with the numeric data — rather than discrete color"
+                    + " assignment per value. If confirmed continuous, ask which centrality column"
+                    + " to use and for at least two breakpoints (a low value with its color and a"
+                    + " high value with its color).";
 
     // -- Response record -------------------------------------------------------
 
