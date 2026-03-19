@@ -12,13 +12,21 @@ If your agent is not listed below, consult its documentation for configuring an 
 
 ## Claude Desktop
 
-Open Claude Desktop and go to **Settings > Connectors**. Click **Add custom connector**. Enter the URL and save — active immediately, no restart needed.
+**Prerequisite:** Go to **Settings > Extensions > Advanced** and enable
+**Use Built-in Node.js for MCP**. This is required for the extension to function.
+
+Download the **Cytoscape MCP** extension from the
+[releases page](https://github.com/cytoscape/cytoscape-desktop-mcp/releases/)
+(`cytoscape-mcp.mcpb`). In Claude Desktop go to **Settings > Extensions**, click
+**Install Extension**, and select the downloaded `.mcpb` file.
+
+To verify: the **Cytoscape MCP** connector will appear in **Customize > Connectors**.
+
+**Manual fallback:** Go to **Settings > Connectors**, click **Add custom connector**, enter the URL below, and save.
 
 ```
 http://localhost:{rest.port}/mcp
 ```
-
-To verify: click the **+** button in the chat input and select **Connectors**.
 
 ---
 
