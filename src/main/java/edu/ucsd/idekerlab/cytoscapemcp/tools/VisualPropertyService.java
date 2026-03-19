@@ -450,4 +450,40 @@ public class VisualPropertyService {
         }
         return String.valueOf(value).equalsIgnoreCase(name);
     }
+
+    /**
+     * Resolves a column type name string to the corresponding Java class. Used by mapping-creation
+     * tools (tasks 18–21) to coerce column-type inputs to exact Java types.
+     *
+     * @throws IllegalArgumentException if the type name is not a supported column type.
+     */
+    public Class<?> resolveColumnType(String typeName) {
+        return switch (typeName) {
+            case "Integer" -> Integer.class;
+            case "Long" -> Long.class;
+            case "Double" -> Double.class;
+            case "String" -> String.class;
+            case "Boolean" -> Boolean.class;
+            default -> throw new IllegalArgumentException(
+                    "Unsupported column type: '"
+                            + typeName
+                            + "'. Valid types: Integer, Long, Double, String, Boolean.");
+        };
+    }
+
+    /**
+     * Coerces a JSON-parsed value to the exact Java type expected by the mapping factory. Jackson
+     * may produce Integer, Long, or Double depending on magnitude/representation; this ensures the
+     * passed breakpoint value is the correct type at runtime (safe due to Java type erasure).
+     */
+    public Object convertColumnValue(Object rawValue, Class<?> columnType) {
+        if (rawValue instanceof Number n) {
+            if (columnType == Integer.class) return n.intValue();
+            if (columnType == Long.class) return n.longValue();
+            if (columnType == Double.class) return n.doubleValue();
+        }
+        if (columnType == String.class) return String.valueOf(rawValue);
+        if (columnType == Boolean.class) return Boolean.valueOf(String.valueOf(rawValue));
+        return rawValue;
+    }
 }

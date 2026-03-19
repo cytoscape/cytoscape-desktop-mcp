@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.ucsd.idekerlab.cytoscapemcp.tools.AnalyzeNetworkTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.ApplyLayoutTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateContinuousMappingTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetColumnDistinctValuesTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetColumnRangeTool;
@@ -171,6 +172,14 @@ public final class McpServerFactory {
                         .toSpec());
         server.addTool(new GetColumnRangeTool(appManager).toSpec());
         server.addTool(new GetColumnDistinctValuesTool(appManager).toSpec());
+        server.addTool(
+                new CreateContinuousMappingTool(
+                                appManager,
+                                vmmManager,
+                                renderingEngineManager,
+                                continuousMappingFactory,
+                                vpService)
+                        .toSpec());
         server.addTool(new GetStylesTool(vmmManager).toSpec());
         server.addTool(
                 new SwitchCurrentStyleTool(appManager, vmmManager, visualStyleFactory).toSpec());

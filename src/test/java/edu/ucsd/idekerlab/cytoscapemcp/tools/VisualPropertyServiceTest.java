@@ -542,4 +542,59 @@ public class VisualPropertyServiceTest {
         assertEquals("Italic", VisualPropertyService.FONT_STYLES.get(2));
         assertEquals("BoldItalic", VisualPropertyService.FONT_STYLES.get(3));
     }
+
+    // ---- resolveColumnType ----
+
+    @Test
+    public void resolveColumnType_integer() {
+        assertEquals(Integer.class, service.resolveColumnType("Integer"));
+    }
+
+    @Test
+    public void resolveColumnType_long() {
+        assertEquals(Long.class, service.resolveColumnType("Long"));
+    }
+
+    @Test
+    public void resolveColumnType_double() {
+        assertEquals(Double.class, service.resolveColumnType("Double"));
+    }
+
+    @Test
+    public void resolveColumnType_string() {
+        assertEquals(String.class, service.resolveColumnType("String"));
+    }
+
+    @Test
+    public void resolveColumnType_boolean() {
+        assertEquals(Boolean.class, service.resolveColumnType("Boolean"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void resolveColumnType_invalid_throws() {
+        service.resolveColumnType("Foo");
+    }
+
+    // ---- convertColumnValue ----
+
+    @Test
+    public void convertColumnValue_toInteger() {
+        Object result = service.convertColumnValue(3.7, Integer.class);
+        assertEquals(Integer.class, result.getClass());
+        assertEquals(3, result);
+    }
+
+    @Test
+    public void convertColumnValue_toLong() {
+        Object result = service.convertColumnValue(99, Long.class);
+        assertEquals(Long.class, result.getClass());
+        assertEquals(99L, result);
+    }
+
+    @Test
+    public void convertColumnValue_toDouble() {
+        Object result = service.convertColumnValue(2, Double.class);
+        assertEquals(Double.class, result.getClass());
+        assertEquals(2.0, (Double) result, 0.0001);
+    }
 }
