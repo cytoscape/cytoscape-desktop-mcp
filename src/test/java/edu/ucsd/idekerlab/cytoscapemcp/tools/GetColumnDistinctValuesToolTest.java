@@ -648,6 +648,37 @@ public class GetColumnDistinctValuesToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Numeric coercion — integer vs string max_values
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void maxValuesAsNumber_limitsResults() throws Exception {
+        stubNetworkAndTables();
+        CyColumn col = mockColumn("GeneType", String.class, null);
+        when(nodeTable.getColumn("GeneType")).thenReturn(col);
+        CyRow r1 = rowWith("GeneType", String.class, "kinase");
+        when(nodeTable.getAllRows()).thenReturn(List.of(r1));
+        // max_values as JSON integer
+        String response =
+                callTool("{\"column_names\":[\"GeneType\"],\"table\":\"node\",\"max_values\":5}");
+        assertFalse("Should not be an error", response.contains("\"isError\":true"));
+    }
+
+    @Test
+    public void maxValuesAsString_limitsResults() throws Exception {
+        stubNetworkAndTables();
+        CyColumn col = mockColumn("GeneType", String.class, null);
+        when(nodeTable.getColumn("GeneType")).thenReturn(col);
+        CyRow r1 = rowWith("GeneType", String.class, "kinase");
+        when(nodeTable.getAllRows()).thenReturn(List.of(r1));
+        // max_values as JSON string
+        String response =
+                callTool(
+                        "{\"column_names\":[\"GeneType\"],\"table\":\"node\",\"max_values\":\"5\"}");
+        assertFalse("Should not be an error", response.contains("\"isError\":true"));
+    }
+
+    // -----------------------------------------------------------------------
     // Schema: input schema has optional max_values integer param
     // -----------------------------------------------------------------------
 

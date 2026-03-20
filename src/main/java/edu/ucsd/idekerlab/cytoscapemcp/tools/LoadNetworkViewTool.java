@@ -1066,13 +1066,7 @@ public class LoadNetworkViewTool {
 
     private Integer extractInteger(CallToolRequest request, String key) {
         Object value = request.arguments().get(key);
-        if (value instanceof Integer) {
-            return (Integer) value;
-        }
-        if (value instanceof Number) {
-            return ((Number) value).intValue();
-        }
-        return null;
+        return value != null ? Integer.valueOf(value.toString()) : null;
     }
 
     private URL buildNdexUrl(String networkId) throws MalformedURLException {

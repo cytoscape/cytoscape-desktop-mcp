@@ -160,6 +160,35 @@ public class SetCurrentNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Numeric coercion — integer vs string SUIDs
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void suidsAsNumbers_returnsSuccess() throws Exception {
+        stubNetwork(100L, "Test", 5, 3);
+        stubView(200L);
+        when(viewManager.getNetworkViews(network))
+                .thenReturn(Collections.singletonList(networkView));
+        // TOOL_CALL_SUCCESS already uses integer SUIDs 100 and 200
+        String response = callTool(TOOL_CALL_SUCCESS);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+    }
+
+    @Test
+    public void suidsAsStrings_returnsSuccess() throws Exception {
+        stubNetwork(100L, "Test", 5, 3);
+        stubView(200L);
+        when(viewManager.getNetworkViews(network))
+                .thenReturn(Collections.singletonList(networkView));
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"set_current_network_view\","
+                        + "\"arguments\":{\"network_suid\":\"100\",\"view_suid\":\"200\"}}}";
+        String response = callTool(toolCall);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 

@@ -250,10 +250,7 @@ public class GetColumnDistinctValuesTool {
             List<CyRow> rows = table.getAllRows();
 
             Object rawMax = request.arguments().get("max_values");
-            int maxValues = 50;
-            if (rawMax instanceof Number n) {
-                maxValues = Math.max(1, n.intValue());
-            }
+            int maxValues = rawMax != null ? Math.max(1, Integer.parseInt(rawMax.toString())) : 50;
 
             Map<String, DistinctValuesEntry> resultMap = new LinkedHashMap<>();
             for (String columnName : columnNames) {

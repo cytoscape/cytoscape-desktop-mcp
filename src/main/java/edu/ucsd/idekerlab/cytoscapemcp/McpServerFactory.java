@@ -9,6 +9,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.ApplyLayoutTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateContinuousMappingTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateDiscreteMappingTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.CreatePassthroughMappingTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetColumnDistinctValuesTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetColumnRangeTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetCompatibleColumnsTool;
@@ -187,6 +188,14 @@ public final class McpServerFactory {
                                 vmmManager,
                                 renderingEngineManager,
                                 discreteMappingFactory,
+                                vpService)
+                        .toSpec());
+        server.addTool(
+                new CreatePassthroughMappingTool(
+                                appManager,
+                                vmmManager,
+                                renderingEngineManager,
+                                passthroughMappingFactory,
                                 vpService)
                         .toSpec());
         server.addTool(new GetStylesTool(vmmManager).toSpec());

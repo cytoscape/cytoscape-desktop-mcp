@@ -144,7 +144,7 @@ public class CreateNetworkViewTool {
         LOGGER.info("Tool call received: {}", TOOL_NAME);
 
         try {
-            long networkSuid = ((Number) request.arguments().get("network_suid")).longValue();
+            long networkSuid = Long.parseLong(request.arguments().get("network_suid").toString());
 
             // Look up the network.
             CyNetwork network = networkManager.getNetwork(networkSuid);

@@ -3,6 +3,7 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Paint;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -70,13 +71,15 @@ public class VisualPropertyService {
      */
     @SuppressWarnings("unchecked")
     public Boolean isNodeProperty(VisualLexicon lexicon, VisualProperty<?> vp) {
-        Set<VisualProperty<?>> nodeDescendants =
-                (Set<VisualProperty<?>>)
-                        (Set<?>) lexicon.getAllDescendants(BasicVisualLexicon.NODE);
+        Collection<VisualProperty<?>> nodeDescendants =
+                (Collection<VisualProperty<?>>)
+                        (Collection<?>) lexicon.getAllDescendants(BasicVisualLexicon.NODE);
+        if (nodeDescendants == null) return null;
         if (nodeDescendants.contains(vp)) return true;
-        Set<VisualProperty<?>> edgeDescendants =
-                (Set<VisualProperty<?>>)
-                        (Set<?>) lexicon.getAllDescendants(BasicVisualLexicon.EDGE);
+        Collection<VisualProperty<?>> edgeDescendants =
+                (Collection<VisualProperty<?>>)
+                        (Collection<?>) lexicon.getAllDescendants(BasicVisualLexicon.EDGE);
+        if (edgeDescendants == null) return null;
         if (edgeDescendants.contains(vp)) return false;
         return null;
     }

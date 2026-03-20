@@ -1054,6 +1054,46 @@ public class LoadNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Numeric coercion — integer vs string delimiter_char_code
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void tabularDelimiterAsNumber_succeeds() throws Exception {
+        stubTabularNetwork();
+        String path = fixturePath("genes_comma.csv");
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":\""
+                        + path
+                        + "\","
+                        + "\"source_column\":\"Gene1\",\"target_column\":\"Gene2\","
+                        + "\"delimiter_char_code\":44,"
+                        + "\"use_header_row\":true}}}";
+        String response = callToolRaw(toolCall);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+    }
+
+    @Test
+    public void tabularDelimiterAsString_succeeds() throws Exception {
+        stubTabularNetwork();
+        String path = fixturePath("genes_comma.csv");
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":\""
+                        + path
+                        + "\","
+                        + "\"source_column\":\"Gene1\",\"target_column\":\"Gene2\","
+                        + "\"delimiter_char_code\":\"44\","
+                        + "\"use_header_row\":true}}}";
+        String response = callToolRaw(toolCall);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+    }
+
+    // -----------------------------------------------------------------------
     // Failure — runtime errors
     // -----------------------------------------------------------------------
 

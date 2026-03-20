@@ -178,7 +178,8 @@ public class GetFileColumnsTool {
             boolean useHeaderRow = Boolean.TRUE.equals(useHeaderObj);
 
             String excelSheet = (String) args.get("excel_sheet");
-            Number delimCode = (Number) args.get("delimiter_char_code");
+            Object delimRaw = args.get("delimiter_char_code");
+            Number delimCode = delimRaw != null ? Integer.valueOf(delimRaw.toString()) : null;
 
             File file = new File(filePath);
             if (!file.exists()) {

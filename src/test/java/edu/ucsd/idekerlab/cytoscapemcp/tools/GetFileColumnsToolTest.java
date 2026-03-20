@@ -166,6 +166,34 @@ public class GetFileColumnsToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Numeric coercion — integer vs string delimiter_char_code
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void delimiterCharCodeAsInteger_succeeds() throws Exception {
+        String path = fixturePath("genes_comma.csv");
+        String response = callTool(buildArgs(path, 44, true, null)); // integer 44
+        assertNoError(response);
+        assertEquals(3, extractResult(response).get("columns").size());
+    }
+
+    @Test
+    public void delimiterCharCodeAsString_succeeds() throws Exception {
+        String path = fixturePath("genes_comma.csv");
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"get_file_columns\",\"arguments\":{"
+                        + "\"file_path\":\""
+                        + path.replace("\\", "\\\\")
+                        + "\","
+                        + "\"use_header_row\":true,"
+                        + "\"delimiter_char_code\":\"44\"}}}";
+        String response = callTool(toolCall);
+        assertNoError(response);
+        assertEquals(3, extractResult(response).get("columns").size());
+    }
+
+    // -----------------------------------------------------------------------
     // Error cases
     // -----------------------------------------------------------------------
 

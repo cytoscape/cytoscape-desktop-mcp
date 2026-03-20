@@ -258,6 +258,35 @@ public class CreateNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Numeric coercion — integer vs string network_suid
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void networkSuidAsNumber_succeeds() throws Exception {
+        stubNetwork(100L, "Test", 5, 3);
+        when(viewManager.getNetworkViews(network)).thenReturn(Collections.emptyList());
+        when(networkViewFactory.createNetworkView(network)).thenReturn(newView);
+        when(newView.getSUID()).thenReturn(300L);
+        // TOOL_CALL_CREATE already uses integer network_suid:100
+        String response = callTool(TOOL_CALL_CREATE);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+    }
+
+    @Test
+    public void networkSuidAsString_succeeds() throws Exception {
+        stubNetwork(100L, "Test", 5, 3);
+        when(viewManager.getNetworkViews(network)).thenReturn(Collections.emptyList());
+        when(networkViewFactory.createNetworkView(network)).thenReturn(newView);
+        when(newView.getSUID()).thenReturn(300L);
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"create_network_view\","
+                        + "\"arguments\":{\"network_suid\":\"100\"}}}";
+        String response = callTool(toolCall);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
