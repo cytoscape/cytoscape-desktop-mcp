@@ -69,7 +69,7 @@ public class CreateContinuousMappingTool {
                     + " \"points\": [{\"value\": 1, \"lesser\": 10, \"equal\": 10,"
                     + " \"greater\": 10},"
                     + " {\"value\": 45, \"lesser\": 60, \"equal\": 60, \"greater\": 60}]}\n\n"
-                    + "Example 2 — Color gradient from blue (low) to red (high expression):\n"
+                    + "Example 2 — Change color gradient of nodes from blue to red based on expression:\n"
                     + "{\"property_id\": \"NODE_FILL_COLOR\", \"column_name\": \"expression\","
                     + " \"column_type\": \"Double\","
                     + " \"points\": [{\"value\": -2.0, \"lesser\": \"#0000FF\","

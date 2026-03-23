@@ -27,6 +27,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetVisualDefaultTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SwitchCurrentStyleTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.TabularTypeConverter;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.ValidationService;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.VisualPropertyService;
 
 import org.cytoscape.application.CyApplicationManager;
@@ -129,6 +130,7 @@ public final class McpServerFactory {
 
         // Shared stateless helper for column-type inference and value coercion.
         TabularTypeConverter typeConverter = new TabularTypeConverter();
+        ValidationService validationService = new ValidationService();
 
         // Register tools.
         server.addTool(
@@ -143,7 +145,8 @@ public final class McpServerFactory {
                                 networkFactory,
                                 networkViewFactory,
                                 layoutManager,
-                                typeConverter)
+                                typeConverter,
+                                validationService)
                         .toSpec());
         server.addTool(
                 new GetLoadedNetworkViewsTool(appManager, networkManager, viewManager, vmmManager)

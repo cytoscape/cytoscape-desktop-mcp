@@ -31,6 +31,9 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.DataColumn;
  *
  * <ul>
  *   <li>{@link InputProperty} — one entry in an input-schema {@code properties} object.
+ *   <li>{@link ConditionalParamSpec} — descriptor for a conditional parameter wrapped as a {@code
+ *       ConditionalParameter&lt;T&gt;} object in the schema, with {@code waived} and {@code
+ *       parameter} sub-fields.
  *   <li>{@link InputSchema} — full input schema object (type/required/properties), built via {@link
  *       InputSchema#builder()}.
  *   <li>{@link #toJson(Object)} — serialize a schema model instance to a JSON string.
@@ -82,6 +85,46 @@ public class McpSchema {
         return generator.generateSchema(clazz).toPrettyString();
     }
 
+    // -- ConditionalParamSpec -------------------------------------------------
+
+    /**
+     * Describes the LLM-facing shape of a conditional parameter wrapped as a {@code
+     * ConditionalParameter<T>} object in the JSON schema. The tool handler expects the LLM to
+     * supply the param as a JSON object with two fields:
+     *
+     * <ul>
+     *   <li>{@code waived} (boolean) — {@code true} means the user explicitly confirmed this param
+     *       should be omitted; {@code false} means a value is being provided via {@code parameter}.
+     *   <li>{@code parameter} ({@code T}) — the actual value; ignored when {@code waived=true}.
+     * </ul>
+     *
+     * @param paramType JSON primitive type for the {@code parameter} field: {@code "string"},
+     *     {@code "integer"}, {@code "boolean"}, or {@code "array"}. Use {@code null} when {@code
+     *     isDataColumnArray=true} — the serializer builds the array+items schema automatically.
+     * @param outerDescription description on the wrapper object itself (the per-param instruction
+     *     shown to the LLM).
+     * @param innerParamDesc description on the inner {@code parameter} field.
+     * @param isDataColumnArray when {@code true}, the {@code parameter} field is rendered as a
+     *     {@code DataColumn} array; {@code paramType} is ignored.
+     */
+    public record ConditionalParamSpec(
+            String paramType,
+            String outerDescription,
+            String innerParamDesc,
+            boolean isDataColumnArray) {}
+
+    /**
+     * Standard description for the {@code waived} sub-field of every {@code
+     * ConditionalParameter<T>} wrapper. Instructs the LLM that setting this field to {@code true}
+     * requires explicit user confirmation and must never be assumed or defaulted.
+     */
+    public static final String WAIVED_FIELD_DESC =
+            "Imperative: set to true only after direct user confirmation that this parameter"
+                    + " should be intentionally omitted. Set to false when providing a value in"
+                    + " the parameter field. Never assume or default — this requires explicit"
+                    + " user confirmation or unambiguous contextual evidence in the current"
+                    + " interaction.";
+
     // -- InputProperty --------------------------------------------------------
 
     /**
@@ -126,27 +169,31 @@ public class McpSchema {
         private final List<String> required;
         private final Map<String, InputProperty> properties;
         private final Map<String, String> dataColumnDescriptions;
+        private final Map<String, ConditionalParamSpec> conditionalParamSpecs;
 
         /**
-         * Jackson deserialization constructor — {@code dataColumnDescriptions} defaults to empty.
+         * Jackson deserialization constructor — {@code dataColumnDescriptions} and {@code
+         * conditionalParamSpecs} default to empty.
          */
         @JsonCreator
         public InputSchema(
                 @JsonProperty("type") String type,
                 @JsonProperty("required") List<String> required,
                 @JsonProperty("properties") Map<String, InputProperty> properties) {
-            this(type, required, properties, Map.of());
+            this(type, required, properties, Map.of(), Map.of());
         }
 
         private InputSchema(
                 String type,
                 List<String> required,
                 Map<String, InputProperty> properties,
-                Map<String, String> dataColumnDescriptions) {
+                Map<String, String> dataColumnDescriptions,
+                Map<String, ConditionalParamSpec> conditionalParamSpecs) {
             this.type = type;
             this.required = required;
             this.properties = properties;
             this.dataColumnDescriptions = dataColumnDescriptions;
+            this.conditionalParamSpecs = conditionalParamSpecs;
         }
 
         public String getType() {
@@ -165,6 +212,10 @@ public class McpSchema {
             return dataColumnDescriptions;
         }
 
+        public Map<String, ConditionalParamSpec> getConditionalParamSpecs() {
+            return conditionalParamSpecs;
+        }
+
         public static Builder builder() {
             return new Builder();
         }
@@ -176,6 +227,8 @@ public class McpSchema {
             private final List<String> required = new ArrayList<>();
             private final Map<String, InputProperty> properties = new LinkedHashMap<>();
             private final Map<String, String> dataColumnDescriptions = new LinkedHashMap<>();
+            private final Map<String, ConditionalParamSpec> conditionalParamSpecs =
+                    new LinkedHashMap<>();
 
             /** Mark one or more property keys as required. */
             public Builder required(String... keys) {
@@ -201,12 +254,53 @@ public class McpSchema {
                 return this;
             }
 
+            /**
+             * Declare a conditional scalar parameter wrapped as a {@code ConditionalParameter<T>}
+             * object. The LLM must supply either {@code {waived:true}} (explicit omission confirmed
+             * by the user) or {@code {waived:false, parameter:<value>}} (a value is provided). The
+             * handler validates that the wrapper is present before extracting the inner value.
+             *
+             * @param name parameter key in the schema
+             * @param paramType JSON primitive type for the {@code parameter} field: {@code
+             *     "string"}, {@code "integer"}, or {@code "boolean"}
+             * @param outerDescription description on the wrapper object (the LLM-facing instruction
+             *     for this parameter)
+             * @param innerParamDesc description on the inner {@code parameter} field
+             */
+            public Builder conditionalParam(
+                    String name, String paramType, String outerDescription, String innerParamDesc) {
+                conditionalParamSpecs.put(
+                        name,
+                        new ConditionalParamSpec(
+                                paramType, outerDescription, innerParamDesc, false));
+                return this;
+            }
+
+            /**
+             * Declare a conditional {@code DataColumn} array parameter wrapped as a {@code
+             * ConditionalParameter<DataColumn[]>} object. Same wrapper semantics as {@link
+             * #conditionalParam} but the {@code parameter} field is rendered as a {@code
+             * DataColumn} array in the schema.
+             *
+             * @param name parameter key in the schema
+             * @param outerDescription description on the wrapper object
+             * @param innerParamDesc description on the inner {@code parameter} field
+             */
+            public Builder conditionalDataColumnParam(
+                    String name, String outerDescription, String innerParamDesc) {
+                conditionalParamSpecs.put(
+                        name,
+                        new ConditionalParamSpec(null, outerDescription, innerParamDesc, true));
+                return this;
+            }
+
             public InputSchema build() {
                 return new InputSchema(
                         type,
                         List.copyOf(required),
                         Map.copyOf(properties),
-                        Collections.unmodifiableMap(new LinkedHashMap<>(dataColumnDescriptions)));
+                        Collections.unmodifiableMap(new LinkedHashMap<>(dataColumnDescriptions)),
+                        Collections.unmodifiableMap(new LinkedHashMap<>(conditionalParamSpecs)));
             }
         }
     }
@@ -260,6 +354,38 @@ public class McpSchema {
                 gen.writeFieldName("items");
                 gen.writeTree(DATA_COLUMN_ITEM_SCHEMA);
                 gen.writeEndObject();
+            }
+
+            // ConditionalParameter<T> wrapper entries
+            for (Map.Entry<String, ConditionalParamSpec> e :
+                    schema.getConditionalParamSpecs().entrySet()) {
+                ConditionalParamSpec spec = e.getValue();
+                gen.writeObjectFieldStart(e.getKey());
+                gen.writeStringField("type", "object");
+                gen.writeStringField("description", spec.outerDescription());
+                gen.writeObjectFieldStart("properties");
+
+                // waived field
+                gen.writeObjectFieldStart("waived");
+                gen.writeStringField("type", "boolean");
+                gen.writeStringField("description", WAIVED_FIELD_DESC);
+                gen.writeEndObject();
+
+                // parameter field
+                gen.writeObjectFieldStart("parameter");
+                if (spec.isDataColumnArray()) {
+                    gen.writeStringField("type", "array");
+                    gen.writeStringField("description", spec.innerParamDesc());
+                    gen.writeFieldName("items");
+                    gen.writeTree(DATA_COLUMN_ITEM_SCHEMA);
+                } else {
+                    gen.writeStringField("type", spec.paramType());
+                    gen.writeStringField("description", spec.innerParamDesc());
+                }
+                gen.writeEndObject();
+
+                gen.writeEndObject(); // end properties
+                gen.writeEndObject(); // end param object
             }
 
             gen.writeEndObject(); // end properties
