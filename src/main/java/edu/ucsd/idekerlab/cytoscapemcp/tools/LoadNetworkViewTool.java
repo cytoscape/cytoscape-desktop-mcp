@@ -448,7 +448,8 @@ public class LoadNetworkViewTool {
             }
 
             Map<String, Object> args = request.arguments();
-            CallToolResult validationError = validateConditionalParams(source, args);
+            CallToolResult validationError =
+                    validationService.validateConditionalParams(source, args);
             if (validationError != null) {
                 return validationError;
             }
@@ -1096,11 +1097,6 @@ public class LoadNetworkViewTool {
         }
     }
 
-    /** Convenience overload that creates a String-typed column. */
-    private void createColumnIfAbsent(CyTable table, String name) {
-        createColumnIfAbsent(table, name, String.class);
-    }
-
     /**
      * Parses a raw JSON argument value into a {@link List} of {@link DataColumn} objects. Jackson
      * deserializes each {@code {"name":"...","inferred_data_type":"..."}} map directly to a {@link
@@ -1121,19 +1117,6 @@ public class LoadNetworkViewTool {
             if (dc != null && dc.name() != null) map.put(dc.name(), dc);
         }
         return map;
-    }
-
-    // -- ConditionalParameter<T> validation and extraction -------------------
-
-    /**
-     * Delegates to {@link ValidationService#validateConditionalParams} to validate that all
-     * conditional parameters required for the chosen source type are present and correctly formed.
-     *
-     * @return an error {@link CallToolResult} if validation fails; {@code null} when all checks
-     *     pass
-     */
-    private CallToolResult validateConditionalParams(String source, Map<String, Object> args) {
-        return validationService.validateConditionalParams(source, args);
     }
 
     /**
@@ -1201,19 +1184,6 @@ public class LoadNetworkViewTool {
         }
         String s = ((String) value).trim();
         return s.isEmpty() ? null : s;
-    }
-
-    private Boolean extractBoolean(CallToolRequest request, String key) {
-        Object value = request.arguments().get(key);
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        return null;
-    }
-
-    private Integer extractInteger(CallToolRequest request, String key) {
-        Object value = request.arguments().get(key);
-        return value != null ? Integer.valueOf(value.toString()) : null;
     }
 
     private URL buildNdexUrl(String networkId) throws MalformedURLException {
