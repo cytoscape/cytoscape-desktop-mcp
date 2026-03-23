@@ -7,9 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.AnalyzeNetworkTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.ApplyLayoutTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateContinuousMappingTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateDiscreteMappingGeneratedTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateDiscreteMappingTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreatePassthroughMappingTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GeneratorService;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetColumnDistinctValuesTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetColumnRangeTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetCompatibleColumnsTool;
@@ -34,6 +36,7 @@ import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.CyProperty;
+import org.cytoscape.util.color.PaletteProviderManager;
 import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
@@ -109,7 +112,8 @@ public final class McpServerFactory {
             CyNetworkViewFactory networkViewFactory,
             SynchronousTaskManager<?> syncTaskManager,
             CommandExecutorTaskFactory commandExecutorTaskFactory,
-            VisualStyleFactory visualStyleFactory) {
+            VisualStyleFactory visualStyleFactory,
+            PaletteProviderManager paletteProviderManager) {
 
         // Explicitly supply jsonMapper and jsonSchemaValidator to bypass McpJsonDefaults,
         // which uses ServiceLoader with the Thread context classloader — that classloader
@@ -158,6 +162,7 @@ public final class McpServerFactory {
         server.addTool(new GetLayoutAlgorithmsTool(layoutManager).toSpec());
         server.addTool(new ApplyLayoutTool(appManager, layoutManager, syncTaskManager).toSpec());
         VisualPropertyService vpService = new VisualPropertyService();
+        GeneratorService generatorService = new GeneratorService(paletteProviderManager);
         server.addTool(
                 new GetVisualStyleDefaultsTool(
                                 appManager, vmmManager, renderingEngineManager, vpService)
@@ -189,6 +194,15 @@ public final class McpServerFactory {
                                 renderingEngineManager,
                                 discreteMappingFactory,
                                 vpService)
+                        .toSpec());
+        server.addTool(
+                new CreateDiscreteMappingGeneratedTool(
+                                appManager,
+                                vmmManager,
+                                renderingEngineManager,
+                                discreteMappingFactory,
+                                vpService,
+                                generatorService)
                         .toSpec());
         server.addTool(
                 new CreatePassthroughMappingTool(

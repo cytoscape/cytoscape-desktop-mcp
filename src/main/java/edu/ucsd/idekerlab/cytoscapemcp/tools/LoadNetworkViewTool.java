@@ -92,7 +92,10 @@ public class LoadNetworkViewTool {
                     + " or a tabular formatted file with column mapping. Sets the new network collection instance and view as the current network view on desktop. "
                     + " Use this whenever a new instance of a network is needed on the desktop. The same nettwork can be laoded as multiple collection instances and is allowed. "
                     + " There may be other instances of the network loaded on the desktop but that is not of concern for this invocation. This tool will always create a new network collection instance regardless. "
-                    + " To use this tool most effectively, focus on determining the data source from which the new network instance shall be loaded first and foremost.";
+                    + " To use this tool most effectively, focus on determining the input source parameter first from which the new network instance shall be loaded foremost. "
+                    + " Then follow the specific requirements for the chosen source type via the rest of input parameter descriptions(requirements). "
+                    + " It is VERY important to identify each input parameter related to a chosen source type first and determine more specific behaviors that follow from it before executing the tool."
+                    + " The more details provided via the additional optional input parameters which are related to a chosen source type, the better the resulting network instance will be for the context. ";
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
@@ -125,7 +128,9 @@ public class LoadNetworkViewTool {
                                                     + " format file such as SIF, GML, XGMML, CX,"
                                                     + " CX2, GraphML, SBML, BioPAX),"
                                                     + " 'tabular-file' (load a delimited or Excel"
-                                                    + " file with column mapping).",
+                                                    + " file with column mapping. when this is chosen it indicates that node attribute mappings must now be"
+                                                    + " confirmed by checking with the user or the context to determine which columns are indicated to be mapped as attributes or if none are chosen. "
+                                                    + " Refer to node_attributes_source_columns and node_attributes_target_columns input parameters).",
                                             List.of("ndex", "network-file", "tabular-file")))
                             .property(
                                     "network_id",
@@ -197,53 +202,53 @@ public class LoadNetworkViewTool {
                                     "node_attributes_sheet",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Optional. Name of a second Excel sheet containing"
+                                            "Required when file type is Excel. Need to know if any columns from data file need to be mapped as attributes on source or target nodes."
+                                                    + " Name of a second Excel sheet containing"
                                                     + " node attribute columns to join onto the"
                                                     + " nodes from main network sheet. "
-                                                    + " Inspect the source file to determine what sheets are available."
-                                                    + " Applicable for Excel tabular"
-                                                    + " files."))
+                                                    + " Inspect the source file to determine what sheets are available. Leave blank or omit if confirmed no node attribute mapping is needed or if file is not Excel."))
                             .property(
                                     "node_attributes_sheet_target_key_column",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Optional. Column name in the node attributes sheet"
+                                            "Required when node_attributes_sheet is provided. "
+                                                    + " Column name in the node attributes sheet"
                                                     + " whose values match target-node IDs in the"
                                                     + " main network sheet. Used to join attributes onto"
                                                     + " target nodes. "
-                                                    + " Preview columns from the file and node attributes sheet to determine which columns are available."
-                                                    + " Required when"
-                                                    + " node_attributes_sheet is provided."))
+                                                    + " Preview columns from the file and node attributes sheet to determine which columns are available."))
                             .property(
                                     "node_attributes_sheet_source_key_column",
                                     new McpSchema.InputProperty(
                                             "string",
-                                            "Optional. Column name in the node attributes sheet"
+                                            "Required when node_attributes_sheet is provided. "
+                                                    + "Column name in the node attributes sheet"
                                                     + " whose values match source-node IDs in the"
                                                     + " main network sheet. Used to join attributes onto"
                                                     + " source nodes. "
-                                                    + " Preview columns from the file and node attributes sheet to determine which columns are available."
-                                                    + " Required when"
-                                                    + " node_attributes_sheet is provided."))
+                                                    + " Preview columns from the file and node attributes sheet to determine which columns are available."))
                             .dataColumn(
                                     "node_attributes_source_columns",
-                                    "Optional. DataColumn array specifying columns from the sheet or file"
+                                    "Required whenever tabular files of any type are used. Need to know what if any columns from data file need to be mapped as attributes on source nodes."
+                                            + " DataColumn array specifying columns from the sheet or file"
                                             + " to attach as properties on source nodes, each with an inferred data type."
                                             + " Copy DataColumn objects from get_file_columns output."
-                                            + " Preview columns from the file (and sheet if applicable) to determine which columns are available.")
+                                            + " Preview columns from the file (and sheet if applicable) to determine which columns are available."
+                                            + " Leave blank or omit if no source node attribute mapping is confirmed as not needed.")
                             .dataColumn(
                                     "node_attributes_target_columns",
-                                    "Optional. DataColumn array specifying columns from the sheet or file"
+                                    "Required whenever tabular files of any type are used. Need to know what if any columns from data file need to be mapped as attributes on target nodes."
+                                            + " DataColumn array specifying columns from the sheet or file"
                                             + " to attach as properties on target nodes, each with an inferred data type."
                                             + " Copy DataColumn objects from get_file_columns output."
-                                            + " Preview columns from the file (and sheet if applicable) to determine which columns are available.")
+                                            + " Preview columns from the file (and sheet if applicable) to determine which columns are available."
+                                            + " Leave blank or omit once no target node attribute mapping is confirmed as not needed.")
                             .dataColumn(
                                     "edge_columns",
-                                    "Optional. DataColumn array specifying inferred types for tabular file columns"
-                                            + " that will become edge attributes (any column not assigned as source,"
-                                            + " target, interaction, or node attribute). If absent, those columns are"
-                                            + " added to the edge table as string."
-                                            + " Copy DataColumn objects from get_file_columns output.")
+                                    "Optional. DataColumn array specifying override of inferred data types for tabular file columns"
+                                            + " which are going to become edge attributes."
+                                            + " VERY IMPORTANT: only set columns here that are confirmed to NOT be specified as mapped to source, target, interaction, or node attributes input properties."
+                                            + " If absent, the columns which are going to become edge attributes are added to the edge table as string types by default.")
                             .build());
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

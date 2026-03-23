@@ -67,8 +67,8 @@ public class GetFileColumnsTool {
                     + "{\"file_path\": \"/path/to/data.csv\", \"delimiter_char_code\": 44, \"use_header_row\": true}\n\n";
 
     private static final String TOOL_DESCRIPTION =
-            "Retrieve column headers and first three rows from a tabular file. Use when importing"
-                    + " network data into Cytoscape Desktop to preview columns before mapping."
+            "Retrieve column headers and first three rows from a tabular file. Use when loading"
+                    + " tabular network data into Cytoscape Desktop in order to preview columns and advise about node and edge attribute mapping potential."
                     + " Supports both Excel workbooks and plain-text delimited files.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -78,11 +78,8 @@ public class GetFileColumnsTool {
     private record GetFileColumnsCallResult(
             @JsonPropertyDescription(
                             "Columns found in the file, each with its name and an inferred data"
-                                    + " type. Pass this list directly as"
-                                    + " node_attributes_source_columns,"
-                                    + " node_attributes_target_columns, or edge_columns when"
-                                    + " calling load_network_view — the inferred types ensure"
-                                    + " Cytoscape creates table columns correctly instead of"
+                                    + " type. This helps advise any potential node or edge attribute mapping efforts when loading a network from this file."
+                                    + " The inferred types ensure Cytoscape creates table columns correctly instead of"
                                     + " defaulting everything to string.")
                     @JsonProperty("columns")
                     List<DataColumn> columns,

@@ -15,7 +15,7 @@ into the application JAR.
 
 **Title:** Load Cytoscape Desktop Network
 
-**Description:** Create a new instance of a network as a collection(includes the network as root and a view) on Cytoscape Desktop. The network instance will be created from one of multiple data sources: NDEx (by Network Id), a network formatted file, or a tabular formatted file with column mapping. Sets the new network collection instance and view as the current network view on desktop.  Use this whenever a new instance of a network is needed on the desktop. The same nettwork can be laoded as multiple collection instances and is allowed.  There may be other instances of the network loaded on the desktop but that is not of concern for this invocation. This tool will always create a new network collection instance regardless.  To use this tool most effectively, focus on determining the data source from which the new network instance shall be loaded first and foremost.
+**Description:** Create a new instance of a network as a collection(includes the network as root and a view) on Cytoscape Desktop. The network instance will be created from one of multiple data sources: NDEx (by Network Id), a network formatted file, or a tabular formatted file with column mapping. Sets the new network collection instance and view as the current network view on desktop.  Use this whenever a new instance of a network is needed on the desktop. The same nettwork can be laoded as multiple collection instances and is allowed.  There may be other instances of the network loaded on the desktop but that is not of concern for this invocation. This tool will always create a new network collection instance regardless.  To use this tool most effectively, focus on determining the input source parameter first from which the new network instance shall be loaded foremost.  Then follow the specific requirements for the chosen source type via the rest of input parameter descriptions(requirements).  It is VERY important to identify each input parameter related to a chosen source type first and determine more specific behaviors that follow from it before executing the tool. The more details provided via the additional optional input parameters which are related to a chosen source type, the better the resulting network instance will be for the context. 
 
 ## Examples
 
@@ -39,30 +39,13 @@ Example 4 — open network on cytoscape desktop:
 {
   "type" : "object",
   "properties" : {
-    "source" : {
-      "type" : "string",
-      "description" : "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the remaining input parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping).",
-      "enum" : [ "ndex", "network-file", "tabular-file" ]
-    },
-    "target_column" : {
-      "type" : "string",
-      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
-    },
-    "node_attributes_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Applicable for Excel tabular files."
-    },
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
-    },
     "use_header_row" : {
       "type" : "boolean",
       "description" : "Optional. Whether the first row contains column headers. Preview columns from the file(and sheet if applicable) to determine if the first row has values which are applicable to be used as headers. If false, ordinal column names are generated. Required when source='tabular-file'."
     },
     "node_attributes_sheet_source_key_column" : {
       "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+      "description" : "Required when node_attributes_sheet is provided. Column name in the node attributes sheet whose values match source-node IDs in the main network sheet. Used to join attributes onto source nodes.  Preview columns from the file and node attributes sheet to determine which columns are available."
     },
     "source_column" : {
       "type" : "string",
@@ -70,7 +53,7 @@ Example 4 — open network on cytoscape desktop:
     },
     "node_attributes_sheet_target_key_column" : {
       "type" : "string",
-      "description" : "Optional. Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available. Required when node_attributes_sheet is provided."
+      "description" : "Required when node_attributes_sheet is provided.  Column name in the node attributes sheet whose values match target-node IDs in the main network sheet. Used to join attributes onto target nodes.  Preview columns from the file and node attributes sheet to determine which columns are available."
     },
     "interaction_column" : {
       "type" : "string",
@@ -88,9 +71,26 @@ Example 4 — open network on cytoscape desktop:
       "type" : "string",
       "description" : "Optional. Absolute path to the file to import. Required when source='network-file' or source='tabular-file'. Ignored when source='ndex'."
     },
+    "source" : {
+      "type" : "string",
+      "description" : "Required. Determines which import path to use  and is the most important input parameter and must be determined first as the remaining input parameters depend on this value. Must be one of: 'ndex' (load from NDEx by Network ID as UUID), 'network-file' (load a native network format file such as SIF, GML, XGMML, CX, CX2, GraphML, SBML, BioPAX), 'tabular-file' (load a delimited or Excel file with column mapping. when this is chosen it indicates that node attribute mappings must now be confirmed by checking with the user or the context to determine which columns are indicated to be mapped as attributes or if none are chosen.  Refer to node_attributes_source_columns and node_attributes_target_columns input parameters).",
+      "enum" : [ "ndex", "network-file", "tabular-file" ]
+    },
+    "target_column" : {
+      "type" : "string",
+      "description" : "Optional. Column name for the target (to) node. Preview columns from the file(and sheet if applicable) to determine which is best for target node on a graph edge. Required when source='tabular-file'."
+    },
+    "node_attributes_sheet" : {
+      "type" : "string",
+      "description" : "Required when file type is Excel. Need to know if any columns from data file need to be mapped as attributes on source or target nodes. Name of a second Excel sheet containing node attribute columns to join onto the nodes from main network sheet.  Inspect the source file to determine what sheets are available. Leave blank or omit if confirmed no node attribute mapping is needed or if file is not Excel."
+    },
+    "excel_sheet" : {
+      "type" : "string",
+      "description" : "Optional. Name of the Excel sheet containing the network edge data.  Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files."
+    },
     "node_attributes_source_columns" : {
       "type" : "array",
-      "description" : "Optional. DataColumn array specifying columns from the sheet or file to attach as properties on source nodes, each with an inferred data type. Copy DataColumn objects from get_file_columns output. Preview columns from the file (and sheet if applicable) to determine which columns are available.",
+      "description" : "Required whenever tabular files of any type are used. Need to know what if any columns from data file need to be mapped as attributes on source nodes. DataColumn array specifying columns from the sheet or file to attach as properties on source nodes, each with an inferred data type. Copy DataColumn objects from get_file_columns output. Preview columns from the file (and sheet if applicable) to determine which columns are available. Leave blank or omit if no source node attribute mapping is confirmed as not needed.",
       "items" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "type" : "object",
@@ -109,7 +109,7 @@ Example 4 — open network on cytoscape desktop:
     },
     "node_attributes_target_columns" : {
       "type" : "array",
-      "description" : "Optional. DataColumn array specifying columns from the sheet or file to attach as properties on target nodes, each with an inferred data type. Copy DataColumn objects from get_file_columns output. Preview columns from the file (and sheet if applicable) to determine which columns are available.",
+      "description" : "Required whenever tabular files of any type are used. Need to know what if any columns from data file need to be mapped as attributes on target nodes. DataColumn array specifying columns from the sheet or file to attach as properties on target nodes, each with an inferred data type. Copy DataColumn objects from get_file_columns output. Preview columns from the file (and sheet if applicable) to determine which columns are available. Leave blank or omit once no target node attribute mapping is confirmed as not needed.",
       "items" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "type" : "object",
@@ -128,7 +128,7 @@ Example 4 — open network on cytoscape desktop:
     },
     "edge_columns" : {
       "type" : "array",
-      "description" : "Optional. DataColumn array specifying inferred types for tabular file columns that will become edge attributes (any column not assigned as source, target, interaction, or node attribute). If absent, those columns are added to the edge table as string. Copy DataColumn objects from get_file_columns output.",
+      "description" : "Optional. DataColumn array specifying override of inferred data types for tabular file columns which are going to become edge attributes. VERY IMPORTANT: only set columns here that are confirmed to NOT be specified as mapped to source, target, interaction, or node attributes input properties. If absent, the columns which are going to become edge attributes are added to the edge table as string types by default.",
       "items" : {
         "$schema" : "https://json-schema.org/draft/2020-12/schema",
         "type" : "object",
@@ -300,13 +300,13 @@ Example 3 — Focus Cytoscape desktop on a particular network before applying st
 {
   "type" : "object",
   "properties" : {
-    "network_suid" : {
-      "type" : "integer",
-      "description" : "Required. SUID of the target network in Cytoscape Desktop."
-    },
     "view_suid" : {
       "type" : "integer",
       "description" : "Required. SUID of the target network view in Cytoscape Desktop."
+    },
+    "network_suid" : {
+      "type" : "integer",
+      "description" : "Required. SUID of the target network in Cytoscape Desktop."
     }
   },
   "required" : [ "network_suid", "view_suid" ]
@@ -368,13 +368,13 @@ Example 4 — Force create a new view in Cytoscape desktop even though one alrea
 {
   "type" : "object",
   "properties" : {
-    "network_suid" : {
-      "type" : "integer",
-      "description" : "Required. SUID of the network in Cytoscape Desktop that needs a view."
-    },
     "create_if_exists" : {
       "type" : "boolean",
       "description" : "Optional. Default is false. When false and a view already exists, returns the existing current view (or first available) without creating a duplicate. When true, always creates a new view even if views already exist."
+    },
+    "network_suid" : {
+      "type" : "integer",
+      "description" : "Required. SUID of the network in Cytoscape Desktop that needs a view."
     }
   },
   "required" : [ "network_suid" ]
@@ -487,7 +487,7 @@ Example 4 — What delimiter is used in a file for importing into Cytoscape desk
 
 **Title:** Read Cytoscape Desktop File Columns
 
-**Description:** Retrieve column headers and first three rows from a tabular file. Use when importing network data into Cytoscape Desktop to preview columns before mapping. Supports both Excel workbooks and plain-text delimited files.
+**Description:** Retrieve column headers and first three rows from a tabular file. Use when loading tabular network data into Cytoscape Desktop in order to preview columns and advise about node and edge attribute mapping potential. Supports both Excel workbooks and plain-text delimited files.
 
 ## Examples
 
@@ -541,7 +541,7 @@ Inspect the file first to determine input params as needed.
   "type" : "object",
   "properties" : {
     "columns" : {
-      "description" : "Columns found in the file, each with its name and an inferred data type. Pass this list directly as node_attributes_source_columns, node_attributes_target_columns, or edge_columns when calling load_network_view — the inferred types ensure Cytoscape creates table columns correctly instead of defaulting everything to string.",
+      "description" : "Columns found in the file, each with its name and an inferred data type. This helps advise any potential node or edge attribute mapping efforts when loading a network from this file. The inferred types ensure Cytoscape creates table columns correctly instead of defaulting everything to string.",
       "type" : "array",
       "items" : {
         "type" : "object",
@@ -943,10 +943,6 @@ Example 7 — Lock node size and set it to 50 in one call:
 {
   "type" : "object",
   "properties" : {
-    "edge_properties" : {
-      "type" : "array",
-      "description" : "Optional. List of edge visual property updates. Each entry requires 'id' and 'currentValue' using the same format conventions as node properties — property identifiers, value types, allowed values, font families, and font styles are documented in the style defaults response.\n\nExamples: [{\"id\": \"EDGE_WIDTH\", \"currentValue\": \"3.0\"}], [{\"id\": \"EDGE_LINE_TYPE\", \"currentValue\": \"Dash\"}], [{\"id\": \"EDGE_LABEL_FONT_FACE\", \"currentValue\": \"Courier New-Italic-12\"}]"
-    },
     "dependencies" : {
       "type" : "array",
       "description" : "Optional. List of dependency locks to toggle on/off. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
@@ -954,6 +950,10 @@ Example 7 — Lock node size and set it to 50 in one call:
     "node_properties" : {
       "type" : "array",
       "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
+    },
+    "edge_properties" : {
+      "type" : "array",
+      "description" : "Optional. List of edge visual property updates. Each entry requires 'id' and 'currentValue' using the same format conventions as node properties — property identifiers, value types, allowed values, font families, and font styles are documented in the style defaults response.\n\nExamples: [{\"id\": \"EDGE_WIDTH\", \"currentValue\": \"3.0\"}], [{\"id\": \"EDGE_LINE_TYPE\", \"currentValue\": \"Dash\"}], [{\"id\": \"EDGE_LABEL_FONT_FACE\", \"currentValue\": \"Courier New-Italic-12\"}]"
     }
   },
   "required" : [ ]
@@ -1210,11 +1210,6 @@ Example 4 — Batch: inspect all numeric node columns needed to configure a full
 {
   "type" : "object",
   "properties" : {
-    "table" : {
-      "type" : "string",
-      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
-      "enum" : [ "node", "edge" ]
-    },
     "column_names" : {
       "type" : "array",
       "description" : "Required. One or more column names to compute range statistics for. Pass all columns you need in a single call — each is processed independently and its result (or per-column error) appears in the response map. Must be a non-empty list. Each column must be a numeric type (Integer, Long, or Double).\n\nExamples: [\"Degree\"], [\"Degree\", \"BetweennessCentrality\", \"expression\"]",
@@ -1222,6 +1217,11 @@ Example 4 — Batch: inspect all numeric node columns needed to configure a full
         "type" : "string",
         "description" : "Name of a numeric column in the specified table."
       }
+    },
+    "table" : {
+      "type" : "string",
+      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
+      "enum" : [ "node", "edge" ]
     }
   },
   "required" : [ "column_names", "table" ]
@@ -1274,14 +1274,6 @@ Example 5 — Limit returned values for a high-cardinality column:
 {
   "type" : "object",
   "properties" : {
-    "column_names" : {
-      "type" : "array",
-      "description" : "Required. One or more column names to enumerate distinct values for. Pass all columns you need in a single call — each is processed independently and its result (or per-column error) appears in the response map. Must be a non-empty list. Works with any non-list column type: String, Integer, Long, Double, or Boolean.\n\nExamples: [\"GeneType\"], [\"GeneType\", \"community\", \"interaction\"]",
-      "items" : {
-        "type" : "string",
-        "description" : "Name of a column in the specified table."
-      }
-    },
     "table" : {
       "type" : "string",
       "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
@@ -1290,6 +1282,14 @@ Example 5 — Limit returned values for a high-cardinality column:
     "max_values" : {
       "type" : "integer",
       "description" : "Optional. Maximum number of distinct values to return per column. Default 50. Values are sorted by count descending and clipped to this limit before returning. Compare values.size() to count to detect clipping. Increase if you need the full value set for a high-cardinality column.\n\nExamples: 50, 100, 200"
+    },
+    "column_names" : {
+      "type" : "array",
+      "description" : "Required. One or more column names to enumerate distinct values for. Pass all columns you need in a single call — each is processed independently and its result (or per-column error) appears in the response map. Must be a non-empty list. Works with any non-list column type: String, Integer, Long, Double, or Boolean.\n\nExamples: [\"GeneType\"], [\"GeneType\", \"community\", \"interaction\"]",
+      "items" : {
+        "type" : "string",
+        "description" : "Name of a column in the specified table."
+      }
     }
   },
   "required" : [ "column_names", "table" ]
@@ -1338,14 +1338,6 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
 {
   "type" : "object",
   "properties" : {
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the numeric data column driving the mapping, from get_compatible_columns."
-    },
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH) from get_mappable_properties."
-    },
     "points" : {
       "type" : "array",
       "description" : "Required. Minimum 2 breakpoints. Defines the piecewise continuous mapping function: each breakpoint anchors the visual property at a specific data value, and Cytoscape interpolates between adjacent breakpoints — so at least one lower and one upper anchor is needed to form a valid range. Breakpoints must be in ascending order by value; the tool sorts them automatically but rejects duplicates. Each entry has: value (number — the data value at this breakpoint anchor); lesser (property value applied for data values strictly below this breakpoint); equal (property value applied for data values exactly at this breakpoint); greater (property value applied for data values strictly above this breakpoint). For color-gradient properties (Paint), use hex strings (#RRGGBB). For discrete-typed properties (NodeShape, LineType), use display names. For numeric properties (Double, Integer), use numbers.",
@@ -1358,6 +1350,14 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
       "type" : "string",
       "description" : "Required. Java type of the data column.",
       "enum" : [ "Integer", "Long", "Double" ]
+    },
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the numeric data column driving the mapping, from get_compatible_columns."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH) from get_mappable_properties."
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "points" ]
@@ -1428,14 +1428,6 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
 {
   "type" : "object",
   "properties" : {
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the data column driving the mapping, from get_compatible_columns."
-    },
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE) from get_mappable_properties."
-    },
     "entries" : {
       "type" : "object",
       "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
@@ -1444,6 +1436,14 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+    },
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column driving the mapping, from get_compatible_columns."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE) from get_mappable_properties."
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "entries" ]
@@ -1476,6 +1476,104 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
     "property_id" : {
       "type" : "string",
       "description" : "Machine-readable ID of the visual property mapped.\n\nExamples: \"NODE_FILL_COLOR\", \"NODE_SHAPE\""
+    },
+    "status" : {
+      "type" : "string",
+      "description" : "Outcome. Always 'success' for non-error responses.\n\nExamples: \"success\""
+    }
+  }
+}
+```
+
+---
+
+### `create_discrete_mapping_generated`
+
+**Title:** Create Cytoscape Desktop Auto Mapping
+
+**Description:** Create a discrete data-driven visual mapping in the active Cytoscape Desktop visual style where property values are auto-generated for every distinct column value — no manual entry needed. Prefer this tool over the manual discrete mapping tool when a column has more than a dozen or so distinct values, or whenever you want the user to simply choose a generator style rather than enumerate discrete mapping entries themselves. The caller must select from given generator algorithms that determine how visual property values are produced across the full set of discrete values; refer to the generator input parameter for the available algorithm choices and their compatibility requirements. State-mutating; creates or replaces a discrete mapping on the active visual style and immediately rerenders the current view.
+
+## Examples
+
+Example 1 — "Automatically color the nodes by discrete values in GeneType column":
+{"property_id": "NODE_FILL_COLOR", "column_name": "GeneType", "column_type": "String", "generator": "rainbow"}
+
+Example 2 — "Auto-generate a shape mapping for the discrete community column values":
+{"property_id": "NODE_SHAPE", "column_name": "community", "column_type": "Integer", "generator": "shape_cycle"}
+
+Example 3 — "Generate a blue color gradient for the discrete values in tissue column":
+{"property_id": "NODE_FILL_COLOR", "column_name": "tissue", "column_type": "String", "generator": "brewer_sequential", "generator_params": {"hue": "blue"}}
+
+Example 4 — "Create a discrete size mapping based on the Degree column automatically":
+{"property_id": "NODE_SIZE", "column_name": "Degree", "column_type": "Integer", "generator": "numeric_range", "generator_params": {"min": 10, "max": 60}}
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : {
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column to drive the mapping, from get_compatible_columns."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH) from get_mappable_properties."
+    },
+    "generator" : {
+      "type" : "string",
+      "description" : "Required. Auto-generation algorithm to apply across all distinct column values. rainbow and random produce colors from Cytoscape's palette providers (Paint properties only). brewer_sequential produces a light-to-dark single-hue gradient (Paint only); supply an optional hue hint via generator_params. shape_cycle steps through the visual property's own discrete value set (e.g. node shapes), wrapping as needed. numeric_range spreads values evenly between a min and max (numeric properties only); min and max are required via generator_params.",
+      "enum" : [ "rainbow", "random", "brewer_sequential", "shape_cycle", "numeric_range" ]
+    },
+    "column_type" : {
+      "type" : "string",
+      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
+      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+    },
+    "generator_params" : {
+      "type" : "object",
+      "description" : "Optional. Generator-specific parameters. For numeric_range: required keys are 'min' (number) and 'max' (number). For brewer_sequential: optional key 'hue' (string) selects the palette color family — e.g. 'blue', 'red', 'green', 'purple'; defaults to 'blue'. Ignored for rainbow, random, and shape_cycle."
+    }
+  },
+  "required" : [ "property_id", "column_name", "column_type", "generator" ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "column" : {
+      "type" : "string",
+      "description" : "Name of the data column driving the mapping.\n\nExamples: \"GeneType\", \"community\""
+    },
+    "displayName" : {
+      "type" : "string",
+      "description" : "Human-readable display name of the visual property.\n\nExamples: \"Node Fill Color\", \"Node Shape\""
+    },
+    "entries_count" : {
+      "type" : "integer",
+      "description" : "Total number of distinct column values mapped (one mapping entry per value)."
+    },
+    "generator" : {
+      "type" : "string",
+      "description" : "Generator algorithm that was applied.\n\nExamples: \"rainbow\", \"shape_cycle\""
+    },
+    "mapping_type" : {
+      "type" : "string",
+      "description" : "Always 'DiscreteMapping' for this tool."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Machine-readable ID of the visual property mapped.\n\nExamples: \"NODE_FILL_COLOR\", \"NODE_SHAPE\""
+    },
+    "sample_entries" : {
+      "type" : "object",
+      "description" : "Sample of the first up to five generated mapping entries as {columnValue → formattedPropertyValue} pairs. Colors are hex strings; shapes and line types are display names."
     },
     "status" : {
       "type" : "string",

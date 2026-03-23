@@ -30,6 +30,7 @@ import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.AbstractConfigDirPropsReader;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.service.util.AbstractCyActivator;
+import org.cytoscape.util.color.PaletteProviderManager;
 import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
@@ -165,6 +166,10 @@ public class CyActivator extends AbstractCyActivator {
         // Visual style factory (for creating new styles by cloning).
         VisualStyleFactory visualStyleFactory = getService(bundleContext, VisualStyleFactory.class);
 
+        // Palette provider manager (for auto-generating color mappings).
+        PaletteProviderManager paletteProviderManager =
+                getService(bundleContext, PaletteProviderManager.class);
+
         startMcpServer(
                 cyProperties,
                 appManager,
@@ -183,7 +188,8 @@ public class CyActivator extends AbstractCyActivator {
                 networkViewFactory,
                 syncTaskManager,
                 commandExecutorTaskFactory,
-                visualStyleFactory);
+                visualStyleFactory,
+                paletteProviderManager);
 
         // Read the CyREST port for display in the status panel.
         @SuppressWarnings("unchecked")
@@ -246,7 +252,8 @@ public class CyActivator extends AbstractCyActivator {
             CyNetworkViewFactory networkViewFactory,
             SynchronousTaskManager<?> syncTaskManager,
             CommandExecutorTaskFactory commandExecutorTaskFactory,
-            VisualStyleFactory visualStyleFactory) {
+            VisualStyleFactory visualStyleFactory,
+            PaletteProviderManager paletteProviderManager) {
 
         transportProvider = new McpTransportProvider();
 
@@ -276,7 +283,8 @@ public class CyActivator extends AbstractCyActivator {
                         networkViewFactory,
                         syncTaskManager,
                         commandExecutorTaskFactory,
-                        visualStyleFactory);
+                        visualStyleFactory,
+                        paletteProviderManager);
         LOGGER.info("MCP sync server built");
 
         // Register McpEndpoint as an OSGi service under its concrete class type.
