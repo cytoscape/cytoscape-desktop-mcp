@@ -145,9 +145,7 @@ public class LoadNetworkViewTool {
                                     "Conditional on source='ndex'. NDEx network Id expressed as UUID string (e.g."
                                             + " 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa')."
                                             + " Required when source='ndex'. Ignored otherwise."
-                                            + " Confirm with the user or context before setting or waiving.",
-                                    "NDEx network UUID string, e.g."
-                                            + " 'a7e43e3d-c7f8-11ec-8d17-005056ae23aa'.")
+                                            + " Confirm with the user before setting or waiving.")
                             .conditionalParam(
                                     "file_path",
                                     "string",
@@ -155,8 +153,7 @@ public class LoadNetworkViewTool {
                                             + " Absolute path to the file to import."
                                             + " Required when source='network-file' or source='tabular-file'."
                                             + " Ignored when source='ndex'."
-                                            + " Confirm the path with the user or context before setting or waiving.",
-                                    "Absolute path to the file, e.g. '/path/to/data.csv'.")
+                                            + " Confirm the path with the user before setting or waiving.")
                             .conditionalParam(
                                     "source_column",
                                     "string",
@@ -164,8 +161,7 @@ public class LoadNetworkViewTool {
                                             + " Preview columns from the file (and sheet if applicable)"
                                             + " to determine which is best for source node on a graph edge."
                                             + " Required when source='tabular-file'."
-                                            + " Confirm the column choice with the user before setting or waiving.",
-                                    "Column name whose values become source node names for each edge row.")
+                                            + " Confirm the column choice with the user before setting or waiving.")
                             .conditionalParam(
                                     "target_column",
                                     "string",
@@ -173,8 +169,7 @@ public class LoadNetworkViewTool {
                                             + " Preview columns from the file (and sheet if applicable)"
                                             + " to determine which is best for target node on a graph edge."
                                             + " Required when source='tabular-file'."
-                                            + " Confirm the column choice with the user before setting or waiving.",
-                                    "Column name whose values become target node names for each edge row.")
+                                            + " Confirm the column choice with the user before setting or waiving.")
                             .conditionalParam(
                                     "interaction_column",
                                     "string",
@@ -182,8 +177,7 @@ public class LoadNetworkViewTool {
                                             + " Preview columns from the file (and sheet if applicable)"
                                             + " to determine which is best for graph edge name."
                                             + " Applicable when source='tabular-file'."
-                                            + " Confirm with the user whether an interaction column should be mapped or waived.",
-                                    "Column name whose values label the edge interaction type.")
+                                            + " Confirm with the user whether an interaction column should be mapped or waived.")
                             .conditionalParam(
                                     "delimiter_char_code",
                                     "integer",
@@ -193,8 +187,7 @@ public class LoadNetworkViewTool {
                                             + " Use the file extension, or inspect the source file to determine the delimiter."
                                             + " Required when source='tabular-file' and file is not Excel."
                                             + " Ignored for Excel files (use excel_sheet instead)."
-                                            + " Confirm with the user or by inspecting the file before setting or waiving.",
-                                    "ASCII code of the delimiter character, e.g. 44 for comma, 9 for tab.")
+                                            + " Confirm with the user by inspecting the file before setting or waiving.")
                             .conditionalParam(
                                     "use_header_row",
                                     "boolean",
@@ -203,8 +196,7 @@ public class LoadNetworkViewTool {
                                             + " to determine if the first row has values suitable as headers."
                                             + " If false, ordinal column names are generated."
                                             + " Required when source='tabular-file'."
-                                            + " Confirm with the user or by inspecting the file before setting or waiving.",
-                                    "true if the first row is a header row; false to use ordinal column names.")
+                                            + " Confirm with the user by inspecting the file before setting or waiving.")
                             .conditionalParam(
                                     "excel_sheet",
                                     "string",
@@ -214,8 +206,7 @@ public class LoadNetworkViewTool {
                                             + " Inspect the source file to determine what sheets are available."
                                             + " Required when source='tabular-file' and file is Excel."
                                             + " Ignored for non-Excel files (use delimiter_char_code instead)."
-                                            + " Confirm with the user which sheet to use before setting or waiving.",
-                                    "Name of the Excel sheet containing the primary edge data.")
+                                            + " Confirm with the user which sheet to use before setting or waiving.")
                             .conditionalParam(
                                     "node_attributes_sheet",
                                     "string",
@@ -224,8 +215,7 @@ public class LoadNetworkViewTool {
                                             + " columns to join onto the nodes from the main network sheet."
                                             + " Inspect the source file to determine what sheets are available."
                                             + " Applicable for Excel tabular files only."
-                                            + " Confirm with the user whether a separate node attributes sheet should be used before setting or waiving.",
-                                    "Name of the Excel sheet that contains node attribute data to join onto source and target nodes.")
+                                            + " Confirm with the user whether a separate node attributes sheet should be used before setting or waiving.")
                             .conditionalParam(
                                     "node_attributes_sheet_source_key_column",
                                     "string",
@@ -235,8 +225,7 @@ public class LoadNetworkViewTool {
                                             + " Used to join attributes onto source nodes."
                                             + " Preview columns from the node attributes sheet to determine which columns are available."
                                             + " Required when node_attributes_sheet is provided."
-                                            + " Confirm the key column with the user before setting or waiving.",
-                                    "Column in the node attributes sheet used to key-join onto source node names.")
+                                            + " Confirm the key column with the user before setting or waiving.")
                             .conditionalParam(
                                     "node_attributes_sheet_target_key_column",
                                     "string",
@@ -246,8 +235,7 @@ public class LoadNetworkViewTool {
                                             + " Used to join attributes onto target nodes."
                                             + " Preview columns from the node attributes sheet to determine which columns are available."
                                             + " Required when node_attributes_sheet is provided."
-                                            + " Confirm the key column with the user before setting or waiving.",
-                                    "Column in the node attributes sheet used to key-join onto target node names.")
+                                            + " Confirm the key column with the user before setting or waiving.")
                             .conditionalDataColumnParam(
                                     "node_attributes_source_columns",
                                     "Conditional on source='tabular-file'. "
@@ -257,10 +245,7 @@ public class LoadNetworkViewTool {
                                             + " nodes or none is allowed. Populate with the user's confirmed selections or set as empty list if none chosen."
                                             + " Copy DataColumn objects from get_file_columns output."
                                             + " Waive only when the user has explicitly declined all source"
-                                            + " node attribute mapping.",
-                                    "DataColumn array specifying columns from the file or sheet to attach"
-                                            + " as properties on source nodes, each with an inferred data type."
-                                            + " Copy DataColumn objects from get_file_columns output.")
+                                            + " node attribute mapping.")
                             .conditionalDataColumnParam(
                                     "node_attributes_target_columns",
                                     "Conditional on source='tabular-file'. "
@@ -270,19 +255,13 @@ public class LoadNetworkViewTool {
                                             + " nodes or none is allowed. Populate with the user's confirmed selections or set as empty list if none chosen."
                                             + " Copy DataColumn objects from get_file_columns output."
                                             + " Waive only when the user has explicitly declined all target"
-                                            + " node attribute mapping.",
-                                    "DataColumn array specifying columns from the file or sheet to attach"
-                                            + " as properties on target nodes, each with an inferred data type."
-                                            + " Copy DataColumn objects from get_file_columns output.")
+                                            + " node attribute mapping.")
                             .conditionalDataColumnParam(
                                     "edge_columns",
                                     "Conditional on source='tabular-file'. "
                                             + " Populate with remaining file columns the user"
                                             + " has NOT already explicitly confirmed to be mapped to source nodes,"
-                                            + " target nodes, or edge interaction or node attributes. This provides ability to specify more correct data types.",
-                                    " DataColumn array specifying inferred data type overrides for the remaining columns that"
-                                            + " will become edge attributes. "
-                                            + " If absent, the remaining columns will be added to the edge table with default type of string.")
+                                            + " target nodes, or edge interaction or node attributes. This provides ability to specify more correct data types.")
                             .build());
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -440,18 +419,13 @@ public class LoadNetworkViewTool {
     private CallToolResult handle(McpSyncServerExchange exchange, CallToolRequest request) {
         LOGGER.info("Tool call received: {} params={}", TOOL_NAME, request.arguments());
         try {
-            String source = extractString(request, "source");
+            Map<String, Object> args = request.arguments();
+            String source =
+                    validationService.unwrapToolInputValue(args.get("source"), String.class);
             if (source == null) {
                 return error(
                         "'source' is required. Must be 'ndex', 'network-file',"
                                 + " or 'tabular-file'.");
-            }
-
-            Map<String, Object> args = request.arguments();
-            CallToolResult validationError =
-                    validationService.validateConditionalParams(source, args);
-            if (validationError != null) {
-                return validationError;
             }
 
             switch (source) {
@@ -477,12 +451,20 @@ public class LoadNetworkViewTool {
     // -- Source handlers -------------------------------------------------------
 
     private CallToolResult handleNdexImport(Map<String, Object> args) {
-        String networkId = unwrapOptionalString(args, "network_id");
-        if (networkId == null) {
-            return error(
-                    "'network_id' is required when source='ndex'. Please provide an NDEx"
-                            + " network UUID (e.g. \"a7e43e3d-c7f8-11ec-8d17-005056ae23aa\").");
-        }
+        CallToolResult err =
+                validationService.validateConditionalParams(
+                        "ndex",
+                        args,
+                        List.of(
+                                new ValidationService.ConditionalParam(
+                                        "network_id",
+                                        "the NDEx network UUID required to load the network from"
+                                                + " NDEx",
+                                        false)));
+        if (err != null) return err;
+
+        String networkId =
+                validationService.unwrapToolInputValue(args.get("network_id"), String.class);
 
         URL ndexUrl;
         try {
@@ -520,13 +502,19 @@ public class LoadNetworkViewTool {
     }
 
     private CallToolResult handleNetworkFileImport(Map<String, Object> args) {
-        String filePath = unwrapOptionalString(args, "file_path");
-        if (filePath == null) {
-            return error(
-                    "'file_path' is required when source='network-file'."
-                            + " Provide the absolute path to a network file"
-                            + " (.sif, .gml, .xgmml, .cx, .cx2, .graphml, .sbml, .owl, .biopax).");
-        }
+        CallToolResult err =
+                validationService.validateConditionalParams(
+                        "network-file",
+                        args,
+                        List.of(
+                                new ValidationService.ConditionalParam(
+                                        "file_path",
+                                        "the absolute path to the network file to import",
+                                        false)));
+        if (err != null) return err;
+
+        String filePath =
+                validationService.unwrapToolInputValue(args.get("file_path"), String.class);
 
         File file = new File(filePath);
         if (!file.exists() || !file.isFile()) {
@@ -644,34 +632,100 @@ public class LoadNetworkViewTool {
     }
 
     private CallToolResult handleTabularImport(Map<String, Object> args) {
-        // -- Parameter extraction & validation --------------------------------
-        String filePath = unwrapOptionalString(args, "file_path");
-        if (filePath == null) {
-            return error(
-                    "'file_path' is required when source='tabular-file'."
-                            + " Provide the absolute path to a CSV, TSV, or Excel file.");
-        }
+        // -- Validate core conditional parameters -----------------------------
+        CallToolResult err =
+                validationService.validateConditionalParams(
+                        "tabular-file",
+                        args,
+                        List.of(
+                                new ValidationService.ConditionalParam(
+                                        "file_path",
+                                        "the absolute path to the tabular file to import",
+                                        false),
+                                new ValidationService.ConditionalParam(
+                                        "source_column",
+                                        "the file column that provides source node names for each"
+                                                + " edge row",
+                                        false),
+                                new ValidationService.ConditionalParam(
+                                        "target_column",
+                                        "the file column that provides target node names for each"
+                                                + " edge row",
+                                        false),
+                                new ValidationService.ConditionalParam(
+                                        "use_header_row",
+                                        "whether the first row of the file is a header row",
+                                        false),
+                                new ValidationService.ConditionalParam(
+                                        "node_attributes_source_columns",
+                                        "which file columns should be attached as attributes on"
+                                                + " source nodes",
+                                        true),
+                                new ValidationService.ConditionalParam(
+                                        "node_attributes_target_columns",
+                                        "which file columns should be attached as attributes on"
+                                                + " target nodes",
+                                        true)));
+        if (err != null) return err;
+
+        // -- Validate user-discretion parameters ------------------------------
+        err =
+                validationService.validateConditionalParams(
+                        "tabular-file",
+                        args,
+                        List.of(
+                                new ValidationService.ConditionalParam(
+                                        "interaction_column",
+                                        "the column name for the edge interaction type",
+                                        true),
+                                new ValidationService.ConditionalParam(
+                                        "delimiter_char_code",
+                                        "the ASCII code of the column delimiter",
+                                        true),
+                                new ValidationService.ConditionalParam(
+                                        "excel_sheet",
+                                        "the Excel sheet containing the network edge data",
+                                        true),
+                                new ValidationService.ConditionalParam(
+                                        "node_attributes_sheet",
+                                        "the Excel sheet for node attribute columns",
+                                        true),
+                                new ValidationService.ConditionalParam(
+                                        "node_attributes_sheet_source_key_column",
+                                        "the key column in node attributes sheet for source nodes",
+                                        true),
+                                new ValidationService.ConditionalParam(
+                                        "node_attributes_sheet_target_key_column",
+                                        "the key column in node attributes sheet for target nodes",
+                                        true),
+                                new ValidationService.ConditionalParam(
+                                        "edge_columns",
+                                        "type overrides for remaining edge columns",
+                                        true)));
+        if (err != null) return err;
+
+        // -- Extract validated values -----------------------------------------
+        String filePath =
+                validationService.unwrapToolInputValue(args.get("file_path"), String.class);
 
         File file = new File(filePath);
         if (!file.exists() || !file.isFile()) {
             return error("File not found: " + filePath);
         }
 
-        String sourceCol = unwrapOptionalString(args, "source_column");
-        String targetCol = unwrapOptionalString(args, "target_column");
-        if (sourceCol == null || targetCol == null) {
-            return error(
-                    "'source_column' and 'target_column' are required when"
-                            + " source='tabular-file'.");
-        }
+        String sourceCol =
+                validationService.unwrapToolInputValue(args.get("source_column"), String.class);
+        String targetCol =
+                validationService.unwrapToolInputValue(args.get("target_column"), String.class);
+        Boolean useHeaderRow =
+                validationService.unwrapToolInputValue(args.get("use_header_row"), Boolean.class);
 
-        Boolean useHeaderRow = unwrapOptionalBoolean(args, "use_header_row");
-        if (useHeaderRow == null) {
-            return error("'use_header_row' is required when source='tabular-file'.");
-        }
+        String excelSheet =
+                validationService.unwrapToolInputValue(args.get("excel_sheet"), String.class);
+        Integer delimiterCharCode =
+                validationService.unwrapToolInputValue(
+                        args.get("delimiter_char_code"), Integer.class);
 
-        String excelSheet = unwrapOptionalString(args, "excel_sheet");
-        Integer delimiterCharCode = unwrapOptionalInteger(args, "delimiter_char_code");
         if (excelSheet == null && delimiterCharCode == null) {
             return error(
                     "'delimiter_char_code' is required for non-Excel tabular files."
@@ -679,18 +733,27 @@ public class LoadNetworkViewTool {
                             + " tab).");
         }
 
-        String interactionCol = unwrapOptionalString(args, "interaction_column");
-        String nodeAttrSheet = unwrapOptionalString(args, "node_attributes_sheet");
+        String interactionCol =
+                validationService.unwrapToolInputValue(
+                        args.get("interaction_column"), String.class);
+        String nodeAttrSheet =
+                validationService.unwrapToolInputValue(
+                        args.get("node_attributes_sheet"), String.class);
         String nodeAttrSheetSourceKeyCol =
-                unwrapOptionalString(args, "node_attributes_sheet_source_key_column");
+                validationService.unwrapToolInputValue(
+                        args.get("node_attributes_sheet_source_key_column"), String.class);
         String nodeAttrSheetTargetKeyCol =
-                unwrapOptionalString(args, "node_attributes_sheet_target_key_column");
+                validationService.unwrapToolInputValue(
+                        args.get("node_attributes_sheet_target_key_column"), String.class);
 
         List<DataColumn> nodeAttrSourceCols =
-                unwrapOptionalDataColumns(args, "node_attributes_source_columns");
+                validationService.unwrapToolInputDataColumns(
+                        args.get("node_attributes_source_columns"));
         List<DataColumn> nodeAttrTargetCols =
-                unwrapOptionalDataColumns(args, "node_attributes_target_columns");
-        List<DataColumn> edgeCols = unwrapOptionalDataColumns(args, "edge_columns");
+                validationService.unwrapToolInputDataColumns(
+                        args.get("node_attributes_target_columns"));
+        List<DataColumn> edgeCols =
+                validationService.unwrapToolInputDataColumns(args.get("edge_columns"));
 
         LOGGER.info(
                 "Tabular import: file={} source={} target={} excelSheet={} delimiter={}",
@@ -1097,18 +1160,6 @@ public class LoadNetworkViewTool {
         }
     }
 
-    /**
-     * Parses a raw JSON argument value into a {@link List} of {@link DataColumn} objects. Jackson
-     * deserializes each {@code {"name":"...","inferred_data_type":"..."}} map directly to a {@link
-     * DataColumn} record using its {@code @JsonProperty} annotations. Returns an empty list if
-     * {@code raw} is null.
-     */
-    private List<DataColumn> parseDataColumns(Object raw) {
-        if (raw == null) return List.of();
-        return MAPPER.convertValue(
-                raw, new com.fasterxml.jackson.core.type.TypeReference<List<DataColumn>>() {});
-    }
-
     /** Builds a name → {@link DataColumn} lookup map from the given list. */
     private Map<String, DataColumn> toColMap(List<DataColumn> cols) {
         if (cols == null || cols.isEmpty()) return Map.of();
@@ -1117,73 +1168,6 @@ public class LoadNetworkViewTool {
             if (dc != null && dc.name() != null) map.put(dc.name(), dc);
         }
         return map;
-    }
-
-    /**
-     * Unwraps the {@code parameter} field from a {@code ConditionalParameter<String>} wrapper in
-     * the args map. Returns {@code null} when the key is absent, the wrapper has {@code
-     * waived=true}, or the inner value is blank.
-     */
-    private String unwrapOptionalString(Map<String, Object> args, String key) {
-        Object raw = args.get(key);
-        if (!(raw instanceof Map)) return null;
-        @SuppressWarnings("unchecked")
-        Map<String, Object> wrapper = (Map<String, Object>) raw;
-        if (Boolean.TRUE.equals(wrapper.get("waived"))) return null;
-        Object val = wrapper.get("parameter");
-        if (!(val instanceof String)) return null;
-        String s = ((String) val).trim();
-        return s.isEmpty() ? null : s;
-    }
-
-    /**
-     * Unwraps the {@code parameter} field from a {@code ConditionalParameter<Boolean>} wrapper in
-     * the args map. Returns {@code null} when absent, waived, or not a boolean value.
-     */
-    private Boolean unwrapOptionalBoolean(Map<String, Object> args, String key) {
-        Object raw = args.get(key);
-        if (!(raw instanceof Map)) return null;
-        @SuppressWarnings("unchecked")
-        Map<String, Object> wrapper = (Map<String, Object>) raw;
-        if (Boolean.TRUE.equals(wrapper.get("waived"))) return null;
-        Object val = wrapper.get("parameter");
-        return val instanceof Boolean ? (Boolean) val : null;
-    }
-
-    /**
-     * Unwraps the {@code parameter} field from a {@code ConditionalParameter<Integer>} wrapper in
-     * the args map. Returns {@code null} when absent, waived, or not a numeric value.
-     */
-    private Integer unwrapOptionalInteger(Map<String, Object> args, String key) {
-        Object raw = args.get(key);
-        if (!(raw instanceof Map)) return null;
-        @SuppressWarnings("unchecked")
-        Map<String, Object> wrapper = (Map<String, Object>) raw;
-        if (Boolean.TRUE.equals(wrapper.get("waived"))) return null;
-        Object val = wrapper.get("parameter");
-        return val != null ? Integer.valueOf(val.toString()) : null;
-    }
-
-    /**
-     * Unwraps the {@code parameter} field from a {@code ConditionalParameter<DataColumn[]>} wrapper
-     * in the args map. Returns an empty list when absent, waived, or the inner value is null.
-     */
-    private List<DataColumn> unwrapOptionalDataColumns(Map<String, Object> args, String key) {
-        Object raw = args.get(key);
-        if (!(raw instanceof Map)) return List.of();
-        @SuppressWarnings("unchecked")
-        Map<String, Object> wrapper = (Map<String, Object>) raw;
-        if (Boolean.TRUE.equals(wrapper.get("waived"))) return List.of();
-        return parseDataColumns(wrapper.get("parameter"));
-    }
-
-    private String extractString(CallToolRequest request, String key) {
-        Object value = request.arguments().get(key);
-        if (!(value instanceof String)) {
-            return null;
-        }
-        String s = ((String) value).trim();
-        return s.isEmpty() ? null : s;
     }
 
     private URL buildNdexUrl(String networkId) throws MalformedURLException {

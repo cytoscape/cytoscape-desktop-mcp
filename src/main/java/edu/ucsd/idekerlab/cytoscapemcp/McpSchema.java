@@ -101,17 +101,42 @@ public class McpSchema {
      * @param paramType JSON primitive type for the {@code parameter} field: {@code "string"},
      *     {@code "integer"}, {@code "boolean"}, or {@code "array"}. Use {@code null} when {@code
      *     isDataColumnArray=true} — the serializer builds the array+items schema automatically.
-     * @param outerDescription description on the wrapper object itself (the per-param instruction
-     *     shown to the LLM).
-     * @param innerParamDesc description on the inner {@code parameter} field.
+     * @param description description on the wrapper object (the per-param instruction shown to the
+     *     LLM).
      * @param isDataColumnArray when {@code true}, the {@code parameter} field is rendered as a
      *     {@code DataColumn} array; {@code paramType} is ignored.
      */
     public record ConditionalParamSpec(
-            String paramType,
-            String outerDescription,
-            String innerParamDesc,
-            boolean isDataColumnArray) {}
+            String paramType, String description, boolean isDataColumnArray) {}
+
+    /**
+     * Runtime model for a deserialized {@code ConditionalParameter} wrapper. Represents the JSON
+     * object {@code {"waived": <boolean>, "parameter": <value>}}.
+     *
+     * @param waived true if the user explicitly confirmed this parameter should be omitted
+     * @param value the inner parameter value; may be null when waived is true
+     */
+    public record ConditionalParameter(boolean waived, Object value) {}
+
+    /**
+     * Discriminated container for a single tool input argument after type detection. Exactly one of
+     * the two fields is non-null.
+     *
+     * <p>If the raw argument is a Map with both {@code "waived"} and {@code "parameter"} keys, it
+     * is deserialized into {@link ConditionalParameter} and stored in {@code conditionalParameter}.
+     * Otherwise the raw value is stored in {@code requiredParameter}.
+     *
+     * @param conditionalParameter the deserialized conditional wrapper, or null
+     * @param requiredParameter the raw value for non-conditional params, or null
+     */
+    public record ToolInputParam(
+            ConditionalParameter conditionalParameter, Object requiredParameter) {
+
+        /** True if this argument was detected as a conditional parameter wrapper. */
+        public boolean isConditional() {
+            return conditionalParameter != null;
+        }
+    }
 
     /**
      * Standard description for the {@code waived} sub-field of every {@code
@@ -263,16 +288,12 @@ public class McpSchema {
              * @param name parameter key in the schema
              * @param paramType JSON primitive type for the {@code parameter} field: {@code
              *     "string"}, {@code "integer"}, or {@code "boolean"}
-             * @param outerDescription description on the wrapper object (the LLM-facing instruction
-             *     for this parameter)
-             * @param innerParamDesc description on the inner {@code parameter} field
+             * @param description description on the wrapper object (the LLM-facing instruction for
+             *     this parameter)
              */
-            public Builder conditionalParam(
-                    String name, String paramType, String outerDescription, String innerParamDesc) {
+            public Builder conditionalParam(String name, String paramType, String description) {
                 conditionalParamSpecs.put(
-                        name,
-                        new ConditionalParamSpec(
-                                paramType, outerDescription, innerParamDesc, false));
+                        name, new ConditionalParamSpec(paramType, description, false));
                 return this;
             }
 
@@ -283,14 +304,10 @@ public class McpSchema {
              * DataColumn} array in the schema.
              *
              * @param name parameter key in the schema
-             * @param outerDescription description on the wrapper object
-             * @param innerParamDesc description on the inner {@code parameter} field
+             * @param description description on the wrapper object
              */
-            public Builder conditionalDataColumnParam(
-                    String name, String outerDescription, String innerParamDesc) {
-                conditionalParamSpecs.put(
-                        name,
-                        new ConditionalParamSpec(null, outerDescription, innerParamDesc, true));
+            public Builder conditionalDataColumnParam(String name, String description) {
+                conditionalParamSpecs.put(name, new ConditionalParamSpec(null, description, true));
                 return this;
             }
 
@@ -362,7 +379,7 @@ public class McpSchema {
                 ConditionalParamSpec spec = e.getValue();
                 gen.writeObjectFieldStart(e.getKey());
                 gen.writeStringField("type", "object");
-                gen.writeStringField("description", spec.outerDescription());
+                gen.writeStringField("description", spec.description());
                 gen.writeObjectFieldStart("properties");
 
                 // waived field
@@ -375,12 +392,10 @@ public class McpSchema {
                 gen.writeObjectFieldStart("parameter");
                 if (spec.isDataColumnArray()) {
                     gen.writeStringField("type", "array");
-                    gen.writeStringField("description", spec.innerParamDesc());
                     gen.writeFieldName("items");
                     gen.writeTree(DATA_COLUMN_ITEM_SCHEMA);
                 } else {
                     gen.writeStringField("type", spec.paramType());
-                    gen.writeStringField("description", spec.innerParamDesc());
                 }
                 gen.writeEndObject();
 
