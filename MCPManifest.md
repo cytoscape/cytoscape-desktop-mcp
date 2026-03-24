@@ -189,7 +189,7 @@ Example 4 — open network on cytoscape desktop:
     },
     "node_attributes_source_columns" : {
       "type" : "object",
-      "description" : "Conditional on source='tabular-file'.  Preview columns from the file (and sheet if applicable) ask the user which file columns should be attached as attributes on source nodes or none is allowed. Populate with the user's confirmed selections or set as empty list if none chosen. Copy DataColumn objects from get_file_columns output. Waive only when the user has explicitly declined all source node attribute mapping.",
+      "description" : "Conditional on source='tabular-file'.  Preview columns from the file (and sheet if applicable) ask the user which file columns should be attached as attributes on source nodes or none is allowed. Populate with the user's confirmed selections or set as empty list if none chosen. Each entry is a DataColumn object (name + inferred_data_type). Inspect the file's columns using other tooling available to retrieve column entries, then pass the user's confirmed selections here. Waive only when the user has explicitly declined all source node attribute mapping.",
       "properties" : {
         "waived" : {
           "type" : "boolean",
@@ -204,7 +204,7 @@ Example 4 — open network on cytoscape desktop:
               "inferred_data_type" : {
                 "type" : "string",
                 "enum" : [ "string", "integer", "long", "double", "boolean" ],
-                "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. When passing this column to load_network_view, preserve this value so the Cytoscape table is created with the correct type instead of defaulting to string."
+                "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. Preserve this value when passing the column to a network import — ensures the correct Cytoscape table column type instead of defaulting to string."
               },
               "name" : {
                 "type" : "string",
@@ -217,7 +217,7 @@ Example 4 — open network on cytoscape desktop:
     },
     "node_attributes_target_columns" : {
       "type" : "object",
-      "description" : "Conditional on source='tabular-file'.  Preview columns from the file (and sheet if applicable) ask the user which file columns should be attached as attributes on target nodes or none is allowed. Populate with the user's confirmed selections or set as empty list if none chosen. Copy DataColumn objects from get_file_columns output. Waive only when the user has explicitly declined all target node attribute mapping.",
+      "description" : "Conditional on source='tabular-file'.  Preview columns from the file (and sheet if applicable) ask the user which file columns should be attached as attributes on target nodes or none is allowed. Populate with the user's confirmed selections or set as empty list if none chosen. Each entry is a DataColumn object (name + inferred_data_type). Inspect the file's columns using other tooling available to retrieve column entries, then pass the user's confirmed selections here. Waive only when the user has explicitly declined all target node attribute mapping.",
       "properties" : {
         "waived" : {
           "type" : "boolean",
@@ -232,7 +232,7 @@ Example 4 — open network on cytoscape desktop:
               "inferred_data_type" : {
                 "type" : "string",
                 "enum" : [ "string", "integer", "long", "double", "boolean" ],
-                "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. When passing this column to load_network_view, preserve this value so the Cytoscape table is created with the correct type instead of defaulting to string."
+                "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. Preserve this value when passing the column to a network import — ensures the correct Cytoscape table column type instead of defaulting to string."
               },
               "name" : {
                 "type" : "string",
@@ -260,7 +260,7 @@ Example 4 — open network on cytoscape desktop:
               "inferred_data_type" : {
                 "type" : "string",
                 "enum" : [ "string", "integer", "long", "double", "boolean" ],
-                "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. When passing this column to load_network_view, preserve this value so the Cytoscape table is created with the correct type instead of defaulting to string."
+                "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. Preserve this value when passing the column to a network import — ensures the correct Cytoscape table column type instead of defaulting to string."
               },
               "name" : {
                 "type" : "string",
@@ -647,13 +647,13 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
-    },
     "file_path" : {
       "type" : "string",
       "description" : "Required. Absolute path to the tabular file."
+    },
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
     },
     "delimiter_char_code" : {
       "type" : "object",
@@ -702,7 +702,7 @@ Inspect the file first to determine input params as needed.
           "inferred_data_type" : {
             "type" : "string",
             "enum" : [ "string", "integer", "long", "double", "boolean" ],
-            "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. When passing this column to load_network_view, preserve this value so the Cytoscape table is created with the correct type instead of defaulting to string."
+            "description" : "Data type inferred from sample values in this column. Maps 1-to-1 onto Cytoscape table column types: string→String, integer→Integer (32-bit), long→Long (64-bit), double→Double (64-bit float), boolean→Boolean. Preserve this value when passing the column to a network import — ensures the correct Cytoscape table column type instead of defaulting to string."
           },
           "name" : {
             "type" : "string",
@@ -856,7 +856,7 @@ Example 3 — Show me what layouts Cytoscape desktop supports:
           },
           "name" : {
             "type" : "string",
-            "description" : "Internal algorithm name to pass to apply_layout."
+            "description" : "Internal algorithm identifier used to apply a layout to the active network view."
           }
         }
       }
@@ -1544,18 +1544,18 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
         "description" : "A breakpoint entry with fields: value (number), lesser (property value below this point), equal (property value at this point), greater (property value above this point)."
       }
     },
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH) from get_mappable_properties."
-    },
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the numeric data column driving the mapping, from get_compatible_columns."
-    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column.",
       "enum" : [ "Integer", "Long", "Double" ]
+    },
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the numeric data column driving the mapping. Query numeric network columns compatible with continuous mapping for the chosen property using other tooling available."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "points" ]
@@ -1626,22 +1626,22 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
 {
   "type" : "object",
   "properties" : {
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE) from get_mappable_properties."
-    },
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the data column driving the mapping, from get_compatible_columns."
+    "entries" : {
+      "type" : "object",
+      "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
     },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
     },
-    "entries" : {
-      "type" : "object",
-      "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column driving the mapping. Query compatible network columns for the chosen property using other tooling available."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "entries" ]
@@ -1716,18 +1716,18 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
       "description" : "Required. Auto-generation algorithm to apply across all distinct column values. rainbow and random produce colors from Cytoscape's palette providers (Paint properties only). brewer_sequential produces a light-to-dark single-hue gradient (Paint only); supply an optional hue hint via generator_params. shape_cycle steps through the visual property's own discrete value set (e.g. node shapes), wrapping as needed. numeric_range spreads values evenly between a min and max (numeric properties only); min and max are required via generator_params.",
       "enum" : [ "rainbow", "random", "brewer_sequential", "shape_cycle", "numeric_range" ]
     },
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH) from get_mappable_properties."
-    },
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the data column to drive the mapping, from get_compatible_columns."
-    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+    },
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column to drive the mapping. Query compatible network columns for the chosen property using other tooling available."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     },
     "generator_params" : {
       "type" : "object",
@@ -1822,13 +1822,13 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
       "description" : "Required. Java type of the data column. All five types are valid; the column value will be rendered as-is by Cytoscape.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
     },
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the data column whose values will be used directly as the visual property value. The column must already exist in the node or edge table of the current network — use other available tools to confirm available columns before invoking."
-    },
     "property_id" : {
       "type" : "string",
       "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
+    },
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column whose values will be used directly as the visual property value. The column must already exist in the node or edge table of the current network — use other available tools to confirm available columns before invoking."
     }
   },
   "required" : [ "property_id", "column_name", "column_type" ]
