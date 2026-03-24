@@ -138,14 +138,17 @@ public class CreateContinuousMappingTool {
                                     new McpSchema.InputProperty(
                                             "string",
                                             "Required. Visual property ID (e.g. NODE_FILL_COLOR,"
-                                                    + " NODE_SIZE, EDGE_WIDTH) from"
-                                                    + " get_mappable_properties."))
+                                                    + " NODE_SIZE, EDGE_WIDTH). Retrieve the"
+                                                    + " available style properties in the active"
+                                                    + " style using other tooling available."))
                             .property(
                                     "column_name",
                                     new McpSchema.InputProperty(
                                             "string",
                                             "Required. Name of the numeric data column driving the"
-                                                    + " mapping, from get_compatible_columns."))
+                                                    + " mapping. Query numeric network columns"
+                                                    + " compatible with continuous mapping for the"
+                                                    + " chosen property using other tooling available."))
                             .property(
                                     "column_type",
                                     new McpSchema.InputProperty(

@@ -20,8 +20,9 @@ public record DataColumn(
                                 + "Maps 1-to-1 onto Cytoscape table column types: "
                                 + "string\u2192String, integer\u2192Integer (32-bit), long\u2192Long (64-bit), "
                                 + "double\u2192Double (64-bit float), boolean\u2192Boolean. "
-                                + "When passing this column to load_network_view, preserve this value so the "
-                                + "Cytoscape table is created with the correct type instead of defaulting to string.")
+                                + "Preserve this value when passing the column to a network import"
+                                + " — ensures the correct Cytoscape table column type instead of"
+                                + " defaulting to string.")
                 @JsonProperty("inferred_data_type")
                 CyDataType inferredDataType) {
 

@@ -243,7 +243,9 @@ public class LoadNetworkViewTool {
                                             + " ask the user"
                                             + " which file columns should be attached as attributes on source"
                                             + " nodes or none is allowed. Populate with the user's confirmed selections or set as empty list if none chosen."
-                                            + " Copy DataColumn objects from get_file_columns output."
+                                            + " Each entry is a DataColumn object (name + inferred_data_type)."
+                                            + " Inspect the file's columns using other tooling available to retrieve column entries,"
+                                            + " then pass the user's confirmed selections here."
                                             + " Waive only when the user has explicitly declined all source"
                                             + " node attribute mapping.")
                             .conditionalDataColumnParam(
@@ -253,7 +255,9 @@ public class LoadNetworkViewTool {
                                             + " ask the user"
                                             + " which file columns should be attached as attributes on target"
                                             + " nodes or none is allowed. Populate with the user's confirmed selections or set as empty list if none chosen."
-                                            + " Copy DataColumn objects from get_file_columns output."
+                                            + " Each entry is a DataColumn object (name + inferred_data_type)."
+                                            + " Inspect the file's columns using other tooling available to retrieve column entries,"
+                                            + " then pass the user's confirmed selections here."
                                             + " Waive only when the user has explicitly declined all target"
                                             + " node attribute mapping.")
                             .conditionalDataColumnParam(

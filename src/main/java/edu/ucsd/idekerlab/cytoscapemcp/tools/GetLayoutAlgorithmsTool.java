@@ -56,7 +56,9 @@ public class GetLayoutAlgorithmsTool {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record LayoutEntry(
-            @JsonPropertyDescription("Internal algorithm name to pass to apply_layout.")
+            @JsonPropertyDescription(
+                            "Internal algorithm identifier used to apply a layout to the active"
+                                    + " network view.")
                     @JsonProperty("name")
                     String name,
             @JsonPropertyDescription("Human-readable algorithm label.") @JsonProperty("displayName")
