@@ -87,10 +87,19 @@ public class ValidationService {
      *     pass
      */
     public CallToolResult validateConditionalParams(
-            String target, Map<String, Object> args, List<ConditionalParam> conditionals) {
+            String dependentParamName,
+            String dependentParamValue,
+            Map<String, Object> args,
+            List<ConditionalParam> conditionals) {
         for (ConditionalParam cp : conditionals) {
             CallToolResult r =
-                    validatePresence(args, cp.name(), target, cp.purpose(), !cp.waiveable());
+                    validatePresence(
+                            args,
+                            cp.name(),
+                            dependentParamName,
+                            dependentParamValue,
+                            cp.purpose(),
+                            !cp.waiveable());
             if (r != null) return r;
         }
         return null;
@@ -103,7 +112,9 @@ public class ValidationService {
      *
      * @param args the full arguments map from the tool request
      * @param paramName the parameter key to check
-     * @param target the context identifier included in error messages
+     * @param dependentParamName the name of the parameter whose value drives this conditional (used
+     *     in error messages, e.g. {@code "source"})
+     * @param dependentParamValue the value of that parameter (e.g. {@code "ndex"})
      * @param paramPurpose human-readable description of what the parameter controls
      * @param cannotWaive {@code true} if this parameter is always required and may never be
      *     intentionally omitted
@@ -112,7 +123,8 @@ public class ValidationService {
     public CallToolResult validatePresence(
             Map<String, Object> args,
             String paramName,
-            String target,
+            String dependentParamName,
+            String dependentParamValue,
             String paramPurpose,
             boolean cannotWaive) {
         Object raw = args.get(paramName);
@@ -123,9 +135,11 @@ public class ValidationService {
             return error(
                     "Parameter '"
                             + paramName
-                            + "' must be confirmed before invoking with target='"
-                            + target
-                            + "': it controls "
+                            + "' must be confirmed when "
+                            + dependentParamName
+                            + "="
+                            + dependentParamValue
+                            + ": it controls "
                             + paramPurpose
                             + ". Provide a value (waived=false, parameter=<value>) or explicitly"
                             + " confirm it should be omitted (waived=true). Refer to the '"
@@ -140,11 +154,13 @@ public class ValidationService {
                 return error(
                         "Parameter '"
                                 + paramName
-                                + "' cannot be intentionally omitted when target='"
-                                + target
-                                + "': it controls "
+                                + "' cannot be intentionally omitted when "
+                                + dependentParamName
+                                + "="
+                                + dependentParamValue
+                                + ": it controls "
                                 + paramPurpose
-                                + " and is always required for this target. Provide a value"
+                                + " and is always required. Provide a value"
                                 + " (waived=false, parameter=<value>). Refer to the '"
                                 + paramName
                                 + "' parameter description for complete details.");

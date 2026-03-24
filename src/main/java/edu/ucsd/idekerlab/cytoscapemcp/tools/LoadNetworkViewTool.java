@@ -453,6 +453,7 @@ public class LoadNetworkViewTool {
     private CallToolResult handleNdexImport(Map<String, Object> args) {
         CallToolResult err =
                 validationService.validateConditionalParams(
+                        "source",
                         "ndex",
                         args,
                         List.of(
@@ -504,6 +505,7 @@ public class LoadNetworkViewTool {
     private CallToolResult handleNetworkFileImport(Map<String, Object> args) {
         CallToolResult err =
                 validationService.validateConditionalParams(
+                        "source",
                         "network-file",
                         args,
                         List.of(
@@ -632,9 +634,10 @@ public class LoadNetworkViewTool {
     }
 
     private CallToolResult handleTabularImport(Map<String, Object> args) {
-        // -- Validate core conditional parameters -----------------------------
+        // -- Phase 1: common required + sub-type discriminator ----------------
         CallToolResult err =
                 validationService.validateConditionalParams(
+                        "source",
                         "tabular-file",
                         args,
                         List.of(
@@ -657,20 +660,40 @@ public class LoadNetworkViewTool {
                                         "whether the first row of the file is a header row",
                                         false),
                                 new ValidationService.ConditionalParam(
-                                        "node_attributes_source_columns",
-                                        "which file columns should be attached as attributes on"
-                                                + " source nodes",
-                                        true),
-                                new ValidationService.ConditionalParam(
-                                        "node_attributes_target_columns",
-                                        "which file columns should be attached as attributes on"
-                                                + " target nodes",
+                                        "excel_sheet",
+                                        "the Excel sheet containing the network edge data",
                                         true)));
         if (err != null) return err;
 
-        // -- Validate user-discretion parameters ------------------------------
+        String excelSheet =
+                validationService.unwrapToolInputValue(args.get("excel_sheet"), String.class);
+        boolean isExcel = excelSheet != null;
+
+        // -- Phase 1b: node attribute sheet (Excel only; LLM must confirm intent)
+        String nodeAttrSheet = null;
+        if (isExcel) {
+            err =
+                    validationService.validateConditionalParams(
+                            "excel_sheet",
+                            excelSheet,
+                            args,
+                            List.of(
+                                    new ValidationService.ConditionalParam(
+                                            "node_attributes_sheet",
+                                            "the Excel sheet for node attribute columns",
+                                            false)));
+            if (err != null) return err;
+            nodeAttrSheet =
+                    validationService.unwrapToolInputValue(
+                            args.get("node_attributes_sheet"), String.class);
+        }
+        boolean hasNodeAttrSheet = nodeAttrSheet != null;
+
+        // -- Phase 2: common optional + conditionally required node attr columns
+        boolean nodeAttrColsRequired = !isExcel || hasNodeAttrSheet;
         err =
                 validationService.validateConditionalParams(
+                        "source",
                         "tabular-file",
                         args,
                         List.of(
@@ -679,30 +702,56 @@ public class LoadNetworkViewTool {
                                         "the column name for the edge interaction type",
                                         true),
                                 new ValidationService.ConditionalParam(
-                                        "delimiter_char_code",
-                                        "the ASCII code of the column delimiter",
-                                        true),
-                                new ValidationService.ConditionalParam(
-                                        "excel_sheet",
-                                        "the Excel sheet containing the network edge data",
-                                        true),
-                                new ValidationService.ConditionalParam(
-                                        "node_attributes_sheet",
-                                        "the Excel sheet for node attribute columns",
-                                        true),
-                                new ValidationService.ConditionalParam(
-                                        "node_attributes_sheet_source_key_column",
-                                        "the key column in node attributes sheet for source nodes",
-                                        true),
-                                new ValidationService.ConditionalParam(
-                                        "node_attributes_sheet_target_key_column",
-                                        "the key column in node attributes sheet for target nodes",
-                                        true),
-                                new ValidationService.ConditionalParam(
                                         "edge_columns",
                                         "type overrides for remaining edge columns",
-                                        true)));
+                                        true),
+                                new ValidationService.ConditionalParam(
+                                        "node_attributes_source_columns",
+                                        "which file columns should be attached as attributes on"
+                                                + " source nodes",
+                                        !nodeAttrColsRequired),
+                                new ValidationService.ConditionalParam(
+                                        "node_attributes_target_columns",
+                                        "which file columns should be attached as attributes on"
+                                                + " target nodes",
+                                        !nodeAttrColsRequired)));
         if (err != null) return err;
+
+        // -- Phase 3a: key columns (only when node_attributes_sheet declared) -
+        if (hasNodeAttrSheet) {
+            err =
+                    validationService.validateConditionalParams(
+                            "node_attributes_sheet",
+                            nodeAttrSheet,
+                            args,
+                            List.of(
+                                    new ValidationService.ConditionalParam(
+                                            "node_attributes_sheet_source_key_column",
+                                            "the key column in node attributes sheet for source"
+                                                    + " nodes",
+                                            false),
+                                    new ValidationService.ConditionalParam(
+                                            "node_attributes_sheet_target_key_column",
+                                            "the key column in node attributes sheet for target"
+                                                    + " nodes",
+                                            false)));
+            if (err != null) return err;
+        }
+
+        // -- Phase 3b: delimiter required for non-Excel files -----------------
+        if (!isExcel) {
+            err =
+                    validationService.validateConditionalParams(
+                            "source",
+                            "tabular-file",
+                            args,
+                            List.of(
+                                    new ValidationService.ConditionalParam(
+                                            "delimiter_char_code",
+                                            "the ASCII code of the column delimiter",
+                                            false)));
+            if (err != null) return err;
+        }
 
         // -- Extract validated values -----------------------------------------
         String filePath =
@@ -720,25 +769,13 @@ public class LoadNetworkViewTool {
         Boolean useHeaderRow =
                 validationService.unwrapToolInputValue(args.get("use_header_row"), Boolean.class);
 
-        String excelSheet =
-                validationService.unwrapToolInputValue(args.get("excel_sheet"), String.class);
         Integer delimiterCharCode =
                 validationService.unwrapToolInputValue(
                         args.get("delimiter_char_code"), Integer.class);
 
-        if (excelSheet == null && delimiterCharCode == null) {
-            return error(
-                    "'delimiter_char_code' is required for non-Excel tabular files."
-                            + " Provide the ASCII code of the delimiter (e.g. 44 for comma, 9 for"
-                            + " tab).");
-        }
-
         String interactionCol =
                 validationService.unwrapToolInputValue(
                         args.get("interaction_column"), String.class);
-        String nodeAttrSheet =
-                validationService.unwrapToolInputValue(
-                        args.get("node_attributes_sheet"), String.class);
         String nodeAttrSheetSourceKeyCol =
                 validationService.unwrapToolInputValue(
                         args.get("node_attributes_sheet_source_key_column"), String.class);

@@ -95,25 +95,27 @@ public class ValidationServiceTest {
     public void ndex_networkIdPresent_returnsNull() {
         Map<String, Object> args = new HashMap<>();
         args.put("network_id", wrapperOf(false, "some-uuid"));
-        assertNull(service.validateConditionalParams("ndex", args, NDEX_CONDITIONALS));
+        assertNull(service.validateConditionalParams("source", "ndex", args, NDEX_CONDITIONALS));
     }
 
     @Test
     public void ndex_networkIdAbsent_returnsError() {
         Map<String, Object> args = new HashMap<>();
-        CallToolResult result = service.validateConditionalParams("ndex", args, NDEX_CONDITIONALS);
+        CallToolResult result =
+                service.validateConditionalParams("source", "ndex", args, NDEX_CONDITIONALS);
         String msg = errorText(result);
         assertTrue("Should name network_id", msg.contains("network_id"));
         assertTrue("Should mention waived", msg.contains("waived"));
         assertTrue("Should refer to parameter description", msg.contains("parameter description"));
-        assertTrue("Should mention target=", msg.contains("target="));
+        assertTrue("Should mention source=ndex", msg.contains("source=ndex"));
     }
 
     @Test
     public void ndex_networkIdWaivedTrue_returnsError() {
         Map<String, Object> args = new HashMap<>();
         args.put("network_id", wrapperOf(true, null));
-        CallToolResult result = service.validateConditionalParams("ndex", args, NDEX_CONDITIONALS);
+        CallToolResult result =
+                service.validateConditionalParams("source", "ndex", args, NDEX_CONDITIONALS);
         String msg = errorText(result);
         assertTrue("Should name network_id", msg.contains("network_id"));
         assertTrue(
@@ -130,14 +132,16 @@ public class ValidationServiceTest {
         Map<String, Object> args = new HashMap<>();
         args.put("file_path", wrapperOf(false, "/path/to/file.sif"));
         assertNull(
-                service.validateConditionalParams("network-file", args, NETWORK_FILE_CONDITIONALS));
+                service.validateConditionalParams(
+                        "source", "network-file", args, NETWORK_FILE_CONDITIONALS));
     }
 
     @Test
     public void networkFile_filePathAbsent_returnsError() {
         Map<String, Object> args = new HashMap<>();
         CallToolResult result =
-                service.validateConditionalParams("network-file", args, NETWORK_FILE_CONDITIONALS);
+                service.validateConditionalParams(
+                        "source", "network-file", args, NETWORK_FILE_CONDITIONALS);
         String msg = errorText(result);
         assertTrue("Should name file_path", msg.contains("file_path"));
         assertTrue("Should mention waived", msg.contains("waived"));
@@ -149,7 +153,8 @@ public class ValidationServiceTest {
         Map<String, Object> args = new HashMap<>();
         args.put("file_path", wrapperOf(true, null));
         CallToolResult result =
-                service.validateConditionalParams("network-file", args, NETWORK_FILE_CONDITIONALS);
+                service.validateConditionalParams(
+                        "source", "network-file", args, NETWORK_FILE_CONDITIONALS);
         String msg = errorText(result);
         assertTrue("Should name file_path", msg.contains("file_path"));
         assertTrue(
@@ -170,7 +175,9 @@ public class ValidationServiceTest {
         args.put("use_header_row", wrapperOf(false, true));
         args.put("node_attributes_source_columns", wrapperOf(true, null));
         args.put("node_attributes_target_columns", wrapperOf(true, null));
-        assertNull(service.validateConditionalParams("tabular-file", args, TABULAR_CONDITIONALS));
+        assertNull(
+                service.validateConditionalParams(
+                        "source", "tabular-file", args, TABULAR_CONDITIONALS));
     }
 
     // -----------------------------------------------------------------------
@@ -187,7 +194,8 @@ public class ValidationServiceTest {
         args.put("node_attributes_target_columns", wrapperOf(true, null));
 
         CallToolResult result =
-                service.validateConditionalParams("tabular-file", args, TABULAR_CONDITIONALS);
+                service.validateConditionalParams(
+                        "source", "tabular-file", args, TABULAR_CONDITIONALS);
         String msg = errorText(result);
         assertTrue("Should name file_path", msg.contains("file_path"));
         assertTrue("Should mention waived", msg.contains("waived"));
@@ -204,7 +212,8 @@ public class ValidationServiceTest {
         args.put("node_attributes_target_columns", wrapperOf(true, null));
 
         CallToolResult result =
-                service.validateConditionalParams("tabular-file", args, TABULAR_CONDITIONALS);
+                service.validateConditionalParams(
+                        "source", "tabular-file", args, TABULAR_CONDITIONALS);
         String msg = errorText(result);
         assertTrue("Should name source_column", msg.contains("source_column"));
         assertTrue("Should mention waived", msg.contains("waived"));
@@ -221,7 +230,8 @@ public class ValidationServiceTest {
         args.put("node_attributes_target_columns", wrapperOf(true, null));
 
         CallToolResult result =
-                service.validateConditionalParams("tabular-file", args, TABULAR_CONDITIONALS);
+                service.validateConditionalParams(
+                        "source", "tabular-file", args, TABULAR_CONDITIONALS);
         String msg = errorText(result);
         assertTrue("Should name target_column", msg.contains("target_column"));
         assertTrue("Should mention waived", msg.contains("waived"));
@@ -238,7 +248,8 @@ public class ValidationServiceTest {
         args.put("node_attributes_target_columns", wrapperOf(true, null));
 
         CallToolResult result =
-                service.validateConditionalParams("tabular-file", args, TABULAR_CONDITIONALS);
+                service.validateConditionalParams(
+                        "source", "tabular-file", args, TABULAR_CONDITIONALS);
         String msg = errorText(result);
         assertTrue("Should name use_header_row", msg.contains("use_header_row"));
         assertTrue("Should mention waived", msg.contains("waived"));
@@ -255,7 +266,9 @@ public class ValidationServiceTest {
         args.put("use_header_row", wrapperOf(false, true));
         args.put("node_attributes_target_columns", wrapperOf(true, null));
 
-        assertNull(service.validateConditionalParams("tabular-file", args, TABULAR_CONDITIONALS));
+        assertNull(
+                service.validateConditionalParams(
+                        "source", "tabular-file", args, TABULAR_CONDITIONALS));
     }
 
     @Test
@@ -268,7 +281,9 @@ public class ValidationServiceTest {
         args.put("use_header_row", wrapperOf(false, true));
         args.put("node_attributes_source_columns", wrapperOf(true, null));
 
-        assertNull(service.validateConditionalParams("tabular-file", args, TABULAR_CONDITIONALS));
+        assertNull(
+                service.validateConditionalParams(
+                        "source", "tabular-file", args, TABULAR_CONDITIONALS));
     }
 
     // -----------------------------------------------------------------------
@@ -284,7 +299,9 @@ public class ValidationServiceTest {
         args.put("use_header_row", wrapperOf(false, true));
         args.put("node_attributes_source_columns", wrapperOf(true, null)); // waived=true is valid
         args.put("node_attributes_target_columns", wrapperOf(true, null));
-        assertNull(service.validateConditionalParams("tabular-file", args, TABULAR_CONDITIONALS));
+        assertNull(
+                service.validateConditionalParams(
+                        "source", "tabular-file", args, TABULAR_CONDITIONALS));
     }
 
     @Test
@@ -298,7 +315,8 @@ public class ValidationServiceTest {
         args.put("node_attributes_target_columns", wrapperOf(true, null));
 
         CallToolResult result =
-                service.validateConditionalParams("tabular-file", args, TABULAR_CONDITIONALS);
+                service.validateConditionalParams(
+                        "source", "tabular-file", args, TABULAR_CONDITIONALS);
         String msg = errorText(result);
         assertTrue("Should name file_path", msg.contains("file_path"));
         assertTrue(
@@ -312,7 +330,9 @@ public class ValidationServiceTest {
 
     @Test
     public void emptyConditionalsList_returnsNull() {
-        assertNull(service.validateConditionalParams("any-target", new HashMap<>(), List.of()));
+        assertNull(
+                service.validateConditionalParams(
+                        "source", "any-value", new HashMap<>(), List.of()));
     }
 
     // -----------------------------------------------------------------------
@@ -323,10 +343,11 @@ public class ValidationServiceTest {
     public void validatePresence_absent_returnsError() {
         Map<String, Object> args = new HashMap<>();
         CallToolResult result =
-                service.validatePresence(args, "my_param", "test-target", "some purpose", true);
+                service.validatePresence(
+                        args, "my_param", "source", "test-target", "some purpose", true);
         String msg = errorText(result);
         assertTrue("Should name the param", msg.contains("my_param"));
-        assertTrue("Should mention target", msg.contains("test-target"));
+        assertTrue("Should mention dependent param context", msg.contains("source=test-target"));
         assertTrue("Should mention waived", msg.contains("waived"));
         assertTrue("Should refer to parameter description", msg.contains("parameter description"));
     }
@@ -335,7 +356,9 @@ public class ValidationServiceTest {
     public void validatePresence_presentWaivedFalse_returnsNull() {
         Map<String, Object> args = new HashMap<>();
         args.put("my_param", wrapperOf(false, "value"));
-        assertNull(service.validatePresence(args, "my_param", "test-target", "some purpose", true));
+        assertNull(
+                service.validatePresence(
+                        args, "my_param", "source", "test-target", "some purpose", true));
     }
 
     @Test
@@ -343,7 +366,8 @@ public class ValidationServiceTest {
         Map<String, Object> args = new HashMap<>();
         args.put("my_param", wrapperOf(true, null));
         CallToolResult result =
-                service.validatePresence(args, "my_param", "test-target", "some purpose", true);
+                service.validatePresence(
+                        args, "my_param", "source", "test-target", "some purpose", true);
         String msg = errorText(result);
         assertTrue("Should name the param", msg.contains("my_param"));
         assertTrue(
@@ -356,7 +380,8 @@ public class ValidationServiceTest {
         Map<String, Object> args = new HashMap<>();
         args.put("my_param", wrapperOf(true, null));
         assertNull(
-                service.validatePresence(args, "my_param", "test-target", "some purpose", false));
+                service.validatePresence(
+                        args, "my_param", "source", "test-target", "some purpose", false));
     }
 
     // -----------------------------------------------------------------------

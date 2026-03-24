@@ -511,7 +511,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                                 + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
-                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         assertTrue("Should be success", response.contains("\\\"status\\\":\\\"success\\\""));
@@ -538,7 +538,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                                 + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":9},"
-                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(networkFactory).createNetwork();
@@ -561,7 +561,8 @@ public class LoadNetworkViewToolTest {
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                                 + "\"excel_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
-                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_sheet\":{\"waived\":false,\"parameter\":null},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(networkFactory).createNetwork();
@@ -572,7 +573,8 @@ public class LoadNetworkViewToolTest {
     public void tabularCsv_missingSourceColumn_returnsError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
         // Validation service reports source_column absent — tool must echo the error.
-        when(validationService.validateConditionalParams(eq("tabular-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-source_column-absent"));
 
         String response =
@@ -586,7 +588,7 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-source_column-absent"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("tabular-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
@@ -603,7 +605,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                                 + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
-                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertTrue("Should be error", response.contains("\"isError\":true"));
         assertTrue("Should mention file not found", response.contains("not found"));
@@ -625,7 +627,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertTrue("Should be error", response.contains("\"isError\":true"));
         assertTrue("Should mention delimiter_char_code", response.contains("delimiter_char_code"));
@@ -648,7 +650,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Column 1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Column 2\"},"
                                 + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
-                                + "\"use_header_row\":{\"waived\":false,\"parameter\":false},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":false},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         // With no header row, "Gene1,Gene2,Score" becomes a data row with Column 1 = "Gene1"
         // so the network will be built successfully using ordinal column names
@@ -671,7 +673,7 @@ public class LoadNetworkViewToolTest {
                         + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                         + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                         + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
-                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         // No node_attributes_source_columns or target_columns → node set should never be iterated
         verify(tabularNetwork, never()).getNodeList();
@@ -702,7 +704,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                                 + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
-                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // node_attributes_source_columns triggers node set iteration (non-Excel uses source_column
@@ -735,7 +737,8 @@ public class LoadNetworkViewToolTest {
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
                                 + "\"node_attributes_sheet_source_key_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
-                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"node_attributes_sheet_target_key_column\":{\"waived\":false,\"parameter\":null},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(tabularNetwork, atLeastOnce()).getNodeList();
@@ -767,7 +770,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                                 + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
-                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // TP53 appears in the Gene1 (source_column) of the first data row; Score=0.95
@@ -796,7 +799,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                                 + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
-                                + "\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // MDM2 appears in the Gene2 (target_column) of the first data row; Score=0.95
@@ -863,7 +866,8 @@ public class LoadNetworkViewToolTest {
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
                                 + "\"node_attributes_sheet_source_key_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
-                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"node_attributes_sheet_target_key_column\":{\"waived\":false,\"parameter\":null},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // TP53 is in Gene1 col of Sheet1; Score numeric cell 0.95 → cellStringValue → "0.95"
@@ -893,8 +897,9 @@ public class LoadNetworkViewToolTest {
                                 + "\"excel_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"node_attributes_sheet_source_key_column\":{\"waived\":false,\"parameter\":null},"
                                 + "\"node_attributes_sheet_target_key_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // MDM2 is in Gene2 col of Sheet1; Score numeric cell 0.95 → "0.95"
@@ -960,7 +965,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                                 + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
-                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // No CSV gene name matches "NONEXISTENT" → importNodeAttributes returns imported=false
@@ -997,7 +1002,7 @@ public class LoadNetworkViewToolTest {
                         + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                         + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                         + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":"
-                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         // Score=0.95 coerced to Double.class → set as 0.95 (Double)
         verify(mockNodeTable).createColumn("Score", Double.class, false);
@@ -1021,7 +1026,7 @@ public class LoadNetworkViewToolTest {
                         + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                         + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                         + "\"edge_columns\":{\"waived\":false,\"parameter\":"
-                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         // Score column should be created as Double on the edge table (called once per row since
         // the mock CyTable does not track column state)
@@ -1051,7 +1056,7 @@ public class LoadNetworkViewToolTest {
                         + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                         + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                         + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":"
-                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"integer\"}]},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"integer\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         // "0.95" cannot be parsed as integer → coerceToColumnType returns null → set is skipped
         verify(srcNodeRow, never()).set(org.mockito.ArgumentMatchers.eq("Score"), any());
@@ -1081,7 +1086,7 @@ public class LoadNetworkViewToolTest {
                                 + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":"
-                                + "[{\"name\":\"Score\"}]},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}");
+                                + "[{\"name\":\"Score\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // Column is created as String (default) and value is set as "0.95"
@@ -1106,7 +1111,7 @@ public class LoadNetworkViewToolTest {
                         + "\"},"
                         + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                         + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
-                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}";
+                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}";
         String response = callToolRaw(toolCall);
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
     }
@@ -1124,7 +1129,7 @@ public class LoadNetworkViewToolTest {
                         + "\"},"
                         + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
                         + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":\"44\"},"
-                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":true,\"parameter\":null},\"node_attributes_target_columns\":{\"waived\":true,\"parameter\":null}}}}";
+                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}";
         String response = callToolRaw(toolCall);
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
     }
@@ -1318,7 +1323,8 @@ public class LoadNetworkViewToolTest {
     @Test
     public void tabularCsv_missingNodeAttrSourceColumns_validationError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("tabular-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-node_attributes_source_columns-absent"));
 
         String response =
@@ -1332,14 +1338,15 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-node_attributes_source_columns-absent"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("tabular-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void tabularCsv_missingNodeAttrTargetColumns_validationError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("tabular-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-node_attributes_target_columns-absent"));
 
         String response =
@@ -1353,14 +1360,15 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-node_attributes_target_columns-absent"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("tabular-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void tabularCsv_sourceColumn_waivedTrue_returnsError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("tabular-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-source_column-cannot-waive"));
 
         String response =
@@ -1374,14 +1382,15 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-source_column-cannot-waive"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("tabular-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void tabularCsv_missingFilePath_validationError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("tabular-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-file_path-absent"));
 
         String response =
@@ -1395,14 +1404,14 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-file_path-absent"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("tabular-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void ndex_missingNetworkId_validationError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("ndex"), any(), any()))
+        when(validationService.validateConditionalParams(eq("source"), eq("ndex"), any(), any()))
                 .thenReturn(stubError("validation-error-network_id-absent"));
 
         String response =
@@ -1416,14 +1425,14 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-network_id-absent"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("ndex"), any(), any());
+                .validateConditionalParams(eq("source"), eq("ndex"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void ndex_networkId_waivedTrue_returnsError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("ndex"), any(), any()))
+        when(validationService.validateConditionalParams(eq("source"), eq("ndex"), any(), any()))
                 .thenReturn(stubError("validation-error-network_id-cannot-waive"));
 
         String response =
@@ -1437,14 +1446,15 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-network_id-cannot-waive"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("ndex"), any(), any());
+                .validateConditionalParams(eq("source"), eq("ndex"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void networkFile_missingFilePath_validationError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("network-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("network-file"), any(), any()))
                 .thenReturn(stubError("validation-error-file_path-absent-network-file"));
 
         String response =
@@ -1458,14 +1468,15 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-file_path-absent-network-file"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("network-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("network-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void networkFile_filePath_waivedTrue_returnsError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("network-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("network-file"), any(), any()))
                 .thenReturn(stubError("validation-error-file_path-cannot-waive-network-file"));
 
         String response =
@@ -1479,14 +1490,15 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-file_path-cannot-waive-network-file"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("network-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("network-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void tabularCsv_missingTargetColumn_validationError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("tabular-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-target_column-absent"));
 
         String response =
@@ -1500,14 +1512,15 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-target_column-absent"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("tabular-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void tabularCsv_targetColumn_waivedTrue_returnsError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("tabular-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-target_column-cannot-waive"));
 
         String response =
@@ -1521,14 +1534,15 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-target_column-cannot-waive"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("tabular-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void tabularCsv_useHeaderRow_waivedTrue_returnsError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("tabular-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-use_header_row-cannot-waive"));
 
         String response =
@@ -1542,14 +1556,15 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-use_header_row-cannot-waive"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("tabular-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
     @Test
     public void tabularCsv_missingUseHeaderRow_validationError() throws Exception {
         setupWithMockValidation(inv -> inv.getArgument(0));
-        when(validationService.validateConditionalParams(eq("tabular-file"), any(), any()))
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-use_header_row-absent"));
 
         String response =
@@ -1563,7 +1578,7 @@ public class LoadNetworkViewToolTest {
                 "Should echo service error",
                 response.contains("validation-error-use_header_row-absent"));
         verify(validationService, atLeastOnce())
-                .validateConditionalParams(eq("tabular-file"), any(), any());
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
