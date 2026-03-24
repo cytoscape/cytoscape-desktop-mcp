@@ -322,58 +322,6 @@ public class LoadNetworkViewTool {
             CyNetworkReaderManager networkReaderManager,
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
-            CyLayoutAlgorithmManager layoutAlgorithmManager) {
-        this(
-                cyProperties,
-                appManager,
-                networkManager,
-                viewManager,
-                taskManager,
-                cxReaderFactory,
-                networkReaderManager,
-                networkFactory,
-                networkViewFactory,
-                layoutAlgorithmManager,
-                new TabularTypeConverter());
-    }
-
-    public LoadNetworkViewTool(
-            CyProperty<Properties> cyProperties,
-            CyApplicationManager appManager,
-            CyNetworkManager networkManager,
-            CyNetworkViewManager viewManager,
-            TaskManager<?, ?> taskManager,
-            InputStreamTaskFactory cxReaderFactory,
-            CyNetworkReaderManager networkReaderManager,
-            CyNetworkFactory networkFactory,
-            CyNetworkViewFactory networkViewFactory,
-            CyLayoutAlgorithmManager layoutAlgorithmManager,
-            TabularTypeConverter typeConverter) {
-        this(
-                cyProperties,
-                appManager,
-                networkManager,
-                viewManager,
-                taskManager,
-                cxReaderFactory,
-                networkReaderManager,
-                networkFactory,
-                networkViewFactory,
-                layoutAlgorithmManager,
-                typeConverter,
-                new ValidationService());
-    }
-
-    public LoadNetworkViewTool(
-            CyProperty<Properties> cyProperties,
-            CyApplicationManager appManager,
-            CyNetworkManager networkManager,
-            CyNetworkViewManager viewManager,
-            TaskManager<?, ?> taskManager,
-            InputStreamTaskFactory cxReaderFactory,
-            CyNetworkReaderManager networkReaderManager,
-            CyNetworkFactory networkFactory,
-            CyNetworkViewFactory networkViewFactory,
             CyLayoutAlgorithmManager layoutAlgorithmManager,
             TabularTypeConverter typeConverter,
             ValidationService validationService) {

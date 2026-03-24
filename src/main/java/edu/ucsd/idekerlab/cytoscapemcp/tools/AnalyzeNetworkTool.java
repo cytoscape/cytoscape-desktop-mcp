@@ -65,15 +65,23 @@ public class AnalyzeNetworkTool {
     static final String INPUT_SCHEMA =
             McpSchema.toJson(
                     McpSchema.InputSchema.builder()
-                            .property(
+                            .conditionalParam(
                                     "directed",
-                                    new McpSchema.InputProperty(
-                                            "boolean",
-                                            "Optional. Default is true. When true, treats the network"
-                                                    + " as a directed graph with in-degree/out-degree"
-                                                    + " metrics. When false, treats it as undirected,"
-                                                    + " typical for most biological interaction"
-                                                    + " networks."))
+                                    "boolean",
+                                    "Required. Confirm whether the network should be analyzed as"
+                                            + " directed or undirected — the algorithm produces"
+                                            + " fundamentally different metrics for each mode."
+                                            + " Set to true (waived=false, parameter=true) to"
+                                            + " treat the network as directed, computing"
+                                            + " in-degree and out-degree. Set to false"
+                                            + " (waived=false, parameter=false) to treat it as"
+                                            + " undirected, computing degree for all nodes."
+                                            + " This parameter cannot be waived: ask the user"
+                                            + " whether their network is directed or undirected"
+                                            + " before invoking."
+                                            + "\n\nExamples: {\"waived\": false, \"parameter\":"
+                                            + " true}, {\"waived\": false, \"parameter\":"
+                                            + " false}")
                             .build());
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -103,14 +111,17 @@ public class AnalyzeNetworkTool {
     private final CyApplicationManager appManager;
     private final SynchronousTaskManager<?> syncTaskManager;
     private final CommandExecutorTaskFactory commandExecutorTaskFactory;
+    private final ValidationService validationService;
 
     public AnalyzeNetworkTool(
             CyApplicationManager appManager,
             SynchronousTaskManager<?> syncTaskManager,
-            CommandExecutorTaskFactory commandExecutorTaskFactory) {
+            CommandExecutorTaskFactory commandExecutorTaskFactory,
+            ValidationService validationService) {
         this.appManager = appManager;
         this.syncTaskManager = syncTaskManager;
         this.commandExecutorTaskFactory = commandExecutorTaskFactory;
+        this.validationService = validationService;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -141,7 +152,24 @@ public class AnalyzeNetworkTool {
     private CallToolResult handle(McpSyncServerExchange exchange, CallToolRequest request) {
         LOGGER.info("Tool call received: {}", TOOL_NAME);
 
-        Boolean directed = (Boolean) request.arguments().get("directed");
+        Map<String, Object> args = request.arguments();
+        if (args == null) args = Map.of();
+
+        CallToolResult directedErr =
+                validationService.validateConditionalParams(
+                        "tool",
+                        TOOL_NAME,
+                        args,
+                        List.of(
+                                new ValidationService.ConditionalParam(
+                                        "directed",
+                                        "whether to treat the network as directed"
+                                                + " (in/out-degree) or undirected (degree)",
+                                        true)));
+        if (directedErr != null) return directedErr;
+
+        Boolean directed =
+                validationService.unwrapToolInputValue(args.get("directed"), Boolean.class);
         if (directed == null) {
             directed = Boolean.FALSE;
         }
@@ -158,11 +186,11 @@ public class AnalyzeNetworkTool {
             if (commandExecutorTaskFactory == null) {
                 throw new IllegalStateException("CommandExecutorTaskFactory is not available");
             }
-            Map<String, Object> args = new HashMap<>();
-            args.put("directed", directed);
+            Map<String, Object> taskArgs = new HashMap<>();
+            taskArgs.put("directed", directed);
             TaskIterator ti =
                     commandExecutorTaskFactory.createTaskIterator(
-                            "analyzer", "analyze", args, null);
+                            "analyzer", "analyze", taskArgs, null);
             syncTaskManager.execute(ti);
         } catch (Exception e) {
             String msg = e.getMessage() != null ? e.getMessage() : "";

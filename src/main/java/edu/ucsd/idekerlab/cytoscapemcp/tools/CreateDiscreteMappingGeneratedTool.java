@@ -184,18 +184,22 @@ public class CreateDiscreteMappingGeneratedTool {
                                                     "brewer_sequential",
                                                     "shape_cycle",
                                                     "numeric_range")))
-                            .property(
+                            .conditionalParam(
                                     "generator_params",
-                                    new McpSchema.InputProperty(
-                                            "object",
-                                            "Optional. Generator-specific parameters. For"
-                                                    + " numeric_range: required keys are 'min'"
-                                                    + " (number) and 'max' (number). For"
-                                                    + " brewer_sequential: optional key 'hue'"
-                                                    + " (string) selects the palette color family"
-                                                    + " — e.g. 'blue', 'red', 'green', 'purple';"
-                                                    + " defaults to 'blue'. Ignored for rainbow,"
-                                                    + " random, and shape_cycle."))
+                                    "object",
+                                    "Conditional on generator."
+                                            + " Required when generator='numeric_range' —"
+                                            + " supply an object with keys 'min' (number) and"
+                                            + " 'max' (number) defining the value range spread."
+                                            + " Provide with key 'hue' (string, e.g. 'blue',"
+                                            + " 'red', 'green', 'purple') when"
+                                            + " generator='brewer_sequential' to select the"
+                                            + " palette family; waive to use the default"
+                                            + " ('blue'). Waive when generator is rainbow,"
+                                            + " random, or shape_cycle — params are not used by"
+                                            + " those algorithms."
+                                            + " Confirm with the user before setting or"
+                                            + " waiving.")
                             .build());
 
     static final String OUTPUT_SCHEMA =
@@ -209,6 +213,7 @@ public class CreateDiscreteMappingGeneratedTool {
     private final VisualMappingFunctionFactory discreteMappingFactory;
     private final VisualPropertyService vpService;
     private final GeneratorService generatorService;
+    private final ValidationService validationService;
 
     public CreateDiscreteMappingGeneratedTool(
             CyApplicationManager appManager,
@@ -216,13 +221,15 @@ public class CreateDiscreteMappingGeneratedTool {
             RenderingEngineManager renderingEngineManager,
             VisualMappingFunctionFactory discreteMappingFactory,
             VisualPropertyService vpService,
-            GeneratorService generatorService) {
+            GeneratorService generatorService,
+            ValidationService validationService) {
         this.appManager = appManager;
         this.vmmManager = vmmManager;
         this.renderingEngineManager = renderingEngineManager;
         this.discreteMappingFactory = discreteMappingFactory;
         this.vpService = vpService;
         this.generatorService = generatorService;
+        this.validationService = validationService;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -323,9 +330,38 @@ public class CreateDiscreteMappingGeneratedTool {
                 return error(compatError);
             }
 
+            // VALIDATION: generator_params — conditional on generator value
+            if ("numeric_range".equals(generator)) {
+                CallToolResult err =
+                        validationService.validateConditionalParams(
+                                "generator",
+                                generator,
+                                args,
+                                List.of(
+                                        new ValidationService.ConditionalParam(
+                                                "generator_params",
+                                                "the min and max bounds for the numeric range"
+                                                        + " spread",
+                                                false)));
+                if (err != null) return err;
+            } else if ("brewer_sequential".equals(generator)) {
+                CallToolResult err =
+                        validationService.validateConditionalParams(
+                                "generator",
+                                generator,
+                                args,
+                                List.of(
+                                        new ValidationService.ConditionalParam(
+                                                "generator_params",
+                                                "an optional hue hint for the sequential palette",
+                                                true)));
+                if (err != null) return err;
+            }
+
             // Parse generator_params
             Map<String, Object> generatorParams = Collections.emptyMap();
-            Object rawParams = args.get("generator_params");
+            Object rawParams =
+                    validationService.unwrapToolInputValue(args.get("generator_params"), Map.class);
             if (rawParams instanceof Map) {
                 generatorParams = (Map<String, Object>) rawParams;
             }

@@ -101,19 +101,25 @@ public class SwitchCurrentStyleTool {
                                                     + " the style was not found."
                                                     + "\n\nExamples: \"Marquee\", \"My Custom Style\","
                                                     + " \"Publication Ready\""))
-                            .property(
+                            .conditionalParam(
                                     "create",
-                                    new McpSchema.InputProperty(
-                                            "boolean",
-                                            "Optional. Default false. When true, triggers creation"
-                                                    + " of a new style by cloning all default"
-                                                    + " property values and mappings from the style"
-                                                    + " currently applied to the active network"
-                                                    + " view. If 'name' specifies a style that"
-                                                    + " already exists in Cytoscape Desktop, an"
-                                                    + " error is returned indicating a duplicate"
-                                                    + " style cannot be created."
-                                                    + "\n\nExamples: true, false"))
+                                    "boolean",
+                                    "Required. Confirm whether to create a new style or switch"
+                                            + " to an existing one — the semantics of 'name' differ"
+                                            + " completely between the two modes."
+                                            + " Set to false (waived=false, parameter=false) to"
+                                            + " switch the current network view to an existing style"
+                                            + " matching 'name' — an error is returned if the style"
+                                            + " is not found."
+                                            + " Set to true (waived=false, parameter=true) to create"
+                                            + " a new style by cloning default property values and"
+                                            + " mappings from the currently applied style, then apply"
+                                            + " it — an error is returned if a style named 'name'"
+                                            + " already exists."
+                                            + " This parameter cannot be waived: confirm the user's"
+                                            + " intent (find vs create) before invoking."
+                                            + "\n\nExamples: {\"waived\": false, \"parameter\":"
+                                            + " true}, {\"waived\": false, \"parameter\": false}")
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(SwitchStyleResponse.class);
@@ -121,14 +127,17 @@ public class SwitchCurrentStyleTool {
     private final CyApplicationManager appManager;
     private final VisualMappingManager vmmManager;
     private final VisualStyleFactory visualStyleFactory;
+    private final ValidationService validationService;
 
     public SwitchCurrentStyleTool(
             CyApplicationManager appManager,
             VisualMappingManager vmmManager,
-            VisualStyleFactory visualStyleFactory) {
+            VisualStyleFactory visualStyleFactory,
+            ValidationService validationService) {
         this.appManager = appManager;
         this.vmmManager = vmmManager;
         this.visualStyleFactory = visualStyleFactory;
+        this.validationService = validationService;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -156,7 +165,6 @@ public class SwitchCurrentStyleTool {
 
     // -- Handler --------------------------------------------------------------
 
-    @SuppressWarnings("unchecked")
     private CallToolResult handle(McpSyncServerExchange exchange, CallToolRequest request) {
         LOGGER.info("Tool call received: {}", TOOL_NAME);
 
@@ -171,9 +179,25 @@ public class SwitchCurrentStyleTool {
             }
 
             // 2. Read parameters.
-            Map<String, Object> args = (Map<String, Object>) request.arguments();
+            Map<String, Object> args = request.arguments();
             String name = (String) args.get("name");
-            boolean create = Boolean.TRUE.equals(args.get("create"));
+
+            CallToolResult createErr =
+                    validationService.validateConditionalParams(
+                            "tool",
+                            TOOL_NAME,
+                            args,
+                            List.of(
+                                    new ValidationService.ConditionalParam(
+                                            "create",
+                                            "whether to find an existing style or create a new"
+                                                    + " style by cloning the current one",
+                                            true)));
+            if (createErr != null) return createErr;
+
+            Boolean createVal =
+                    validationService.unwrapToolInputValue(args.get("create"), Boolean.class);
+            boolean create = Boolean.TRUE.equals(createVal);
 
             // 3. Search for existing style by name.
             VisualStyle existingStyle = findStyleByName(name);

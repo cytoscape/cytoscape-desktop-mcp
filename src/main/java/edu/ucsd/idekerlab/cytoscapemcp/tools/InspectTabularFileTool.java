@@ -119,8 +119,7 @@ public class InspectTabularFileTool {
         LOGGER.info("Tool call received: {}", TOOL_NAME);
 
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> args = (Map<String, Object>) request.arguments();
+            Map<String, Object> args = request.arguments();
             String filePath = (String) args.get("file_path");
 
             if (filePath == null || filePath.isBlank()) {

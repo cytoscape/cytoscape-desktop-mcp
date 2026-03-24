@@ -5,7 +5,10 @@ import java.net.URL;
 import java.util.List;
 
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +19,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.when;
+
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 
 /**
  * Exercises {@link GetFileColumnsTool} through a real {@link
@@ -34,8 +44,35 @@ public class GetFileColumnsToolTest {
     private static final String INITIALIZED_NOTIFICATION =
             "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}";
 
-    private final GetFileColumnsTool tool = new GetFileColumnsTool(new TabularTypeConverter());
+    @Mock private ValidationService validationService;
+
+    private GetFileColumnsTool tool;
     private InMemoryTransport transport;
+
+    @Before
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            Class<?> type = inv.getArgument(1);
+                            if (raw == null) return null;
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return null;
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return null;
+                            return type.isInstance(raw) ? raw : null;
+                        })
+                .when(validationService)
+                .unwrapToolInputValue(any(), any());
+        tool = buildTool(validationService);
+    }
+
+    private GetFileColumnsTool buildTool(ValidationService vs) {
+        return new GetFileColumnsTool(new TabularTypeConverter(), vs);
+    }
 
     @After
     public void tearDown() {
@@ -187,7 +224,7 @@ public class GetFileColumnsToolTest {
                         + path.replace("\\", "\\\\")
                         + "\","
                         + "\"use_header_row\":true,"
-                        + "\"delimiter_char_code\":\"44\"}}}";
+                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":\"44\"}}}}";
         String response = callTool(toolCall);
         assertNoError(response);
         assertEquals(3, extractResult(response).get("columns").size());
@@ -247,8 +284,13 @@ public class GetFileColumnsToolTest {
         JsonNode props = MAPPER.readTree(GetFileColumnsTool.INPUT_SCHEMA).get("properties");
         assertEquals("string", props.at("/file_path/type").asText());
         assertEquals("boolean", props.at("/use_header_row/type").asText());
-        assertEquals("integer", props.at("/delimiter_char_code/type").asText());
-        assertEquals("string", props.at("/excel_sheet/type").asText());
+        // ConditionalParameter wrappers appear as "object" at the top level
+        assertEquals("object", props.at("/delimiter_char_code/type").asText());
+        assertEquals("object", props.at("/excel_sheet/type").asText());
+        // Inner parameter types are nested under /properties/parameter
+        assertEquals(
+                "integer", props.at("/delimiter_char_code/properties/parameter/type").asText());
+        assertEquals("string", props.at("/excel_sheet/properties/parameter/type").asText());
     }
 
     @Test
@@ -333,6 +375,59 @@ public class GetFileColumnsToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Delegation tests — ValidationService error propagation
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void csvFile_absentDelimiterCharCode_propagatesValidationError() throws Exception {
+        when(validationService.validateConditionalParams(anyString(), anyString(), any(), any()))
+                .thenReturn(stubError("stub-error: delimiter_char_code missing"));
+
+        String path = fixturePath("genes_comma.csv");
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"get_file_columns\",\"arguments\":{"
+                        + "\"file_path\":\""
+                        + path.replace("\\", "\\\\")
+                        + "\","
+                        + "\"use_header_row\":true}}}";
+        String response = callTool(toolCall);
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should contain stub message",
+                response.contains("stub-error: delimiter_char_code missing"));
+    }
+
+    @Test
+    public void excelFile_absentExcelSheet_propagatesValidationError() throws Exception {
+        when(validationService.validateConditionalParams(anyString(), anyString(), any(), any()))
+                .thenReturn(stubError("stub-error: excel_sheet missing"));
+
+        String path = fixturePath("network_data.xlsx");
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"get_file_columns\",\"arguments\":{"
+                        + "\"file_path\":\""
+                        + path.replace("\\", "\\\\")
+                        + "\","
+                        + "\"use_header_row\":true}}}";
+        String response = callTool(toolCall);
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should contain stub message",
+                response.contains("stub-error: excel_sheet missing"));
+    }
+
+    private static CallToolResult stubError(String marker) {
+        return CallToolResult.builder()
+                .content(List.of(new TextContent(marker)))
+                .isError(true)
+                .build();
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
@@ -350,10 +445,14 @@ public class GetFileColumnsToolTest {
         sb.append("\"file_path\":\"").append(filePath.replace("\\", "\\\\")).append("\"");
         sb.append(",\"use_header_row\":").append(useHeaderRow);
         if (delimCode != null) {
-            sb.append(",\"delimiter_char_code\":").append(delimCode);
+            sb.append(",\"delimiter_char_code\":{\"waived\":false,\"parameter\":")
+                    .append(delimCode)
+                    .append("}");
         }
         if (excelSheet != null) {
-            sb.append(",\"excel_sheet\":\"").append(excelSheet).append("\"");
+            sb.append(",\"excel_sheet\":{\"waived\":false,\"parameter\":\"")
+                    .append(excelSheet)
+                    .append("\"}");
         }
         sb.append("}}}");
         return sb.toString();

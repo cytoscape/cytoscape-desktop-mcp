@@ -105,18 +105,20 @@ public class GetColumnDistinctValuesTool {
                                                     + " list."
                                                     + "\n\nExamples: \"node\", \"edge\"",
                                             List.of("node", "edge")))
-                            .property(
+                            .conditionalParam(
                                     "max_values",
-                                    new McpSchema.InputProperty(
-                                            "integer",
-                                            "Optional. Maximum number of distinct values to"
-                                                    + " return per column. Default 50. Values are"
-                                                    + " sorted by count descending and clipped to"
-                                                    + " this limit before returning. Compare"
-                                                    + " values.size() to count to detect clipping."
-                                                    + " Increase if you need the full value set for"
-                                                    + " a high-cardinality column."
-                                                    + "\n\nExamples: 50, 100, 200"))
+                                    "integer",
+                                    "Discretionary. Maximum number of distinct values to return"
+                                            + " per column. Values are sorted by count descending"
+                                            + " and clipped to this limit before returning."
+                                            + " Compare values.size() to count to detect clipping."
+                                            + " Waive to accept the default limit of 50."
+                                            + " Increase if you need the full value set for a"
+                                            + " high-cardinality column. Confirm with the user"
+                                            + " before setting or waiving."
+                                            + "\n\nExamples: {\"waived\": false, \"parameter\":"
+                                            + " 50}, {\"waived\": false, \"parameter\": 100},"
+                                            + " {\"waived\": true}")
                             .required("column_names", "table")
                             .build());
 
@@ -186,9 +188,12 @@ public class GetColumnDistinctValuesTool {
     // -- Dependencies ---------------------------------------------------------
 
     private final CyApplicationManager appManager;
+    private final ValidationService validationService;
 
-    public GetColumnDistinctValuesTool(CyApplicationManager appManager) {
+    public GetColumnDistinctValuesTool(
+            CyApplicationManager appManager, ValidationService validationService) {
         this.appManager = appManager;
+        this.validationService = validationService;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -250,7 +255,8 @@ public class GetColumnDistinctValuesTool {
             List<CyRow> rows = table.getAllRows();
 
             Object rawMax = request.arguments().get("max_values");
-            int maxValues = rawMax != null ? Math.max(1, Integer.parseInt(rawMax.toString())) : 50;
+            Number maxNum = validationService.unwrapToolInputValue(rawMax, Number.class);
+            int maxValues = maxNum != null ? Math.max(1, maxNum.intValue()) : 50;
 
             Map<String, DistinctValuesEntry> resultMap = new LinkedHashMap<>();
             for (String columnName : columnNames) {

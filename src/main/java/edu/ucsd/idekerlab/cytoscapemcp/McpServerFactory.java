@@ -155,12 +155,20 @@ public final class McpServerFactory {
                 new SetCurrentNetworkViewTool(appManager, networkManager, viewManager).toSpec());
         server.addTool(
                 new CreateNetworkViewTool(
-                                appManager, networkManager, viewManager, networkViewFactory)
+                                appManager,
+                                networkManager,
+                                viewManager,
+                                networkViewFactory,
+                                validationService)
                         .toSpec());
         server.addTool(new InspectTabularFileTool().toSpec());
-        server.addTool(new GetFileColumnsTool(typeConverter).toSpec());
+        server.addTool(new GetFileColumnsTool(typeConverter, validationService).toSpec());
         server.addTool(
-                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory)
+                new AnalyzeNetworkTool(
+                                appManager,
+                                syncTaskManager,
+                                commandExecutorTaskFactory,
+                                validationService)
                         .toSpec());
         server.addTool(new GetLayoutAlgorithmsTool(layoutManager).toSpec());
         server.addTool(new ApplyLayoutTool(appManager, layoutManager, syncTaskManager).toSpec());
@@ -171,7 +179,12 @@ public final class McpServerFactory {
                                 appManager, vmmManager, renderingEngineManager, vpService)
                         .toSpec());
         server.addTool(
-                new SetVisualDefaultTool(appManager, vmmManager, renderingEngineManager, vpService)
+                new SetVisualDefaultTool(
+                                appManager,
+                                vmmManager,
+                                renderingEngineManager,
+                                vpService,
+                                validationService)
                         .toSpec());
         server.addTool(
                 new GetMappablePropertiesTool(
@@ -181,7 +194,7 @@ public final class McpServerFactory {
                 new GetCompatibleColumnsTool(appManager, renderingEngineManager, vpService)
                         .toSpec());
         server.addTool(new GetColumnRangeTool(appManager).toSpec());
-        server.addTool(new GetColumnDistinctValuesTool(appManager).toSpec());
+        server.addTool(new GetColumnDistinctValuesTool(appManager, validationService).toSpec());
         server.addTool(
                 new CreateContinuousMappingTool(
                                 appManager,
@@ -205,7 +218,8 @@ public final class McpServerFactory {
                                 renderingEngineManager,
                                 discreteMappingFactory,
                                 vpService,
-                                generatorService)
+                                generatorService,
+                                validationService)
                         .toSpec());
         server.addTool(
                 new CreatePassthroughMappingTool(
@@ -217,7 +231,9 @@ public final class McpServerFactory {
                         .toSpec());
         server.addTool(new GetStylesTool(vmmManager).toSpec());
         server.addTool(
-                new SwitchCurrentStyleTool(appManager, vmmManager, visualStyleFactory).toSpec());
+                new SwitchCurrentStyleTool(
+                                appManager, vmmManager, visualStyleFactory, validationService)
+                        .toSpec());
         return server;
     }
 }

@@ -99,14 +99,6 @@ public class GetFileColumnsTool {
                                             "string",
                                             "Required. Absolute path to the tabular file."))
                             .property(
-                                    "delimiter_char_code",
-                                    new McpSchema.InputProperty(
-                                            "integer",
-                                            "Optional. ASCII code of the delimiter character"
-                                                    + " (e.g. 44=comma, 9=tab, 124=pipe)."
-                                                    + " Required for non-Excel files. Ignored for"
-                                                    + " Excel."))
-                            .property(
                                     "use_header_row",
                                     new McpSchema.InputProperty(
                                             "boolean",
@@ -114,21 +106,42 @@ public class GetFileColumnsTool {
                                                     + " appear in 'columns'. If false, ordinal names are generated"
                                                     + " ('Column 1', 'Column 2', ...) and those ordinal names"
                                                     + " appear in 'columns' instead."))
-                            .property(
+                            .conditionalParam(
+                                    "delimiter_char_code",
+                                    "integer",
+                                    "Conditional on file type derived from file_path."
+                                            + " Required when file_path is a non-Excel file"
+                                            + " (CSV, TSV, pipe-delimited, etc.)."
+                                            + " ASCII code of the column delimiter"
+                                            + " (44=comma, 9=tab, 124=pipe)."
+                                            + " Waive when file_path is an Excel file (.xlsx/.xls)"
+                                            + " — use excel_sheet instead."
+                                            + " Inspect the file extension to determine which"
+                                            + " applies. Confirm with the user before setting or"
+                                            + " waiving.")
+                            .conditionalParam(
                                     "excel_sheet",
-                                    new McpSchema.InputProperty(
-                                            "string",
-                                            "Optional. Name of the Excel sheet to read."
-                                                    + " Required when reading an Excel file."
-                                                    + " Ignored for text files."))
+                                    "string",
+                                    "Conditional on file type derived from file_path."
+                                            + " Required when file_path is an Excel file"
+                                            + " (.xlsx/.xls). Name of the Excel sheet to read."
+                                            + " Waive for non-Excel files — use"
+                                            + " delimiter_char_code instead."
+                                            + " Inspect the file extension and available sheets"
+                                            + " to determine the correct one."
+                                            + " Confirm the sheet name with the user before"
+                                            + " setting or waiving.")
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(GetFileColumnsCallResult.class);
 
     private final TabularTypeConverter typeConverter;
+    private final ValidationService validationService;
 
-    public GetFileColumnsTool(TabularTypeConverter typeConverter) {
+    public GetFileColumnsTool(
+            TabularTypeConverter typeConverter, ValidationService validationService) {
         this.typeConverter = typeConverter;
+        this.validationService = validationService;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -160,8 +173,7 @@ public class GetFileColumnsTool {
         LOGGER.info("Tool call received: {}", TOOL_NAME);
 
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> args = (Map<String, Object>) request.arguments();
+            Map<String, Object> args = request.arguments();
 
             String filePath = (String) args.get("file_path");
             if (filePath == null || filePath.isBlank()) {
@@ -174,14 +186,44 @@ public class GetFileColumnsTool {
             }
             boolean useHeaderRow = Boolean.TRUE.equals(useHeaderObj);
 
-            String excelSheet = (String) args.get("excel_sheet");
-            Object delimRaw = args.get("delimiter_char_code");
-            Number delimCode = delimRaw != null ? Integer.valueOf(delimRaw.toString()) : null;
-
             File file = new File(filePath);
             if (!file.exists()) {
                 return error("File not found: " + filePath);
             }
+
+            boolean isExcel =
+                    filePath.toLowerCase().endsWith(".xlsx")
+                            || filePath.toLowerCase().endsWith(".xls");
+
+            if (isExcel) {
+                CallToolResult err =
+                        validationService.validateConditionalParams(
+                                "file_path",
+                                filePath,
+                                args,
+                                List.of(
+                                        new ValidationService.ConditionalParam(
+                                                "excel_sheet", "the Excel sheet to read", false)));
+                if (err != null) return err;
+            } else {
+                CallToolResult err =
+                        validationService.validateConditionalParams(
+                                "file_path",
+                                filePath,
+                                args,
+                                List.of(
+                                        new ValidationService.ConditionalParam(
+                                                "delimiter_char_code",
+                                                "the ASCII code of the column delimiter",
+                                                false)));
+                if (err != null) return err;
+            }
+
+            String excelSheet =
+                    validationService.unwrapToolInputValue(args.get("excel_sheet"), String.class);
+            Integer delimCode =
+                    validationService.unwrapToolInputValue(
+                            args.get("delimiter_char_code"), Integer.class);
 
             if (excelSheet != null) {
                 return handleExcel(file, excelSheet, useHeaderRow);

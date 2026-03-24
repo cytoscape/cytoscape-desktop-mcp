@@ -25,6 +25,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -55,6 +57,7 @@ public class GetColumnDistinctValuesToolTest {
     // --- Mocks -------------------------------------------------------------
 
     @Mock private CyApplicationManager appManager;
+    @Mock private ValidationService validationService;
     @Mock private CyNetwork network;
     @Mock private CyTable nodeTable;
     @Mock private CyTable edgeTable;
@@ -65,7 +68,26 @@ public class GetColumnDistinctValuesToolTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        tool = new GetColumnDistinctValuesTool(appManager);
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            Class<?> type = inv.getArgument(1);
+                            if (raw == null) return null;
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return null;
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return null;
+                            return type.isInstance(raw) ? raw : null;
+                        })
+                .when(validationService)
+                .unwrapToolInputValue(any(), any());
+        tool = buildTool(validationService);
+    }
+
+    private GetColumnDistinctValuesTool buildTool(ValidationService vs) {
+        return new GetColumnDistinctValuesTool(appManager, vs);
     }
 
     @After
@@ -583,7 +605,9 @@ public class GetColumnDistinctValuesToolTest {
         when(nodeTable.getAllRows()).thenReturn(rows);
 
         String response =
-                callTool("{\"column_names\":[\"Gene\"],\"table\":\"node\",\"max_values\":10}");
+                callTool(
+                        "{\"column_names\":[\"Gene\"],\"table\":\"node\","
+                                + "\"max_values\":{\"waived\":false,\"parameter\":10}}");
 
         assertFalse("Should not be an error", response.contains("\"isError\":true"));
         JsonNode entry = parseStructuredContent(response).get("columns").get("Gene");
@@ -658,9 +682,11 @@ public class GetColumnDistinctValuesToolTest {
         when(nodeTable.getColumn("GeneType")).thenReturn(col);
         CyRow r1 = rowWith("GeneType", String.class, "kinase");
         when(nodeTable.getAllRows()).thenReturn(List.of(r1));
-        // max_values as JSON integer
+        // max_values as JSON integer via wrapper
         String response =
-                callTool("{\"column_names\":[\"GeneType\"],\"table\":\"node\",\"max_values\":5}");
+                callTool(
+                        "{\"column_names\":[\"GeneType\"],\"table\":\"node\","
+                                + "\"max_values\":{\"waived\":false,\"parameter\":5}}");
         assertFalse("Should not be an error", response.contains("\"isError\":true"));
     }
 
@@ -671,7 +697,7 @@ public class GetColumnDistinctValuesToolTest {
         when(nodeTable.getColumn("GeneType")).thenReturn(col);
         CyRow r1 = rowWith("GeneType", String.class, "kinase");
         when(nodeTable.getAllRows()).thenReturn(List.of(r1));
-        // max_values as JSON string
+        // max_values as JSON string — falls back to default (50) via unwrap; no error
         String response =
                 callTool(
                         "{\"column_names\":[\"GeneType\"],\"table\":\"node\",\"max_values\":\"5\"}");
@@ -690,10 +716,16 @@ public class GetColumnDistinctValuesToolTest {
         JsonNode props = schema.get("properties");
         assertNotNull("properties should exist", props);
         assertNotNull("max_values property should exist", props.get("max_values"));
+        // ConditionalParameter wrapper appears as "object" at the top level
         assertEquals(
-                "max_values should be integer type",
-                "integer",
+                "max_values should be object (ConditionalParameter wrapper)",
+                "object",
                 props.get("max_values").get("type").asText());
+        // Inner parameter type should be integer
+        assertEquals(
+                "inner parameter type should be integer",
+                "integer",
+                props.at("/max_values/properties/parameter/type").asText());
 
         JsonNode required = schema.get("required");
         boolean maxValuesRequired = false;

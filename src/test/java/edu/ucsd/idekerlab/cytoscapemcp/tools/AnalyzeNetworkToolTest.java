@@ -31,10 +31,14 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 
 /**
  * Exercises {@link AnalyzeNetworkTool} through its public interface ({@code toSpec()}) by
@@ -58,9 +62,9 @@ public class AnalyzeNetworkToolTest {
     private static String toolCall(boolean directed) {
         return "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                 + "\"params\":{\"name\":\"analyze_network\","
-                + "\"arguments\":{\"directed\":"
+                + "\"arguments\":{\"directed\":{\"waived\":false,\"parameter\":"
                 + directed
-                + "}}}";
+                + "}}}}";
     }
 
     // --- Mocks -------------------------------------------------------------
@@ -68,6 +72,7 @@ public class AnalyzeNetworkToolTest {
     @Mock private CyApplicationManager appManager;
     @Mock private SynchronousTaskManager<?> syncTaskManager;
     @Mock private CommandExecutorTaskFactory commandExecutorTaskFactory;
+    @Mock private ValidationService validationService;
     @Mock private CyNetwork network;
     @Mock private CyTable nodeTable;
 
@@ -82,11 +87,17 @@ public class AnalyzeNetworkToolTest {
                         public void cancel() {}
                     });
 
+    private AnalyzeNetworkTool tool;
     private InMemoryTransport transport;
 
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
+        tool = buildTool(commandExecutorTaskFactory);
+    }
+
+    private AnalyzeNetworkTool buildTool(CommandExecutorTaskFactory factory) {
+        return new AnalyzeNetworkTool(appManager, syncTaskManager, factory, validationService);
     }
 
     @After
@@ -103,10 +114,8 @@ public class AnalyzeNetworkToolTest {
     @Test
     public void noCurrentNetwork_returnsError() throws Exception {
         when(appManager.getCurrentNetwork()).thenReturn(null);
-        AnalyzeNetworkTool tool =
-                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory);
 
-        String response = callTool(tool, false);
+        String response = callTool(false);
 
         assertTrue("Should be an error response", response.contains("\"isError\":true"));
         assertTrue(
@@ -122,10 +131,9 @@ public class AnalyzeNetworkToolTest {
     public void analyzerNotAvailable_nullFactory_returnsError() throws Exception {
         when(appManager.getCurrentNetwork()).thenReturn(network);
         stubEmptyNodeTable();
+        tool = buildTool(null);
 
-        AnalyzeNetworkTool tool = new AnalyzeNetworkTool(appManager, syncTaskManager, null);
-
-        String response = callTool(tool, false);
+        String response = callTool(false);
 
         assertTrue("Should be an error response", response.contains("\"isError\":true"));
         assertTrue("Should tell agent to skip this tool", response.contains("Skip this tool"));
@@ -142,10 +150,8 @@ public class AnalyzeNetworkToolTest {
         when(commandExecutorTaskFactory.createTaskIterator(
                         eq("analyzer"), eq("analyze"), any(), any()))
                 .thenThrow(new RuntimeException("unknown command: analyzer analyze"));
-        AnalyzeNetworkTool tool =
-                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory);
 
-        String response = callTool(tool, false);
+        String response = callTool(false);
 
         assertTrue("Should be an error response", response.contains("\"isError\":true"));
         assertTrue("Should tell agent to skip this tool", response.contains("Skip this tool"));
@@ -165,10 +171,8 @@ public class AnalyzeNetworkToolTest {
         doThrow(new IllegalArgumentException("Network too small: 4 node minimum."))
                 .when(syncTaskManager)
                 .execute(any());
-        AnalyzeNetworkTool tool =
-                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory);
 
-        String response = callTool(tool, false);
+        String response = callTool(false);
 
         assertTrue("Should be an error response", response.contains("\"isError\":true"));
         assertTrue("Should mention 'too small'", response.contains("too small"));
@@ -192,10 +196,8 @@ public class AnalyzeNetworkToolTest {
                                         + " undirected graph"))
                 .when(syncTaskManager)
                 .execute(any());
-        AnalyzeNetworkTool tool =
-                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory);
 
-        String response = callTool(tool, true);
+        String response = callTool(true);
 
         assertTrue("Should be an error response", response.contains("\"isError\":true"));
         assertTrue("Should mention 'not applicable'", response.contains("not applicable"));
@@ -217,10 +219,10 @@ public class AnalyzeNetworkToolTest {
                 .thenReturn(noOpTaskIterator);
         when(network.getNodeCount()).thenReturn(10);
         when(network.getEdgeCount()).thenReturn(5);
-        AnalyzeNetworkTool tool =
-                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory);
+        when(validationService.unwrapToolInputValue(any(), eq(Boolean.class)))
+                .thenReturn(Boolean.TRUE);
 
-        callTool(tool, true);
+        callTool(true);
 
         Map<String, Object> capturedArgs = argsCaptor.getValue();
         assertEquals(Boolean.TRUE, capturedArgs.get("directed"));
@@ -252,10 +254,8 @@ public class AnalyzeNetworkToolTest {
                 .thenReturn(noOpTaskIterator);
         when(network.getNodeCount()).thenReturn(10);
         when(network.getEdgeCount()).thenReturn(15);
-        AnalyzeNetworkTool tool =
-                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory);
 
-        String response = callTool(tool, false);
+        String response = callTool(false);
 
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
         assertTrue(
@@ -282,10 +282,8 @@ public class AnalyzeNetworkToolTest {
                 .thenReturn(noOpTaskIterator);
         when(network.getNodeCount()).thenReturn(10);
         when(network.getEdgeCount()).thenReturn(5);
-        AnalyzeNetworkTool tool =
-                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory);
 
-        String response = callTool(tool, false);
+        String response = callTool(false);
 
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
         assertTrue(
@@ -298,21 +296,57 @@ public class AnalyzeNetworkToolTest {
     // -----------------------------------------------------------------------
 
     @Test
-    public void inputSchema_directedIsOptional() throws Exception {
+    public void inputSchema_directedIsConditional() throws Exception {
         JsonNode schema = MAPPER.readTree(AnalyzeNetworkTool.INPUT_SCHEMA);
+        // directed is a ConditionalParameter — must NOT appear in the required list
         JsonNode required = schema.get("required");
-        // directed has a server-side default, so it must NOT be in required
         if (required != null && required.isArray()) {
             for (JsonNode el : required) {
                 assertFalse(
-                        "directed must not be in required (it has a default)",
+                        "directed must not be in required (it is a ConditionalParameter)",
                         "directed".equals(el.asText()));
             }
         }
-        // Verify the property itself exists in the schema
+        // Verify the property exists and is a ConditionalParameter object wrapper
         JsonNode props = schema.get("properties");
         assertNotNull("properties must exist", props);
         assertNotNull("directed property must exist", props.get("directed"));
+        assertEquals("object", props.at("/directed/type").asText());
+        assertEquals("boolean", props.at("/directed/properties/parameter/type").asText());
+    }
+
+    // -----------------------------------------------------------------------
+    // Delegation tests — ValidationService error propagation
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void absentDirected_propagatesValidationError() throws Exception {
+        when(validationService.validateConditionalParams(anyString(), anyString(), any(), any()))
+                .thenReturn(stubError("stub-error: directed must be confirmed"));
+
+        String rawToolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"analyze_network\",\"arguments\":{}}}";
+
+        transport = new InMemoryTransport();
+        transport.startServer("cytoscape-mcp-test", "0.0.0-test", List.of(tool.toSpec()));
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(rawToolCall);
+        transport.await();
+        String response = transport.getResponse();
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should contain stub message",
+                response.contains("stub-error: directed must be confirmed"));
+    }
+
+    private static CallToolResult stubError(String marker) {
+        return CallToolResult.builder()
+                .content(List.of(new TextContent(marker)))
+                .isError(true)
+                .build();
     }
 
     // -----------------------------------------------------------------------
@@ -330,7 +364,7 @@ public class AnalyzeNetworkToolTest {
         return col;
     }
 
-    private String callTool(AnalyzeNetworkTool tool, boolean directed) throws Exception {
+    private String callTool(boolean directed) throws Exception {
         transport = new InMemoryTransport();
         transport.startServer("cytoscape-mcp-test", "0.0.0-test", List.of(tool.toSpec()));
 

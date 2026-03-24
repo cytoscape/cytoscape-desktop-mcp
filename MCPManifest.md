@@ -494,13 +494,22 @@ Example 4 — Force create a new view in Cytoscape desktop even though one alrea
 {
   "type" : "object",
   "properties" : {
-    "create_if_exists" : {
-      "type" : "boolean",
-      "description" : "Optional. Default is false. When false and a view already exists, returns the existing current view (or first available) without creating a duplicate. When true, always creates a new view even if views already exist."
-    },
     "network_suid" : {
       "type" : "integer",
       "description" : "Required. SUID of the network in Cytoscape Desktop that needs a view."
+    },
+    "create_if_exists" : {
+      "type" : "object",
+      "description" : "Discretionary. Controls whether a new view is created when the network already has views. Set to true (waived=false, parameter=true) to always create a new view even when views exist. Set to false (waived=false, parameter=false) to return the existing current view (or first available) without creating a duplicate. Waive to accept the default behaviour (false). Confirm with the user before setting or waiving.\n\nExamples: {\"waived\": false, \"parameter\": true}, {\"waived\": false, \"parameter\": false}, {\"waived\": true}",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "boolean"
+        }
+      }
     }
   },
   "required" : [ "network_suid" ]
@@ -646,13 +655,31 @@ Inspect the file first to determine input params as needed.
       "type" : "string",
       "description" : "Required. Absolute path to the tabular file."
     },
-    "excel_sheet" : {
-      "type" : "string",
-      "description" : "Optional. Name of the Excel sheet to read. Required when reading an Excel file. Ignored for text files."
-    },
     "delimiter_char_code" : {
-      "type" : "integer",
-      "description" : "Optional. ASCII code of the delimiter character (e.g. 44=comma, 9=tab, 124=pipe). Required for non-Excel files. Ignored for Excel."
+      "type" : "object",
+      "description" : "Conditional on file type derived from file_path. Required when file_path is a non-Excel file (CSV, TSV, pipe-delimited, etc.). ASCII code of the column delimiter (44=comma, 9=tab, 124=pipe). Waive when file_path is an Excel file (.xlsx/.xls) — use excel_sheet instead. Inspect the file extension to determine which applies. Confirm with the user before setting or waiving.",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "integer"
+        }
+      }
+    },
+    "excel_sheet" : {
+      "type" : "object",
+      "description" : "Conditional on file type derived from file_path. Required when file_path is an Excel file (.xlsx/.xls). Name of the Excel sheet to read. Waive for non-Excel files — use delimiter_char_code instead. Inspect the file extension and available sheets to determine the correct one. Confirm the sheet name with the user before setting or waiving.",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
     }
   },
   "required" : [ "file_path", "use_header_row" ]
@@ -724,8 +751,17 @@ Example 3 — Calculate centrality metrics for an undirected biological network 
   "type" : "object",
   "properties" : {
     "directed" : {
-      "type" : "boolean",
-      "description" : "Optional. Default is true. When true, treats the network as a directed graph with in-degree/out-degree metrics. When false, treats it as undirected, typical for most biological interaction networks."
+      "type" : "object",
+      "description" : "Required. Confirm whether the network should be analyzed as directed or undirected — the algorithm produces fundamentally different metrics for each mode. Set to true (waived=false, parameter=true) to treat the network as directed, computing in-degree and out-degree. Set to false (waived=false, parameter=false) to treat it as undirected, computing degree for all nodes. This parameter cannot be waived: ask the user whether their network is directed or undirected before invoking.\n\nExamples: {\"waived\": false, \"parameter\": true}, {\"waived\": false, \"parameter\": false}",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "boolean"
+        }
+      }
     }
   },
   "required" : [ ]
@@ -1069,17 +1105,44 @@ Example 7 — Lock node size and set it to 50 in one call:
 {
   "type" : "object",
   "properties" : {
-    "edge_properties" : {
-      "type" : "array",
-      "description" : "Optional. List of edge visual property updates. Each entry requires 'id' and 'currentValue' using the same format conventions as node properties — property identifiers, value types, allowed values, font families, and font styles are documented in the style defaults response.\n\nExamples: [{\"id\": \"EDGE_WIDTH\", \"currentValue\": \"3.0\"}], [{\"id\": \"EDGE_LINE_TYPE\", \"currentValue\": \"Dash\"}], [{\"id\": \"EDGE_LABEL_FONT_FACE\", \"currentValue\": \"Courier New-Italic-12\"}]"
-    },
     "node_properties" : {
-      "type" : "array",
-      "description" : "Optional. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]"
+      "type" : "object",
+      "description" : "Discretionary. List of node visual property updates. Each entry requires an 'id' field matching a property identifier from the style defaults response and a 'currentValue' field with the new default value as a string, formatted according to the property's value type and allowed values documented in that response. For font properties, compose the value as Family-Style-Size using a family from the font_families list and a style from the font_styles list in the style defaults response. Waive if no node visual defaults need updating. Confirm with the user which node properties to update before setting or waiving.\n\nExamples: [{\"id\": \"NODE_FILL_COLOR\", \"currentValue\": \"#FF6600\"}], [{\"id\": \"NODE_SHAPE\", \"currentValue\": \"Rectangle\"}], [{\"id\": \"NODE_LABEL_FONT_FACE\", \"currentValue\": \"Arial-Bold-14\"}]",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "array"
+        }
+      }
+    },
+    "edge_properties" : {
+      "type" : "object",
+      "description" : "Discretionary. List of edge visual property updates. Each entry requires 'id' and 'currentValue' using the same format conventions as node properties — property identifiers, value types, allowed values, font families, and font styles are documented in the style defaults response. Waive if no edge visual defaults need updating. Confirm with the user which edge properties to update before setting or waiving.\n\nExamples: [{\"id\": \"EDGE_WIDTH\", \"currentValue\": \"3.0\"}], [{\"id\": \"EDGE_LINE_TYPE\", \"currentValue\": \"Dash\"}], [{\"id\": \"EDGE_LABEL_FONT_FACE\", \"currentValue\": \"Courier New-Italic-12\"}]",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "array"
+        }
+      }
     },
     "dependencies" : {
-      "type" : "array",
-      "description" : "Optional. List of dependency locks to toggle on/off. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]"
+      "type" : "object",
+      "description" : "Discretionary. List of dependency locks to toggle on/off. Each entry requires an 'id' field matching a dependency identifier from the style defaults response and an 'enabled' field (true/false) indicating whether the lock should be active. Retrieve the current style defaults first to discover available dependency IDs and their current enabled state. Waive if no dependency locks need changing. Confirm with the user before setting or waiving.\n\nExamples: [{\"id\": \"nodeSizeLocked\", \"enabled\": true}], [{\"id\": \"arrowColorMatchesEdge\", \"enabled\": false}]",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "array"
+        }
+      }
     }
   },
   "required" : [ ]
@@ -1408,14 +1471,23 @@ Example 5 — Limit returned values for a high-cardinality column:
         "description" : "Name of a column in the specified table."
       }
     },
-    "max_values" : {
-      "type" : "integer",
-      "description" : "Optional. Maximum number of distinct values to return per column. Default 50. Values are sorted by count descending and clipped to this limit before returning. Compare values.size() to count to detect clipping. Increase if you need the full value set for a high-cardinality column.\n\nExamples: 50, 100, 200"
-    },
     "table" : {
       "type" : "string",
       "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
       "enum" : [ "node", "edge" ]
+    },
+    "max_values" : {
+      "type" : "object",
+      "description" : "Discretionary. Maximum number of distinct values to return per column. Values are sorted by count descending and clipped to this limit before returning. Compare values.size() to count to detect clipping. Waive to accept the default limit of 50. Increase if you need the full value set for a high-cardinality column. Confirm with the user before setting or waiving.\n\nExamples: {\"waived\": false, \"parameter\": 50}, {\"waived\": false, \"parameter\": 100}, {\"waived\": true}",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "integer"
+        }
+      }
     }
   },
   "required" : [ "column_names", "table" ]
@@ -1464,15 +1536,6 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
 {
   "type" : "object",
   "properties" : {
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the numeric data column driving the mapping, from get_compatible_columns."
-    },
-    "column_type" : {
-      "type" : "string",
-      "description" : "Required. Java type of the data column.",
-      "enum" : [ "Integer", "Long", "Double" ]
-    },
     "points" : {
       "type" : "array",
       "description" : "Required. Minimum 2 breakpoints. Defines the piecewise continuous mapping function: each breakpoint anchors the visual property at a specific data value, and Cytoscape interpolates between adjacent breakpoints — so at least one lower and one upper anchor is needed to form a valid range. Breakpoints must be in ascending order by value; the tool sorts them automatically but rejects duplicates. Each entry has: value (number — the data value at this breakpoint anchor); lesser (property value applied for data values strictly below this breakpoint); equal (property value applied for data values exactly at this breakpoint); greater (property value applied for data values strictly above this breakpoint). For color-gradient properties (Paint), use hex strings (#RRGGBB). For discrete-typed properties (NodeShape, LineType), use display names. For numeric properties (Double, Integer), use numbers.",
@@ -1484,6 +1547,15 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
     "property_id" : {
       "type" : "string",
       "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH) from get_mappable_properties."
+    },
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the numeric data column driving the mapping, from get_compatible_columns."
+    },
+    "column_type" : {
+      "type" : "string",
+      "description" : "Required. Java type of the data column.",
+      "enum" : [ "Integer", "Long", "Double" ]
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "points" ]
@@ -1554,6 +1626,10 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
 {
   "type" : "object",
   "properties" : {
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE) from get_mappable_properties."
+    },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the data column driving the mapping, from get_compatible_columns."
@@ -1566,10 +1642,6 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
     "entries" : {
       "type" : "object",
       "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
-    },
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE) from get_mappable_properties."
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "entries" ]
@@ -1639,15 +1711,6 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
 {
   "type" : "object",
   "properties" : {
-    "generator_params" : {
-      "type" : "object",
-      "description" : "Optional. Generator-specific parameters. For numeric_range: required keys are 'min' (number) and 'max' (number). For brewer_sequential: optional key 'hue' (string) selects the palette color family — e.g. 'blue', 'red', 'green', 'purple'; defaults to 'blue'. Ignored for rainbow, random, and shape_cycle."
-    },
-    "column_type" : {
-      "type" : "string",
-      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
-      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
-    },
     "generator" : {
       "type" : "string",
       "description" : "Required. Auto-generation algorithm to apply across all distinct column values. rainbow and random produce colors from Cytoscape's palette providers (Paint properties only). brewer_sequential produces a light-to-dark single-hue gradient (Paint only); supply an optional hue hint via generator_params. shape_cycle steps through the visual property's own discrete value set (e.g. node shapes), wrapping as needed. numeric_range spreads values evenly between a min and max (numeric properties only); min and max are required via generator_params.",
@@ -1660,6 +1723,24 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the data column to drive the mapping, from get_compatible_columns."
+    },
+    "column_type" : {
+      "type" : "string",
+      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
+      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+    },
+    "generator_params" : {
+      "type" : "object",
+      "description" : "Conditional on generator. Required when generator='numeric_range' — supply an object with keys 'min' (number) and 'max' (number) defining the value range spread. Provide with key 'hue' (string, e.g. 'blue', 'red', 'green', 'purple') when generator='brewer_sequential' to select the palette family; waive to use the default ('blue'). Waive when generator is rainbow, random, or shape_cycle — params are not used by those algorithms. Confirm with the user before setting or waiving.",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "object"
+        }
+      }
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "generator" ]
@@ -1736,6 +1817,11 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
 {
   "type" : "object",
   "properties" : {
+    "column_type" : {
+      "type" : "string",
+      "description" : "Required. Java type of the data column. All five types are valid; the column value will be rendered as-is by Cytoscape.",
+      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+    },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the data column whose values will be used directly as the visual property value. The column must already exist in the node or edge table of the current network — use other available tools to confirm available columns before invoking."
@@ -1743,11 +1829,6 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
     "property_id" : {
       "type" : "string",
       "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
-    },
-    "column_type" : {
-      "type" : "string",
-      "description" : "Required. Java type of the data column. All five types are valid; the column value will be rendered as-is by Cytoscape.",
-      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
     }
   },
   "required" : [ "property_id", "column_name", "column_type" ]
@@ -1857,13 +1938,22 @@ Example 3 — Create a new style cloned from the current style:
 {
   "type" : "object",
   "properties" : {
-    "create" : {
-      "type" : "boolean",
-      "description" : "Optional. Default false. When true, triggers creation of a new style by cloning all default property values and mappings from the style currently applied to the active network view. If 'name' specifies a style that already exists in Cytoscape Desktop, an error is returned indicating a duplicate style cannot be created.\n\nExamples: true, false"
-    },
     "name" : {
       "type" : "string",
       "description" : "Required. Name of the visual style to switch to or create. If a style with this name already exists in Cytoscape Desktop, the current network view is switched to use it. If no style by this name exists, a new style is created only when 'create' is true — otherwise an error is returned indicating the style was not found.\n\nExamples: \"Marquee\", \"My Custom Style\", \"Publication Ready\""
+    },
+    "create" : {
+      "type" : "object",
+      "description" : "Required. Confirm whether to create a new style or switch to an existing one — the semantics of 'name' differ completely between the two modes. Set to false (waived=false, parameter=false) to switch the current network view to an existing style matching 'name' — an error is returned if the style is not found. Set to true (waived=false, parameter=true) to create a new style by cloning default property values and mappings from the currently applied style, then apply it — an error is returned if a style named 'name' already exists. This parameter cannot be waived: confirm the user's intent (find vs create) before invoking.\n\nExamples: {\"waived\": false, \"parameter\": true}, {\"waived\": false, \"parameter\": false}",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "boolean"
+        }
+      }
     }
   },
   "required" : [ "name" ]

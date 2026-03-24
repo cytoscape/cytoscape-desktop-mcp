@@ -14,8 +14,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.stubbing.Answer;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -136,25 +136,41 @@ public class LoadNetworkViewToolTest {
         when(layoutAlgorithm.createTaskIterator(any(), any(), any(), any()))
                 .thenReturn(new TaskIterator());
 
-        // Use a real ValidationService for success-path tests so unwrapToolInputValue works
-        tool = buildTool(new ValidationService());
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            Class<?> type = inv.getArgument(1);
+                            if (raw == null) return null;
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return null;
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return null;
+                            return type.isInstance(raw) ? raw : null;
+                        })
+                .when(validationService)
+                .unwrapToolInputValue(any(), any());
+
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            if (raw == null) return List.of();
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return List.of();
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return List.of();
+                            return MAPPER.convertValue(
+                                    raw, new TypeReference<List<DataColumn>>() {});
+                        })
+                .when(validationService)
+                .unwrapToolInputDataColumns(any());
+
+        tool = buildTool(validationService);
 
         // Prevent real HTTP connections — return an empty stream for any URL
-        try {
-            doReturn(new ByteArrayInputStream(new byte[0])).when(tool).openStream(any(URL.class));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Recreates the tool with the Mockito {@link ValidationService} mock and stubs {@code
-     * unwrapToolInputValue} using the caller-supplied answer. Each delegation test knows exactly
-     * what invocation contract is correct for its scenario and passes it explicitly.
-     */
-    private void setupWithMockValidation(Answer<Object> unwrapAnswer) {
-        tool = buildTool(validationService);
-        doAnswer(unwrapAnswer).when(validationService).unwrapToolInputValue(any(), any());
         try {
             doReturn(new ByteArrayInputStream(new byte[0])).when(tool).openStream(any(URL.class));
         } catch (Exception e) {
@@ -356,6 +372,10 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void networkFileLoad_missingFilePath() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("network-file"), any(), any()))
+                .thenReturn(stubError("file_path is required"));
+
         String response =
                 callToolRaw(
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
@@ -571,7 +591,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_missingSourceColumn_returnsError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         // Validation service reports source_column absent — tool must echo the error.
         when(validationService.validateConditionalParams(
                         eq("source"), eq("tabular-file"), any(), any()))
@@ -615,6 +634,10 @@ public class LoadNetworkViewToolTest {
     @Test
     public void tabularCsv_missingDelimiterForNonExcel_returnsError() throws Exception {
         stubTabularNetwork();
+        // Phase-1 and phase-2 pass (null = no error); phase-3b delimiter check returns error.
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(null, null, stubError("delimiter_char_code is required"));
         String csvPath = fixturePath("genes_comma.csv");
 
         String response =
@@ -1322,7 +1345,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_missingNodeAttrSourceColumns_validationError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-node_attributes_source_columns-absent"));
@@ -1344,7 +1366,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_missingNodeAttrTargetColumns_validationError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-node_attributes_target_columns-absent"));
@@ -1366,7 +1387,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_sourceColumn_waivedTrue_returnsError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-source_column-cannot-waive"));
@@ -1388,7 +1408,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_missingFilePath_validationError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-file_path-absent"));
@@ -1410,7 +1429,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void ndex_missingNetworkId_validationError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(eq("source"), eq("ndex"), any(), any()))
                 .thenReturn(stubError("validation-error-network_id-absent"));
 
@@ -1431,7 +1449,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void ndex_networkId_waivedTrue_returnsError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(eq("source"), eq("ndex"), any(), any()))
                 .thenReturn(stubError("validation-error-network_id-cannot-waive"));
 
@@ -1452,7 +1469,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void networkFile_missingFilePath_validationError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("network-file"), any(), any()))
                 .thenReturn(stubError("validation-error-file_path-absent-network-file"));
@@ -1474,7 +1490,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void networkFile_filePath_waivedTrue_returnsError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("network-file"), any(), any()))
                 .thenReturn(stubError("validation-error-file_path-cannot-waive-network-file"));
@@ -1496,7 +1511,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_missingTargetColumn_validationError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-target_column-absent"));
@@ -1518,7 +1532,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_targetColumn_waivedTrue_returnsError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-target_column-cannot-waive"));
@@ -1540,7 +1553,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_useHeaderRow_waivedTrue_returnsError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-use_header_row-cannot-waive"));
@@ -1562,7 +1574,6 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_missingUseHeaderRow_validationError() throws Exception {
-        setupWithMockValidation(inv -> inv.getArgument(0));
         when(validationService.validateConditionalParams(
                         eq("source"), eq("tabular-file"), any(), any()))
                 .thenReturn(stubError("validation-error-use_header_row-absent"));

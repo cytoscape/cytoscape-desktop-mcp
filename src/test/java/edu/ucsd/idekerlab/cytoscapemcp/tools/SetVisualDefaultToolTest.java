@@ -36,6 +36,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -84,6 +85,7 @@ public class SetVisualDefaultToolTest {
     @Mock private VisualStyle style;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView networkView;
+    @Mock private ValidationService validationService;
 
     private SetVisualDefaultTool tool;
     private InMemoryTransport transport;
@@ -91,12 +93,27 @@ public class SetVisualDefaultToolTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        tool =
-                new SetVisualDefaultTool(
-                        appManager,
-                        vmmManager,
-                        renderingEngineManager,
-                        new VisualPropertyService());
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            Class<?> type = inv.getArgument(1);
+                            if (raw == null) return null;
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return null;
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return null;
+                            return type.isInstance(raw) ? raw : null;
+                        })
+                .when(validationService)
+                .unwrapToolInputValue(any(), any());
+        tool = buildTool(validationService);
+    }
+
+    private SetVisualDefaultTool buildTool(ValidationService vs) {
+        return new SetVisualDefaultTool(
+                appManager, vmmManager, renderingEngineManager, new VisualPropertyService(), vs);
     }
 
     @After
@@ -552,9 +569,14 @@ public class SetVisualDefaultToolTest {
         assertTrue(props.has("node_properties"));
         assertTrue(props.has("edge_properties"));
         assertTrue(props.has("dependencies"));
-        assertEquals("array", props.get("node_properties").get("type").asText());
-        assertEquals("array", props.get("edge_properties").get("type").asText());
-        assertEquals("array", props.get("dependencies").get("type").asText());
+        // ConditionalParameter wrappers appear as "object" at the top level
+        assertEquals("object", props.get("node_properties").get("type").asText());
+        assertEquals("object", props.get("edge_properties").get("type").asText());
+        assertEquals("object", props.get("dependencies").get("type").asText());
+        // Inner parameter types are nested under /properties/parameter
+        assertEquals("array", props.at("/node_properties/properties/parameter/type").asText());
+        assertEquals("array", props.at("/edge_properties/properties/parameter/type").asText());
+        assertEquals("array", props.at("/dependencies/properties/parameter/type").asText());
     }
 
     @Test

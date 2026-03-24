@@ -36,10 +36,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 
 /**
  * Exercises {@link CreateDiscreteMappingGeneratedTool} via InMemoryTransport. Cytoscape services
@@ -74,6 +79,7 @@ public class CreateDiscreteMappingGeneratedToolTest {
     @Mock private RenderingEngineManager renderingEngineManager;
     @Mock private VisualMappingFunctionFactory discreteMappingFactory;
     @Mock private GeneratorService generatorService;
+    @Mock private ValidationService validationService;
     @Mock private VisualStyle style;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView networkView;
@@ -88,14 +94,33 @@ public class CreateDiscreteMappingGeneratedToolTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        tool =
-                new CreateDiscreteMappingGeneratedTool(
-                        appManager,
-                        vmmManager,
-                        renderingEngineManager,
-                        discreteMappingFactory,
-                        new VisualPropertyService(),
-                        generatorService);
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            Class<?> type = inv.getArgument(1);
+                            if (raw == null) return null;
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return null;
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return null;
+                            return type.isInstance(raw) ? raw : null;
+                        })
+                .when(validationService)
+                .unwrapToolInputValue(any(), any());
+        tool = buildTool(validationService);
+    }
+
+    private CreateDiscreteMappingGeneratedTool buildTool(ValidationService vs) {
+        return new CreateDiscreteMappingGeneratedTool(
+                appManager,
+                vmmManager,
+                renderingEngineManager,
+                discreteMappingFactory,
+                new VisualPropertyService(),
+                generatorService,
+                vs);
     }
 
     @After
@@ -484,6 +509,32 @@ public class CreateDiscreteMappingGeneratedToolTest {
         JsonNode schema = MAPPER.readTree(CreateDiscreteMappingGeneratedTool.OUTPUT_SCHEMA);
         assertNotNull(schema);
         assertTrue(schema.isObject());
+    }
+
+    // -----------------------------------------------------------------------
+    // Delegation: ValidationService error propagation
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void numericRangeMissingGeneratorParams_propagatesValidationError() throws Exception {
+        stubSuccessPath();
+        when(validationService.validateConditionalParams(anyString(), anyString(), any(), any()))
+                .thenReturn(stubError("stub-error: generator_params missing for numeric_range"));
+
+        String rawJson =
+                "{\"property_id\":\"NODE_SIZE\",\"column_name\":\"Degree\","
+                        + "\"column_type\":\"Integer\",\"generator\":\"numeric_range\"}";
+        String response = callToolRaw(rawJson);
+
+        assertTrue(response.contains("\"isError\":true"));
+        assertTrue(response.contains("stub-error: generator_params missing for numeric_range"));
+    }
+
+    private static CallToolResult stubError(String marker) {
+        return CallToolResult.builder()
+                .content(List.of(new TextContent(marker)))
+                .isError(true)
+                .build();
     }
 
     // -----------------------------------------------------------------------

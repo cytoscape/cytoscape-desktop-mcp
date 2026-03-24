@@ -21,10 +21,15 @@ import org.cytoscape.view.vizmap.VisualStyleFactory;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 
 /**
  * Exercises {@link SwitchCurrentStyleTool} through its public interface ({@code toSpec()}) by
@@ -48,6 +53,7 @@ public class SwitchCurrentStyleToolTest {
     @Mock private CyApplicationManager appManager;
     @Mock private VisualMappingManager vmmManager;
     @Mock private VisualStyleFactory visualStyleFactory;
+    @Mock private ValidationService validationService;
     @Mock private CyNetworkView currentView;
     @Mock private CyNetwork currentNetwork;
 
@@ -57,11 +63,30 @@ public class SwitchCurrentStyleToolTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        tool = new SwitchCurrentStyleTool(appManager, vmmManager, visualStyleFactory);
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            Class<?> type = inv.getArgument(1);
+                            if (raw == null) return null;
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return null;
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return null;
+                            return type.isInstance(raw) ? raw : null;
+                        })
+                .when(validationService)
+                .unwrapToolInputValue(any(), any());
+        tool = buildTool(validationService);
 
         // Default: a current view exists.
         when(appManager.getCurrentNetworkView()).thenReturn(currentView);
         when(currentView.getModel()).thenReturn(currentNetwork);
+    }
+
+    private SwitchCurrentStyleTool buildTool(ValidationService vs) {
+        return new SwitchCurrentStyleTool(appManager, vmmManager, visualStyleFactory, vs);
     }
 
     @After
@@ -95,9 +120,9 @@ public class SwitchCurrentStyleToolTest {
         when(style.getTitle()).thenReturn("Marquee");
         when(vmmManager.getAllVisualStyles()).thenReturn(Set.of(style));
 
-        String response = callTool("{\"name\": \"Marquee\"}");
-
-        assertTrue("Status should be true", response.contains("\\\"status\\\":true"));
+        String response =
+                callTool(
+                        "{\"name\": \"Marquee\", \"create\": {\"waived\": false, \"parameter\": false}}");
         assertFalse("Should not contain error_msg", response.contains("error_msg"));
     }
 
@@ -109,7 +134,9 @@ public class SwitchCurrentStyleToolTest {
     public void styleNotFound_noCreateFrom_returnsError() throws Exception {
         when(vmmManager.getAllVisualStyles()).thenReturn(Set.of());
 
-        String response = callTool("{\"name\": \"NonExistent\"}");
+        String response =
+                callTool(
+                        "{\"name\": \"NonExistent\", \"create\": {\"waived\": false, \"parameter\": false}}");
 
         assertTrue("Status should be false", response.contains("\\\"status\\\":false"));
         assertTrue(
@@ -131,9 +158,9 @@ public class SwitchCurrentStyleToolTest {
 
         when(vmmManager.getAllVisualStyles()).thenReturn(Set.of());
 
-        String response = callTool("{\"name\": \"My Style\", \"create\": true}");
-
-        assertTrue("Status should be true", response.contains("\\\"status\\\":true"));
+        String response =
+                callTool(
+                        "{\"name\": \"My Style\", \"create\": {\"waived\": false, \"parameter\": true}}");
         verify(newStyle).setTitle("My Style");
         verify(vmmManager).addVisualStyle(newStyle);
     }
@@ -149,9 +176,9 @@ public class SwitchCurrentStyleToolTest {
 
         when(vmmManager.getAllVisualStyles()).thenReturn(Set.of(existing));
 
-        String response = callTool("{\"name\": \"My Style\", \"create\": true}");
-
-        assertTrue("Status should be false", response.contains("\\\"status\\\":false"));
+        String response =
+                callTool(
+                        "{\"name\": \"My Style\", \"create\": {\"waived\": false, \"parameter\": true}}");
         assertTrue(
                 "Should mention duplicate",
                 response.contains("a style with that name already exists"));
@@ -160,6 +187,30 @@ public class SwitchCurrentStyleToolTest {
 
     // -----------------------------------------------------------------------
     // Helpers
+    // -----------------------------------------------------------------------
+    // Delegation — ValidationService error propagation
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void absentCreate_propagatesValidationError() throws Exception {
+        when(validationService.validateConditionalParams(anyString(), anyString(), any(), any()))
+                .thenReturn(stubError("stub-error: create must be confirmed"));
+
+        String response = callTool("{\"name\": \"Marquee\"}");
+
+        assertTrue("Should contain isError", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should contain stub message",
+                response.contains("stub-error: create must be confirmed"));
+    }
+
+    private static CallToolResult stubError(String marker) {
+        return CallToolResult.builder()
+                .content(List.of(new TextContent(marker)))
+                .isError(true)
+                .build();
+    }
+
     // -----------------------------------------------------------------------
 
     private String callTool(String arguments) throws Exception {
