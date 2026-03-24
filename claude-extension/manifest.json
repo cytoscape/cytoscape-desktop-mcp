@@ -1,0 +1,33 @@
+{
+  "dxt_version": "0.1",
+  "name": "cytoscape-mcp",
+  "display_name": "Cytoscape MCP",
+  "version": "1.0.0",
+  "description": "Connect Claude Desktop to Cytoscape Desktop to load, analyze, layout, and style biological networks using natural language.",
+  "author": {
+    "name": "Ideker Lab, UC San Diego"
+  },
+  "icon": "icon.png",
+  "user_config": {
+    "CYREST_PORT": {
+      "type": "number",
+      "title": "CyREST Port",
+      "description": "The port Cytoscape Desktop's REST interface is listening on. Default is 1234 — leave blank to use the default, or enter a different value if you have changed it in Cytoscape → Edit → Preferences → REST API.",
+      "default": 1234,
+      "required": false
+    }
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
+      "env": {
+        "CYREST_PORT": "${user_config.CYREST_PORT}"
+      }
+    }
+  }
+}

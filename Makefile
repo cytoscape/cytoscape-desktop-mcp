@@ -1,4 +1,4 @@
-.PHONY: clean test build lint lint-fix coverage install install-release updateversion help
+.PHONY: clean test build lint lint-fix coverage install install-release updateversion build_claude_mcpb help
 .DEFAULT_GOAL := help
 
 GRADLEW := ./gradlew
@@ -16,6 +16,7 @@ help:
 	@echo "  install          install to local Maven repository"
 	@echo "  install-release  build release JAR with VERSION (e.g. make install-release VERSION=1.2.3)"
 	@echo "  updateversion    update project version in build.gradle"
+	@echo "  build_claude_mcpb  package claude-extension/ into build/cytoscape-mcp.mcpb"
 
 clean:
 	$(GRADLEW) clean
@@ -44,3 +45,12 @@ install-release:
 
 updateversion:
 	@echo "Edit the 'version' property in build.gradle directly."
+
+build_claude_mcpb:
+	rm -rf build/mcpb-staging build/cytoscape-mcp.mcpb
+	mkdir -p build/mcpb-staging
+	cp claude-extension/manifest.json build/mcpb-staging/manifest.json
+	cp claude-extension/icon.png build/mcpb-staging/icon.png
+	cp -r claude-extension/server build/mcpb-staging/server
+	cd build/mcpb-staging && zip -r ../cytoscape-mcp.mcpb .
+	@echo "Built build/cytoscape-mcp.mcpb"

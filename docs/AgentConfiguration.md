@@ -12,29 +12,19 @@ If your agent is not listed below, consult its documentation for configuring an 
 
 ## Claude Desktop
 
-Open Claude Desktop and go to **Settings > Developer > Edit Config**. This will highlight the `claude_desktop_config.json` file in your file explorer/finder, open that .json file and add this mcp config block direct to the json:
+**Prerequisite:** Go to **Settings > Extensions > Advanced** and enable
+**Use Built-in Node.js for MCP**. This is required for the extension to function.
+
+Download the **Cytoscape MCP** extension from the
+[releases page](https://github.com/cytoscape/cytoscape-desktop-mcp/releases/)
+(`cytoscape-mcp.mcpb`). In Claude Desktop go to **Settings > Extensions**, click
+**Install Extension**, and select the downloaded `cytoscape-mcp.mcpb` file.
+
+To verify: the **Cytoscape MCP** connector will appear in **Customize > Connectors**. 
+This screen will display the CyREST port as a config defaulted to 1234, change that if you have changed the CyRest port on Desktop as
+the mcp server is hosted on CyRest.
+
 ```
-{
-  "mcpServers": {
-    "cytoscape": {
-      "command": "npx",
-      "args": [
-        "mcp-remote@latest",
-        "http://localhost:1234/mcp",
-        "--allow-http"
-      ]
-    }
-  },
-  "preferences": {
-    ...
-  }
-}
-```
-
-Restart Claude Desktop.
-
-To verify: the 'cytoscape' mcp connectdor will show up in **Settings > Connectors**  and also **Customize > Connectors**.
-
 ---
 
 ## Claude Code

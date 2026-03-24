@@ -36,10 +36,14 @@ jobs:
     - name: Build release JAR
       run: xvfb-run make install-release VERSION=${{ steps.version.outputs.version }}
 
-    - name: Upload JAR to release
+    - name: Build Claude Desktop extension
+      run: make build_claude_mcpb
+
+    - name: Upload artifacts to release
       run: |
         gh release upload "${{ github.event.release.tag_name }}" \
           "build/libs/cytoscape-mcp-${{ steps.version.outputs.version }}.jar" \
+          "build/cytoscape-mcp.mcpb" \
           --clobber
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
