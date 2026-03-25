@@ -145,6 +145,7 @@ public final class McpServerFactory {
                                 networkFactory,
                                 networkViewFactory,
                                 layoutManager,
+                                vmmManager,
                                 typeConverter,
                                 validationService)
                         .toSpec());

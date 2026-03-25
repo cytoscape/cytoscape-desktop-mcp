@@ -331,6 +331,7 @@ public class CreateDiscreteMappingTool {
                             dm.putAll(finalEntries);
                             finalStyle.removeVisualMappingFunction(finalVp);
                             finalStyle.addVisualMappingFunction(dm);
+                            vpService.enableNodeSizeLockIfNeeded(finalVp, finalStyle);
                             CyNetworkView view = appManager.getCurrentNetworkView();
                             if (view != null) {
                                 finalStyle.apply(view);

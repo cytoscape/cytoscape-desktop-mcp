@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.EventQueue;
 import java.awt.Paint;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -143,7 +144,7 @@ public class CreateDiscreteMappingGeneratedTool {
     static final String INPUT_SCHEMA =
             McpSchema.toJson(
                     McpSchema.InputSchema.builder()
-                            .required("property_id", "column_name", "column_type", "generator")
+                            .required("property_id", "column_name", "column_type")
                             .property(
                                     "property_id",
                                     new McpSchema.InputProperty(
@@ -168,24 +169,21 @@ public class CreateDiscreteMappingGeneratedTool {
                                             List.of(
                                                     "Integer", "Long", "Double", "String",
                                                     "Boolean")))
-                            .property(
+                            .conditionalParam(
                                     "generator",
-                                    new McpSchema.InputProperty(
-                                            "string",
-                                            "Required. Auto-generation algorithm to apply across all distinct column values."
-                                                    + " rainbow and random produce colors from Cytoscape's palette providers"
-                                                    + " (Paint properties only). brewer_sequential produces a light-to-dark"
-                                                    + " single-hue gradient (Paint only); supply an optional hue hint via"
-                                                    + " generator_params. shape_cycle steps through the visual property's own"
-                                                    + " discrete value set (e.g. node shapes), wrapping as needed."
-                                                    + " numeric_range spreads values evenly between a min and max (numeric"
-                                                    + " properties only); min and max are required via generator_params.",
-                                            List.of(
-                                                    "rainbow",
-                                                    "random",
-                                                    "brewer_sequential",
-                                                    "shape_cycle",
-                                                    "numeric_range")))
+                                    "string",
+                                    "Conditional on property_id. Required when the property"
+                                            + " supports multiple generators (Paint properties such"
+                                            + " as NODE_FILL_COLOR, EDGE_STROKE_UNSELECTED_PAINT)"
+                                            + " — choose from rainbow, random, or"
+                                            + " brewer_sequential. May be waived when only one"
+                                            + " generator is compatible: shape_cycle is"
+                                            + " auto-selected for discrete shape/line-type"
+                                            + " properties (NODE_SHAPE, EDGE_LINE_TYPE, etc.);"
+                                            + " numeric_range is auto-selected for numeric"
+                                            + " properties (NODE_SIZE, EDGE_WIDTH, etc.) — waive"
+                                            + " and the tool selects it. Confirm with the user"
+                                            + " before setting or waiving.")
                             .conditionalParam(
                                     "generator_params",
                                     "object",
@@ -286,7 +284,6 @@ public class CreateDiscreteMappingGeneratedTool {
             String propertyId = String.valueOf(args.get("property_id"));
             String columnName = String.valueOf(args.get("column_name"));
             String columnTypeStr = String.valueOf(args.get("column_type"));
-            String generator = String.valueOf(args.get("generator"));
 
             // VALIDATION: visual property
             VisualProperty<?> vp = vpService.findPropertyById(lexicon, propertyId);
@@ -309,24 +306,38 @@ public class CreateDiscreteMappingGeneratedTool {
                 return error(e.getMessage());
             }
 
-            // VALIDATION: generator name
-            List<String> validGenerators =
-                    List.of(
-                            "rainbow",
-                            "random",
-                            "brewer_sequential",
-                            "shape_cycle",
-                            "numeric_range");
-            if (!validGenerators.contains(generator)) {
+            // VALIDATION: generator — conditional on property_id (VP type determines valid set)
+            List<String> compatibleGenerators = getCompatibleGenerators(vp);
+            if (compatibleGenerators.isEmpty()) {
                 return error(
-                        "Unknown generator '"
-                                + generator
-                                + "'. Valid values: "
-                                + String.join(", ", validGenerators)
-                                + ".");
+                        "No compatible generators exist for property '"
+                                + propertyId
+                                + "'. This property type cannot be used with"
+                                + " create_discrete_mapping_generated.");
+            }
+            boolean generatorWaiveable = compatibleGenerators.size() == 1;
+            CallToolResult genErr =
+                    validationService.validateConditionalParams(
+                            "property_id",
+                            propertyId,
+                            args,
+                            List.of(
+                                    new ValidationService.ConditionalParam(
+                                            "generator",
+                                            "the generation algorithm — valid choices for this"
+                                                    + " property: "
+                                                    + String.join(", ", compatibleGenerators),
+                                            generatorWaiveable)));
+            if (genErr != null) return genErr;
+
+            String generator =
+                    validationService.unwrapToolInputValue(args.get("generator"), String.class);
+            if (generator == null) {
+                // waiveable=true means exactly one compatible generator — auto-select it
+                generator = compatibleGenerators.get(0);
             }
 
-            // VALIDATION: generator ↔ VP type compatibility (before any table lookups)
+            // VALIDATION: generator ↔ VP type compatibility (guard for explicitly supplied values)
             String compatError = checkCompatibility(generator, vp);
             if (compatError != null) {
                 return error(compatError);
@@ -478,6 +489,7 @@ public class CreateDiscreteMappingGeneratedTool {
                             dm.putAll(finalEntries);
                             finalStyle.removeVisualMappingFunction(finalVp);
                             finalStyle.addVisualMappingFunction(dm);
+                            vpService.enableNodeSizeLockIfNeeded(finalVp, finalStyle);
                             CyNetworkView view = appManager.getCurrentNetworkView();
                             if (view != null) {
                                 finalStyle.apply(view);
@@ -615,6 +627,28 @@ public class CreateDiscreteMappingGeneratedTool {
             default:
                 return null;
         }
+    }
+
+    /**
+     * Returns the generators that are compatible with the given visual property's type. This is the
+     * inverse of {@link #checkCompatibility}: it enumerates valid options rather than rejecting an
+     * invalid one.
+     */
+    private static List<String> getCompatibleGenerators(VisualProperty<?> vp) {
+        Class<?> vpType = vp.getRange().getType();
+        List<String> valid = new ArrayList<>();
+        if (Paint.class.isAssignableFrom(vpType) || Color.class.isAssignableFrom(vpType)) {
+            valid.addAll(List.of("rainbow", "random", "brewer_sequential"));
+        }
+        if (vp.getRange() instanceof DiscreteRange
+                && !Paint.class.isAssignableFrom(vpType)
+                && !java.awt.Font.class.isAssignableFrom(vpType)) {
+            valid.add("shape_cycle");
+        }
+        if (!(vp.getRange() instanceof DiscreteRange) && Number.class.isAssignableFrom(vpType)) {
+            valid.add("numeric_range");
+        }
+        return valid;
     }
 
     // -- Helpers ---------------------------------------------------------------

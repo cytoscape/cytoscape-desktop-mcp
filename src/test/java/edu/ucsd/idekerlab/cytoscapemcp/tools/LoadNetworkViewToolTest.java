@@ -38,6 +38,8 @@ import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualStyle;
 import org.cytoscape.work.FinishStatus;
 import org.cytoscape.work.Task;
 import org.cytoscape.work.TaskIterator;
@@ -101,6 +103,8 @@ public class LoadNetworkViewToolTest {
     @Mock private CyNetworkViewFactory networkViewFactory;
     @Mock private CyLayoutAlgorithmManager layoutAlgorithmManager;
     @Mock private CyLayoutAlgorithm layoutAlgorithm;
+    @Mock private VisualMappingManager vmmManager;
+    @Mock private VisualStyle visualStyle;
     @Mock private CyNetworkReader networkReader;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView networkView;
@@ -129,6 +133,9 @@ public class LoadNetworkViewToolTest {
         props = new Properties();
         props.setProperty("mcp.ndexbaseurl", "https://www.ndexbio.org");
         when(cyProperties.getProperties()).thenReturn(props);
+
+        // Stub vmmManager — getVisualStyle always returns the mock style
+        when(vmmManager.getVisualStyle(any())).thenReturn(visualStyle);
 
         // Stub layout manager — returns a mock algorithm with an empty TaskIterator
         when(layoutAlgorithmManager.getDefaultLayout()).thenReturn(layoutAlgorithm);
@@ -191,6 +198,7 @@ public class LoadNetworkViewToolTest {
                         networkFactory,
                         networkViewFactory,
                         layoutAlgorithmManager,
+                        vmmManager,
                         new TabularTypeConverter(),
                         vs));
     }

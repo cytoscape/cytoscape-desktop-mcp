@@ -273,6 +273,7 @@ public class CreatePassthroughMappingTool {
                                                     finalColumnName, finalColType, finalVp);
                             finalStyle.removeVisualMappingFunction(finalVp);
                             finalStyle.addVisualMappingFunction(pm);
+                            vpService.enableNodeSizeLockIfNeeded(finalVp, finalStyle);
                             CyNetworkView view = appManager.getCurrentNetworkView();
                             if (view != null) {
                                 finalStyle.apply(view);

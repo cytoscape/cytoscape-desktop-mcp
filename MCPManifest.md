@@ -1544,18 +1544,18 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
         "description" : "A breakpoint entry with fields: value (number), lesser (property value below this point), equal (property value at this point), greater (property value above this point)."
       }
     },
-    "column_type" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Java type of the data column.",
-      "enum" : [ "Integer", "Long", "Double" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the numeric data column driving the mapping. Query numeric network columns compatible with continuous mapping for the chosen property using other tooling available."
     },
-    "property_id" : {
+    "column_type" : {
       "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
+      "description" : "Required. Java type of the data column.",
+      "enum" : [ "Integer", "Long", "Double" ]
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "points" ]
@@ -1630,18 +1630,18 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
       "type" : "object",
       "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
     },
-    "column_type" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
-      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
     },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the data column driving the mapping. Query compatible network columns for the chosen property using other tooling available."
     },
-    "property_id" : {
+    "column_type" : {
       "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
+      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
+      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "entries" ]
@@ -1711,10 +1711,9 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
 {
   "type" : "object",
   "properties" : {
-    "generator" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Auto-generation algorithm to apply across all distinct column values. rainbow and random produce colors from Cytoscape's palette providers (Paint properties only). brewer_sequential produces a light-to-dark single-hue gradient (Paint only); supply an optional hue hint via generator_params. shape_cycle steps through the visual property's own discrete value set (e.g. node shapes), wrapping as needed. numeric_range spreads values evenly between a min and max (numeric properties only); min and max are required via generator_params.",
-      "enum" : [ "rainbow", "random", "brewer_sequential", "shape_cycle", "numeric_range" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     },
     "column_type" : {
       "type" : "string",
@@ -1725,9 +1724,18 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
       "type" : "string",
       "description" : "Required. Name of the data column to drive the mapping. Query compatible network columns for the chosen property using other tooling available."
     },
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
+    "generator" : {
+      "type" : "object",
+      "description" : "Conditional on property_id. Required when the property supports multiple generators (Paint properties such as NODE_FILL_COLOR, EDGE_STROKE_UNSELECTED_PAINT) — choose from rainbow, random, or brewer_sequential. May be waived when only one generator is compatible: shape_cycle is auto-selected for discrete shape/line-type properties (NODE_SHAPE, EDGE_LINE_TYPE, etc.); numeric_range is auto-selected for numeric properties (NODE_SIZE, EDGE_WIDTH, etc.) — waive and the tool selects it. Confirm with the user before setting or waiving.",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
     },
     "generator_params" : {
       "type" : "object",
@@ -1743,7 +1751,7 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
       }
     }
   },
-  "required" : [ "property_id", "column_name", "column_type", "generator" ]
+  "required" : [ "property_id", "column_name", "column_type" ]
 }
 ```
 
@@ -1817,14 +1825,14 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
 {
   "type" : "object",
   "properties" : {
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
+    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid; the column value will be rendered as-is by Cytoscape.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
-    },
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
     },
     "column_name" : {
       "type" : "string",

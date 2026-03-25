@@ -366,6 +366,7 @@ public class CreateContinuousMappingTool {
                             }
                             finalStyle.removeVisualMappingFunction(finalVp);
                             finalStyle.addVisualMappingFunction(cm);
+                            vpService.enableNodeSizeLockIfNeeded(finalVp, finalStyle);
                             CyNetworkView view = appManager.getCurrentNetworkView();
                             if (view != null) {
                                 finalStyle.apply(view);

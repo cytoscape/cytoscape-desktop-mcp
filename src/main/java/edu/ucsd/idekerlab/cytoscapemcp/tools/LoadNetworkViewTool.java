@@ -57,6 +57,7 @@ import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.view.vizmap.VisualMappingManager;
 import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.FinishStatus;
 import org.cytoscape.work.ObservableTask;
@@ -313,6 +314,7 @@ public class LoadNetworkViewTool {
     private final CyNetworkFactory networkFactory;
     private final CyNetworkViewFactory networkViewFactory;
     private final CyLayoutAlgorithmManager layoutAlgorithmManager;
+    private final VisualMappingManager vmmManager;
     private final TabularTypeConverter typeConverter;
     private final ValidationService validationService;
 
@@ -327,6 +329,7 @@ public class LoadNetworkViewTool {
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
             CyLayoutAlgorithmManager layoutAlgorithmManager,
+            VisualMappingManager vmmManager,
             TabularTypeConverter typeConverter,
             ValidationService validationService) {
         this.cyProperties = cyProperties;
@@ -339,6 +342,7 @@ public class LoadNetworkViewTool {
         this.networkFactory = networkFactory;
         this.networkViewFactory = networkViewFactory;
         this.layoutAlgorithmManager = layoutAlgorithmManager;
+        this.vmmManager = vmmManager;
         this.typeConverter = typeConverter;
         this.validationService = validationService;
     }
@@ -580,6 +584,8 @@ public class LoadNetworkViewTool {
         CyNetworkView view = reader.buildCyNetworkView(loaded);
         if (view != null) {
             viewManager.addNetworkView(view);
+            vmmManager.getVisualStyle(view).apply(view);
+            view.updateView();
         }
 
         return loaded;
@@ -850,6 +856,8 @@ public class LoadNetworkViewTool {
 
         CyNetworkView view = networkViewFactory.createNetworkView(network);
         viewManager.addNetworkView(view);
+        vmmManager.getVisualStyle(view).apply(view);
+        view.updateView();
         applyDefaultLayout(view);
         appManager.setCurrentNetwork(network);
         appManager.setCurrentNetworkView(view);
@@ -1236,6 +1244,8 @@ public class LoadNetworkViewTool {
         CyNetworkView view = reader.buildCyNetworkView(loaded);
         if (view != null) {
             viewManager.addNetworkView(view);
+            vmmManager.getVisualStyle(view).apply(view);
+            view.updateView();
         }
 
         return loaded;

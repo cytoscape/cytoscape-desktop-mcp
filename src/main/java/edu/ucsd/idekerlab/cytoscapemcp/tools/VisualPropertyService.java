@@ -22,6 +22,8 @@ import org.cytoscape.view.presentation.property.values.LineType;
 import org.cytoscape.view.presentation.property.values.NodeShape;
 import org.cytoscape.view.presentation.property.values.VisualPropertyValue;
 import org.cytoscape.view.vizmap.VisualMappingFunction;
+import org.cytoscape.view.vizmap.VisualPropertyDependency;
+import org.cytoscape.view.vizmap.VisualStyle;
 import org.cytoscape.view.vizmap.mappings.ContinuousMapping;
 import org.cytoscape.view.vizmap.mappings.ContinuousMappingPoint;
 import org.cytoscape.view.vizmap.mappings.DiscreteMapping;
@@ -513,6 +515,24 @@ public class VisualPropertyService {
                             + "' cannot be parsed as "
                             + columnType.getSimpleName()
                             + ".");
+        }
+    }
+
+    /**
+     * When the target property is NODE_SIZE, automatically enables the "nodeSizeLocked" dependency
+     * so the size mapping is applied immediately without the user needing to manually toggle "Lock
+     * node width and height". Must be called on the Swing EDT while applying the mapping.
+     */
+    public void enableNodeSizeLockIfNeeded(VisualProperty<?> vp, VisualStyle style) {
+        if ("NODE_SIZE".equals(vp.getIdString())) {
+            for (VisualPropertyDependency<?> dep : style.getAllVisualPropertyDependencies()) {
+                if ("nodeSizeLocked".equals(dep.getIdString())) {
+                    if (!dep.isDependencyEnabled()) {
+                        dep.setDependency(true);
+                    }
+                    break;
+                }
+            }
         }
     }
 }

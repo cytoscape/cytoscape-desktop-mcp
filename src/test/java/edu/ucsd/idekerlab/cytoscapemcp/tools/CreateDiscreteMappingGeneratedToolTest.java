@@ -178,8 +178,11 @@ public class CreateDiscreteMappingGeneratedToolTest {
     // -----------------------------------------------------------------------
 
     @Test
+    @SuppressWarnings("unchecked")
     public void unknownGenerator_returnsError() throws Exception {
         stubSuccessPath();
+        // Stub column so the handler reaches generate() — error surfaces there for unknown names
+        stubNodeTableWithStringColumn("GeneType", "kinase");
 
         String response =
                 callTool(buildArgs("NODE_FILL_COLOR", "GeneType", "String", "sparkle_burst"));
@@ -483,14 +486,13 @@ public class CreateDiscreteMappingGeneratedToolTest {
         assertTrue("Should have generator", props.has("generator"));
         assertTrue("Should have generator_params", props.has("generator_params"));
 
-        JsonNode generatorEnum = props.get("generator").get("enum");
-        assertNotNull("generator should have enum values", generatorEnum);
-        String enumStr = generatorEnum.toString();
-        assertTrue(enumStr.contains("rainbow"));
-        assertTrue(enumStr.contains("random"));
-        assertTrue(enumStr.contains("brewer_sequential"));
-        assertTrue(enumStr.contains("shape_cycle"));
-        assertTrue(enumStr.contains("numeric_range"));
+        // generator is now a ConditionalParam (object with waived + parameter fields)
+        JsonNode generatorNode = props.get("generator");
+        assertEquals("object", generatorNode.get("type").asText());
+        JsonNode generatorProps = generatorNode.get("properties");
+        assertNotNull("generator should have nested properties", generatorProps);
+        assertTrue("generator should have waived field", generatorProps.has("waived"));
+        assertTrue("generator should have parameter field", generatorProps.has("parameter"));
 
         JsonNode colTypeEnum = props.get("column_type").get("enum");
         assertNotNull("column_type should have enum values", colTypeEnum);
@@ -528,6 +530,106 @@ public class CreateDiscreteMappingGeneratedToolTest {
 
         assertTrue(response.contains("\"isError\":true"));
         assertTrue(response.contains("stub-error: generator_params missing for numeric_range"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Generator as ConditionalParam: 4 waived/explicit × 1-choice/multi-choice cases
+    // -----------------------------------------------------------------------
+
+    /**
+     * Test 1: generator waived, only one compatible generator exists (NODE_SHAPE → shape_cycle).
+     * The tool must auto-select shape_cycle and succeed.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void generator_waived_oneCompatible_autoSelectsAndSucceeds() throws Exception {
+        stubSuccessPath();
+        stubNodeTableWithStringColumn("community", "c1", "c2");
+        stubFactory();
+        org.cytoscape.view.presentation.property.values.NodeShape ellipse =
+                org.cytoscape.view.presentation.property.NodeShapeVisualProperty.ELLIPSE;
+        doReturn(Map.of("c1", ellipse, "c2", ellipse))
+                .when(generatorService)
+                .generateShapeCycle(any(), any());
+
+        String rawJson =
+                "{\"property_id\":\"NODE_SHAPE\",\"column_name\":\"community\","
+                        + "\"column_type\":\"String\","
+                        + "\"generator\":{\"waived\":true}}";
+        String response = callToolRaw(rawJson);
+
+        assertFalse("Expected no error", response.contains("\"isError\":true"));
+        assertTrue(response.contains("\"generator\":\"shape_cycle\""));
+    }
+
+    /**
+     * Test 2: generator waived, multiple compatible generators exist (NODE_FILL_COLOR → rainbow /
+     * random / brewer_sequential). The tool must reject the waive and return an error.
+     */
+    @Test
+    public void generator_waived_multipleCompatible_returnsError() throws Exception {
+        stubSuccessPath();
+        // Use real ValidationService so validateConditionalParams actually enforces cannotWaive
+        tool = buildTool(new ValidationService());
+
+        String rawJson =
+                "{\"property_id\":\"NODE_FILL_COLOR\",\"column_name\":\"GeneType\","
+                        + "\"column_type\":\"String\","
+                        + "\"generator\":{\"waived\":true}}";
+        String response = callToolRaw(rawJson);
+
+        assertTrue("Expected error", response.contains("\"isError\":true"));
+        assertTrue(response.contains("generator"));
+    }
+
+    /**
+     * Test 3: generator explicitly provided (not waived), only one compatible option (NODE_SHAPE +
+     * shape_cycle). The tool must accept the explicit value and succeed.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void generator_explicit_oneCompatible_succeeds() throws Exception {
+        stubSuccessPath();
+        stubNodeTableWithStringColumn("community", "c1", "c2");
+        stubFactory();
+        org.cytoscape.view.presentation.property.values.NodeShape ellipse =
+                org.cytoscape.view.presentation.property.NodeShapeVisualProperty.ELLIPSE;
+        doReturn(Map.of("c1", ellipse, "c2", ellipse))
+                .when(generatorService)
+                .generateShapeCycle(any(), any());
+
+        String rawJson =
+                "{\"property_id\":\"NODE_SHAPE\",\"column_name\":\"community\","
+                        + "\"column_type\":\"String\","
+                        + "\"generator\":{\"waived\":false,\"parameter\":\"shape_cycle\"}}";
+        String response = callToolRaw(rawJson);
+
+        assertFalse("Expected no error", response.contains("\"isError\":true"));
+        assertTrue(response.contains("\"generator\":\"shape_cycle\""));
+    }
+
+    /**
+     * Test 4: generator explicitly provided (not waived), multiple compatible options
+     * (NODE_FILL_COLOR + rainbow). The tool must accept the explicit value and succeed.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void generator_explicit_multipleCompatible_succeeds() throws Exception {
+        stubSuccessPath();
+        stubNodeTableWithStringColumn("GeneType", "kinase", "receptor");
+        stubFactory();
+        doReturn(Map.of("kinase", java.awt.Color.RED, "receptor", java.awt.Color.BLUE))
+                .when(generatorService)
+                .generateRainbow(any());
+
+        String rawJson =
+                "{\"property_id\":\"NODE_FILL_COLOR\",\"column_name\":\"GeneType\","
+                        + "\"column_type\":\"String\","
+                        + "\"generator\":{\"waived\":false,\"parameter\":\"rainbow\"}}";
+        String response = callToolRaw(rawJson);
+
+        assertFalse("Expected no error", response.contains("\"isError\":true"));
+        assertTrue(response.contains("\"generator\":\"rainbow\""));
     }
 
     private static CallToolResult stubError(String marker) {
