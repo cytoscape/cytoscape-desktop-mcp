@@ -7,8 +7,11 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -25,36 +28,50 @@ import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
+import io.modelcontextprotocol.server.transport.ServerTransportSecurityException;
+import io.modelcontextprotocol.server.transport.ServerTransportSecurityValidator;
 import io.modelcontextprotocol.spec.HttpHeaders;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpStreamableServerSession;
 import io.modelcontextprotocol.spec.McpStreamableServerTransport;
 import io.modelcontextprotocol.spec.McpStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.ProtocolVersions;
+import io.modelcontextprotocol.util.KeepAliveScheduler;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * JAX-RS port of the MCP SDK's {@code HttpServletStreamableServerTransportProvider}.
+ * JAX-RS port of the MCP SDK's {@code HttpServletStreamableServerTransportProvider} (SDK v1.1.0).
  *
- * <h3>Why a port is required</h3>
+ * <h3>Why a JAX-RS port is still required (SDK v1.1.0 reassessment)</h3>
  *
- * <p>The MCP SDK ships {@code HttpServletStreamableServerTransportProvider}, which extends {@code
- * jakarta.servlet.http.HttpServlet} and holds a {@code jakarta.servlet.AsyncContext} per streaming
- * response. That class cannot be used here for two reasons:
+ * <p>Direct use of the SDK's {@code HttpServletStreamableServerTransportProvider} is still not
+ * possible in Cytoscape 3.10.x due to two unchanged constraints:
  *
  * <ol>
- *   <li><b>Namespace mismatch.</b> CyREST runs on Pax Web / Jetty 9.4 (Servlet 3.1, {@code
- *       javax.servlet}). The SDK uses {@code jakarta.servlet} 6.1, which is a different namespace
- *       requiring Servlet 6.0+ / Jetty 12+. The two are binary incompatible.
- *   <li><b>JAX-RS hand-off boundary.</b> The MCP HTTP endpoint in this app is {@link McpEndpoint} —
- *       a plain JAX-RS {@code @Path("/mcp")} resource class registered as an OSGi service via
- *       publisher-5.3. publisher-5.3 discovers the {@code @Path} annotation and mounts the class
- *       into Jersey. By the time a request reaches {@link McpEndpoint}, it has already passed
- *       through Jersey's request pipeline: the method parameters are a deserialized {@link
- *       InputStream} body and {@code @HeaderParam} strings. There is no {@code HttpServletRequest}
- *       or {@code AsyncContext} in scope — {@link McpEndpoint} cannot delegate to a class that
- *       requires them.
+ *   <li><b>Namespace mismatch.</b> SDK v1.1.0 still imports {@code jakarta.servlet.*} (Servlet
+ *       6.x). Cytoscape 3.10.x / Pax Web ships {@code javax.servlet} (Servlet 3.1). The two
+ *       namespaces are binary incompatible — the SDK class cannot be loaded in Cytoscape's
+ *       classloader. Switching from JAX-RS back to raw Pax Web {@code HttpService} servlet
+ *       registration would not help: the SDK transport still cannot load regardless of the
+ *       registration mechanism.
+ *   <li><b>JAX-RS hand-off boundary.</b> The MCP HTTP endpoint is {@link McpEndpoint} — a plain
+ *       JAX-RS {@code @Path("/mcp")} resource class registered via publisher-5.3. By the time a
+ *       request arrives, it has passed through Jersey's pipeline. Method parameters are a
+ *       deserialized {@link InputStream} and {@code @HeaderParam} strings. There is no {@code
+ *       HttpServletRequest} or {@code AsyncContext} in scope, which the SDK transport requires for
+ *       async streaming. {@code @Context HttpServletRequest} injection is explicitly ruled out due
+ *       to HK2 proxy-generation failures in the OSGi environment (see {@link McpEndpoint} Javadoc).
  * </ol>
+ *
+ * <p><b>When this can be deleted:</b> if Cytoscape upgrades to Pax Web 8+ / Jetty 12+, which brings
+ * native {@code jakarta.servlet} 6.x support, the SDK transport can be used directly and this port
+ * can be removed. That upgrade is outside this project's control.
+ *
+ * <p><b>Maintenance model:</b> SDK v1.0.0 → v1.1.0 was additive-only (no breaking changes). This
+ * port is synced to SDK v1.1.0 — it adds {@link #notifyClient}, an optional {@link
+ * KeepAliveScheduler} (disabled by default), and an optional {@link
+ * ServerTransportSecurityValidator} hook (NOOP by default).
  *
  * <h3>What this class does instead</h3>
  *
@@ -97,6 +114,24 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
             new ConcurrentHashMap<>();
     private volatile boolean isClosing = false;
 
+    /**
+     * Optional keep-alive scheduler. {@code null} (disabled) by default. Call {@link
+     * #startKeepAlive(Duration)} to enable.
+     */
+    private KeepAliveScheduler keepAliveScheduler;
+
+    /**
+     * Security validator called on each inbound request. Defaults to NOOP. Call {@link
+     * #setSecurityValidator(ServerTransportSecurityValidator)} to replace.
+     *
+     * <p><b>JAX-RS limitation:</b> {@link McpEndpoint} only exposes individual {@code @HeaderParam}
+     * values, not the full header map. The limited map passed to {@link
+     * ServerTransportSecurityValidator#validateHeaders} contains only the headers available at the
+     * JAX-RS layer ({@code Accept}, {@code mcp-session-id}).
+     */
+    private volatile ServerTransportSecurityValidator securityValidator =
+            ServerTransportSecurityValidator.NOOP;
+
     public McpTransportProvider() {
         this.objectMapper = new ObjectMapper();
         this.jsonMapper = new JacksonMcpJsonMapper(this.objectMapper);
@@ -111,6 +146,33 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
 
     public boolean isRunning() {
         return !isClosing;
+    }
+
+    /**
+     * Replaces the security validator. The default is {@link
+     * ServerTransportSecurityValidator#NOOP}. See the class Javadoc for limitations on header
+     * availability in the JAX-RS port.
+     */
+    public void setSecurityValidator(ServerTransportSecurityValidator securityValidator) {
+        this.securityValidator = securityValidator;
+    }
+
+    /**
+     * Starts the keep-alive scheduler, sending periodic pings to all active sessions at the given
+     * interval. Has no effect if already started. The scheduler is shut down automatically in
+     * {@link #closeGracefully()}.
+     */
+    public void startKeepAlive(Duration interval) {
+        this.keepAliveScheduler =
+                KeepAliveScheduler.builder(
+                                () ->
+                                        isClosing
+                                                ? Flux.empty()
+                                                : Flux.fromIterable(sessions.values()))
+                        .initialDelay(interval)
+                        .interval(interval)
+                        .build();
+        this.keepAliveScheduler.start();
     }
 
     // -------------------------------------------------------------------------
@@ -157,6 +219,23 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
                                         }));
     }
 
+    /**
+     * Sends a notification to a specific session identified by {@code sessionId}. Returns an empty
+     * Mono (no error) if the session is not found — the client may have disconnected.
+     */
+    @Override
+    public Mono<Void> notifyClient(String sessionId, String method, Object params) {
+        return Mono.defer(
+                () -> {
+                    McpStreamableServerSession session = this.sessions.get(sessionId);
+                    if (session == null) {
+                        logger.debug("Session {} not found for notifyClient", sessionId);
+                        return Mono.empty();
+                    }
+                    return session.sendNotification(method, params);
+                });
+    }
+
     @Override
     public Mono<Void> closeGracefully() {
         return Mono.fromRunnable(
@@ -178,6 +257,9 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
                                         }
                                     });
                     this.sessions.clear();
+                    if (this.keepAliveScheduler != null) {
+                        this.keepAliveScheduler.shutdown();
+                    }
                     logger.debug("Graceful shutdown completed");
                 });
     }
@@ -198,6 +280,15 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
         logger.info("handlePost invoked — accept={} sessionId={}", accept, sessionId);
         if (this.isClosing) {
             return Response.status(503).entity("Server is shutting down").build();
+        }
+
+        try {
+            this.securityValidator.validateHeaders(limitedHeaders(accept, sessionId));
+        } catch (ServerTransportSecurityException e) {
+            return Response.status(e.getStatusCode())
+                    .entity(errorJson(McpSchema.ErrorCodes.INTERNAL_ERROR, e.getMessage()))
+                    .type(APPLICATION_JSON)
+                    .build();
         }
 
         List<String> badRequestErrors = new ArrayList<>();
@@ -360,11 +451,20 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
             return Response.status(503).entity("Server is shutting down").build();
         }
 
+        try {
+            this.securityValidator.validateHeaders(limitedHeaders(null, sessionId));
+        } catch (ServerTransportSecurityException e) {
+            return Response.status(e.getStatusCode())
+                    .entity(errorJson(McpSchema.ErrorCodes.INTERNAL_ERROR, e.getMessage()))
+                    .type(APPLICATION_JSON)
+                    .build();
+        }
+
         if (sessionId == null) {
             return Response.status(400)
                     .entity(
                             errorJson(
-                                    McpSchema.ErrorCodes.INVALID_REQUEST,
+                                    McpSchema.ErrorCodes.METHOD_NOT_FOUND,
                                     "Session ID required in mcp-session-id header"))
                     .type(APPLICATION_JSON)
                     .build();
@@ -405,7 +505,7 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
 
     private Response errorResponse(int status, List<String> errors) {
         return Response.status(status)
-                .entity(errorJson(McpSchema.ErrorCodes.INVALID_REQUEST, String.join("; ", errors)))
+                .entity(errorJson(McpSchema.ErrorCodes.METHOD_NOT_FOUND, String.join("; ", errors)))
                 .type(APPLICATION_JSON)
                 .build();
     }
@@ -418,6 +518,18 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
             logger.error(FAILED_TO_SEND_ERROR_RESPONSE, e.getMessage());
             return "{\"code\":" + code + ",\"message\":\"" + message.replace("\"", "\\\"") + "\"}";
         }
+    }
+
+    /**
+     * Builds a limited headers map from the header values available at the JAX-RS layer. Used to
+     * call {@link ServerTransportSecurityValidator#validateHeaders} with whatever we have, since
+     * the full {@code HttpServletRequest} header map is not accessible here.
+     */
+    private Map<String, List<String>> limitedHeaders(String accept, String sessionId) {
+        Map<String, List<String>> headers = new HashMap<>();
+        if (accept != null) headers.put("Accept", List.of(accept));
+        if (sessionId != null) headers.put(HttpHeaders.MCP_SESSION_ID, List.of(sessionId));
+        return headers;
     }
 
     private void sendEvent(PrintWriter writer, String eventType, String data, String id)
@@ -475,10 +587,7 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
                             }
                             String jsonText = objectMapper.writeValueAsString(message);
                             McpTransportProvider.this.sendEvent(
-                                    writer,
-                                    MESSAGE_EVENT_TYPE,
-                                    jsonText,
-                                    messageId != null ? messageId : this.sessionId);
+                                    writer, MESSAGE_EVENT_TYPE, jsonText, messageId);
                             logger.debug(
                                     "Message sent to session {} with ID {}",
                                     this.sessionId,

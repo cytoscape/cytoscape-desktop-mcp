@@ -70,7 +70,7 @@ dependencies {
     compileOnly "org.ops4j.pax.logging:pax-logging-api:1.5.3"
     compileOnly "org.slf4j:slf4j-api:1.7.36"
 
-    embed platform("io.modelcontextprotocol.sdk:mcp-bom:1.0.0")
+    embed platform("io.modelcontextprotocol.sdk:mcp-bom:1.1.0")
     embed "io.modelcontextprotocol.sdk:mcp-core"
     embed "io.modelcontextprotocol.sdk:mcp-json-jackson2"
 

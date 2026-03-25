@@ -435,20 +435,24 @@ public class CyActivator extends AbstractCyActivator {
     }
 
     private void stopServers() {
-        if (transportProvider != null) {
-            try {
-                transportProvider.closeGracefully().block();
-                LOGGER.info("MCP transport provider closed gracefully");
-            } catch (Exception e) {
-                LOGGER.warn("Error closing MCP transport provider", e);
-            }
-        }
+        // Close the SDK server first so it can perform its own orderly shutdown,
+        // then close the transport. mcpServer.close() delegates to the transport's
+        // closeGracefully() internally, so closing transport first would cause the
+        // SDK to see an already-closed transport during its shutdown sequence.
         if (mcpServer != null) {
             try {
                 mcpServer.close();
                 LOGGER.info("MCP server stopped");
             } catch (Exception e) {
                 LOGGER.warn("Error stopping MCP server", e);
+            }
+        }
+        if (transportProvider != null) {
+            try {
+                transportProvider.closeGracefully().block();
+                LOGGER.info("MCP transport provider closed gracefully");
+            } catch (Exception e) {
+                LOGGER.warn("Error closing MCP transport provider", e);
             }
         }
     }
