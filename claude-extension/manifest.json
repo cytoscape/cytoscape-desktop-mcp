@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "cytoscape-mcp",
   "display_name": "Cytoscape MCP",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Connect Claude Desktop to Cytoscape Desktop to load, analyze, layout, and style biological networks using natural language.",
   "author": {
     "name": "Ideker Lab, UC San Diego"

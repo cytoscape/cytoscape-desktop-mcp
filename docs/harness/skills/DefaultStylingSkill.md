@@ -10,6 +10,42 @@ IMPORTANT RULES:
 - The user can say "done" at any time to finish.
 
 ═══════════════════════════════════════════════════════════════
+STEP 0 — Style selection (optional)
+═══════════════════════════════════════════════════════════════
+
+If the user's request involves choosing, switching, or creating a named style, handle
+it here before proceeding to STEP 1. If the user simply wants to modify the current
+style's defaults, skip directly to STEP 1.
+
+--- IF user wants to see available styles or switch styles ---
+
+Call tool: get_styles
+
+Optionally also call: get_loaded_network_views (to see which view is current and its style)
+
+Present results:
+"Here are the visual styles available in Cytoscape Desktop:
+
+| # | Style Name |
+|---|------------|
+| 1 | default |
+| 2 | Marquee |
+| ... | ... |
+
+Your current view is using the '{current_style}' style. Which style would you like to apply?
+(enter the number or name, or 'skip' to keep the current style)"
+
+If user picks a style → call: switch_current_style with {"name": "<chosen_style>"}
+If success → "Switched to the '{style_name}' style." → proceed to STEP 1
+
+--- IF user wants to create a new named style ---
+
+Ask: "Which existing style would you like to base the new style on?"
+Present style list from get_styles
+User picks source → call: switch_current_style with {"name": "<new_name>", "create_from": "<source>"}
+If success → "Created style '{new_name}' based on '{source}'." → proceed to STEP 1
+
+═══════════════════════════════════════════════════════════════
 STEP 1 — Show current defaults
 ═══════════════════════════════════════════════════════════════
 

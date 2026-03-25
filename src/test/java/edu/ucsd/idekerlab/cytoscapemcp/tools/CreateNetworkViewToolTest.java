@@ -28,6 +28,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -64,12 +65,12 @@ public class CreateNetworkViewToolTest {
     private static final String TOOL_CALL_CREATE_IF_EXISTS_TRUE =
             "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                     + "\"params\":{\"name\":\"create_network_view\","
-                    + "\"arguments\":{\"network_suid\":100,\"create_if_exists\":true}}}";
+                    + "\"arguments\":{\"network_suid\":100,\"create_if_exists\":{\"waived\":false,\"parameter\":true}}}}";
 
     private static final String TOOL_CALL_CREATE_IF_EXISTS_FALSE =
             "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                     + "\"params\":{\"name\":\"create_network_view\","
-                    + "\"arguments\":{\"network_suid\":100,\"create_if_exists\":false}}}";
+                    + "\"arguments\":{\"network_suid\":100,\"create_if_exists\":{\"waived\":false,\"parameter\":false}}}}";
 
     // --- Mocks -------------------------------------------------------------
 
@@ -77,6 +78,7 @@ public class CreateNetworkViewToolTest {
     @Mock private CyNetworkManager networkManager;
     @Mock private CyNetworkViewManager viewManager;
     @Mock private CyNetworkViewFactory networkViewFactory;
+    @Mock private ValidationService validationService;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView existingView;
     @Mock private CyNetworkView anotherExistingView;
@@ -89,9 +91,27 @@ public class CreateNetworkViewToolTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        tool =
-                new CreateNetworkViewTool(
-                        appManager, networkManager, viewManager, networkViewFactory);
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            Class<?> type = inv.getArgument(1);
+                            if (raw == null) return null;
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return null;
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return null;
+                            return type.isInstance(raw) ? raw : null;
+                        })
+                .when(validationService)
+                .unwrapToolInputValue(any(), any());
+        tool = buildTool(validationService);
+    }
+
+    private CreateNetworkViewTool buildTool(ValidationService vs) {
+        return new CreateNetworkViewTool(
+                appManager, networkManager, viewManager, networkViewFactory, vs);
     }
 
     @After
@@ -258,6 +278,35 @@ public class CreateNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Numeric coercion — integer vs string network_suid
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void networkSuidAsNumber_succeeds() throws Exception {
+        stubNetwork(100L, "Test", 5, 3);
+        when(viewManager.getNetworkViews(network)).thenReturn(Collections.emptyList());
+        when(networkViewFactory.createNetworkView(network)).thenReturn(newView);
+        when(newView.getSUID()).thenReturn(300L);
+        // TOOL_CALL_CREATE already uses integer network_suid:100
+        String response = callTool(TOOL_CALL_CREATE);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+    }
+
+    @Test
+    public void networkSuidAsString_succeeds() throws Exception {
+        stubNetwork(100L, "Test", 5, 3);
+        when(viewManager.getNetworkViews(network)).thenReturn(Collections.emptyList());
+        when(networkViewFactory.createNetworkView(network)).thenReturn(newView);
+        when(newView.getSUID()).thenReturn(300L);
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"create_network_view\","
+                        + "\"arguments\":{\"network_suid\":\"100\"}}}";
+        String response = callTool(toolCall);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
@@ -324,7 +373,12 @@ public class CreateNetworkViewToolTest {
     @Test
     public void inputSchema_createIfExistsIsBoolean() throws Exception {
         JsonNode schema = MAPPER.readTree(CreateNetworkViewTool.INPUT_SCHEMA);
-        assertEquals("boolean", schema.at("/properties/create_if_exists/type").asText());
+        // ConditionalParameter wrapper appears as "object" at the top level
+        assertEquals("object", schema.at("/properties/create_if_exists/type").asText());
+        // Inner parameter type is boolean
+        assertEquals(
+                "boolean",
+                schema.at("/properties/create_if_exists/properties/parameter/type").asText());
     }
 
     @Test

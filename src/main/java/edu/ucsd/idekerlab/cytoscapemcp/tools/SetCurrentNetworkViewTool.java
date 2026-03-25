@@ -130,8 +130,8 @@ public class SetCurrentNetworkViewTool {
         LOGGER.info("Tool call received: {}", TOOL_NAME);
 
         try {
-            long networkSuid = ((Number) request.arguments().get("network_suid")).longValue();
-            long viewSuid = ((Number) request.arguments().get("view_suid")).longValue();
+            long networkSuid = Long.parseLong(request.arguments().get("network_suid").toString());
+            long viewSuid = Long.parseLong(request.arguments().get("view_suid").toString());
 
             // Look up the network.
             CyNetwork network = networkManager.getNetwork(networkSuid);

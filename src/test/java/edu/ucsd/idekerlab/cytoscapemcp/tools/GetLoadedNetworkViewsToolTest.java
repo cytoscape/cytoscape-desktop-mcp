@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.ucsd.idekerlab.cytoscapemcp.fixture.InMemoryTransport;
 
+import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.model.CyNetwork;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.model.CyRow;
@@ -23,11 +24,14 @@ import org.cytoscape.model.subnetwork.CyRootNetwork;
 import org.cytoscape.model.subnetwork.CySubNetwork;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualStyle;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -56,8 +60,10 @@ public class GetLoadedNetworkViewsToolTest {
 
     // --- Mocks -------------------------------------------------------------
 
+    @Mock private CyApplicationManager appManager;
     @Mock private CyNetworkManager networkManager;
     @Mock private CyNetworkViewManager viewManager;
+    @Mock private VisualMappingManager vmmManager;
 
     // Network 1
     @Mock private CySubNetwork subNetwork1;
@@ -81,7 +87,7 @@ public class GetLoadedNetworkViewsToolTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        tool = new GetLoadedNetworkViewsTool(networkManager, viewManager);
+        tool = new GetLoadedNetworkViewsTool(appManager, networkManager, viewManager, vmmManager);
     }
 
     @After
@@ -204,6 +210,81 @@ public class GetLoadedNetworkViewsToolTest {
         // Each network entry appears once in content[0].text and once in structuredContent
         int count = countOccurrences(response, "network_suid");
         assertTrue("Should have exactly 1 network entry, found " + count / 2, count == 2);
+    }
+
+    // -----------------------------------------------------------------------
+    // is_current and style_name fields
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void currentView_hasIsCurrentTrue() throws Exception {
+        stubNetwork1("Collection A", "Network A", 100L, 200L, 10, 20);
+        when(viewManager.getNetworkViews(subNetwork1))
+                .thenReturn(Collections.singletonList(networkView1));
+        when(networkView1.getSUID()).thenReturn(200L);
+        when(networkView1.getModel()).thenReturn(subNetwork1);
+
+        // Set this network as the current view.
+        when(appManager.getCurrentNetworkView()).thenReturn(networkView1);
+        when(networkView1.getModel()).thenReturn(subNetwork1);
+
+        VisualStyle style = mock(VisualStyle.class);
+        when(style.getTitle()).thenReturn("Marquee");
+        when(vmmManager.getVisualStyle(networkView1)).thenReturn(style);
+
+        Set<CyNetwork> networks = new LinkedHashSet<>();
+        networks.add(subNetwork1);
+        when(networkManager.getNetworkSet()).thenReturn(networks);
+
+        String response = callTool();
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue("Should contain is_current true", response.contains("\\\"is_current\\\":true"));
+        assertTrue("Should contain style_name Marquee", response.contains("Marquee"));
+    }
+
+    @Test
+    public void nonCurrentView_hasIsCurrentFalse() throws Exception {
+        stubNetwork1("Collection A", "Network A", 100L, 200L, 10, 20);
+        when(viewManager.getNetworkViews(subNetwork1))
+                .thenReturn(Collections.singletonList(networkView1));
+        when(networkView1.getSUID()).thenReturn(200L);
+
+        // No current view set.
+        when(appManager.getCurrentNetworkView()).thenReturn(null);
+
+        VisualStyle style = mock(VisualStyle.class);
+        when(style.getTitle()).thenReturn("default");
+        when(vmmManager.getVisualStyle(networkView1)).thenReturn(style);
+
+        Set<CyNetwork> networks = new LinkedHashSet<>();
+        networks.add(subNetwork1);
+        when(networkManager.getNetworkSet()).thenReturn(networks);
+
+        String response = callTool();
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should contain is_current false", response.contains("\\\"is_current\\\":false"));
+        assertTrue("Should contain style_name default", response.contains("default"));
+    }
+
+    @Test
+    public void networkWithoutView_omitsStyleName() throws Exception {
+        stubNetwork1("Collection A", "Network A", 100L, null, 5, 3);
+        when(viewManager.getNetworkViews(subNetwork1)).thenReturn(Collections.emptyList());
+        when(appManager.getCurrentNetworkView()).thenReturn(null);
+
+        Set<CyNetwork> networks = new LinkedHashSet<>();
+        networks.add(subNetwork1);
+        when(networkManager.getNetworkSet()).thenReturn(networks);
+
+        String response = callTool();
+
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+        assertFalse(
+                "style_name key should be absent for network without view",
+                response.contains("style_name"));
     }
 
     // -----------------------------------------------------------------------

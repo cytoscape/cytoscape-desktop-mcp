@@ -542,4 +542,99 @@ public class VisualPropertyServiceTest {
         assertEquals("Italic", VisualPropertyService.FONT_STYLES.get(2));
         assertEquals("BoldItalic", VisualPropertyService.FONT_STYLES.get(3));
     }
+
+    // ---- resolveColumnType ----
+
+    @Test
+    public void resolveColumnType_integer() {
+        assertEquals(Integer.class, service.resolveColumnType("Integer"));
+    }
+
+    @Test
+    public void resolveColumnType_long() {
+        assertEquals(Long.class, service.resolveColumnType("Long"));
+    }
+
+    @Test
+    public void resolveColumnType_double() {
+        assertEquals(Double.class, service.resolveColumnType("Double"));
+    }
+
+    @Test
+    public void resolveColumnType_string() {
+        assertEquals(String.class, service.resolveColumnType("String"));
+    }
+
+    @Test
+    public void resolveColumnType_boolean() {
+        assertEquals(Boolean.class, service.resolveColumnType("Boolean"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void resolveColumnType_invalid_throws() {
+        service.resolveColumnType("Foo");
+    }
+
+    // ---- convertColumnValue ----
+
+    @Test
+    public void convertColumnValue_toInteger() {
+        Object result = service.convertColumnValue(3.7, Integer.class);
+        assertEquals(Integer.class, result.getClass());
+        assertEquals(3, result);
+    }
+
+    @Test
+    public void convertColumnValue_toLong() {
+        Object result = service.convertColumnValue(99, Long.class);
+        assertEquals(Long.class, result.getClass());
+        assertEquals(99L, result);
+    }
+
+    @Test
+    public void convertColumnValue_toDouble() {
+        Object result = service.convertColumnValue(2, Double.class);
+        assertEquals(Double.class, result.getClass());
+        assertEquals(2.0, (Double) result, 0.0001);
+    }
+
+    // ---- parseColumnKey ----
+
+    @Test
+    public void parseColumnKey_string() {
+        Object result = service.parseColumnKey("kinase", String.class);
+        assertEquals("kinase", result);
+    }
+
+    @Test
+    public void parseColumnKey_integer() {
+        Object result = service.parseColumnKey("23", Integer.class);
+        assertEquals(Integer.class, result.getClass());
+        assertEquals(23, result);
+    }
+
+    @Test
+    public void parseColumnKey_long() {
+        Object result = service.parseColumnKey("9999999999", Long.class);
+        assertEquals(Long.class, result.getClass());
+        assertEquals(9999999999L, result);
+    }
+
+    @Test
+    public void parseColumnKey_double() {
+        Object result = service.parseColumnKey("1.5", Double.class);
+        assertEquals(Double.class, result.getClass());
+        assertEquals(1.5, (Double) result, 0.0001);
+    }
+
+    @Test
+    public void parseColumnKey_boolean() {
+        Object result = service.parseColumnKey("true", Boolean.class);
+        assertEquals(Boolean.TRUE, result);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void parseColumnKey_invalidInteger_throws() {
+        service.parseColumnKey("abc", Integer.class);
+    }
 }

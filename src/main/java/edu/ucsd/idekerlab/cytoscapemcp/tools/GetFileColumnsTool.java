@@ -67,8 +67,8 @@ public class GetFileColumnsTool {
                     + "{\"file_path\": \"/path/to/data.csv\", \"delimiter_char_code\": 44, \"use_header_row\": true}\n\n";
 
     private static final String TOOL_DESCRIPTION =
-            "Retrieve column headers and first three rows from a tabular file. Use when importing"
-                    + " network data into Cytoscape Desktop to preview columns before mapping."
+            "Retrieve column headers and first three rows from a tabular file. Use when loading"
+                    + " tabular network data into Cytoscape Desktop in order to preview columns and advise about node and edge attribute mapping potential."
                     + " Supports both Excel workbooks and plain-text delimited files.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -77,13 +77,15 @@ public class GetFileColumnsTool {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record GetFileColumnsCallResult(
             @JsonPropertyDescription(
-                            "Column header names from the file. Ordinal names ('Column 1',"
-                                    + " 'Column 2', ...) if use_header_row was false.")
+                            "Columns found in the file, each with its name and an inferred data"
+                                    + " type. This helps advise any potential node or edge attribute mapping efforts when loading a network from this file."
+                                    + " The inferred types ensure Cytoscape creates table columns correctly instead of"
+                                    + " defaulting everything to string.")
                     @JsonProperty("columns")
-                    List<String> columns,
+                    List<DataColumn> columns,
             @JsonPropertyDescription(
                             "Up to the first three data rows in the file, each as an array of string values"
-                                    + " aligned with columns. The first three rows are included in the response to help determine if column header row is included or not.")
+                                    + " aligned with columns. The first three rows are included in the response to help determine if column header row is present and infer the data type of the column from the sample values.")
                     @JsonProperty("sample_rows")
                     List<List<String>> sampleRows) {}
 
@@ -97,14 +99,6 @@ public class GetFileColumnsTool {
                                             "string",
                                             "Required. Absolute path to the tabular file."))
                             .property(
-                                    "delimiter_char_code",
-                                    new McpSchema.InputProperty(
-                                            "integer",
-                                            "Optional. ASCII code of the delimiter character"
-                                                    + " (e.g. 44=comma, 9=tab, 124=pipe)."
-                                                    + " Required for non-Excel files. Ignored for"
-                                                    + " Excel."))
-                            .property(
                                     "use_header_row",
                                     new McpSchema.InputProperty(
                                             "boolean",
@@ -112,16 +106,43 @@ public class GetFileColumnsTool {
                                                     + " appear in 'columns'. If false, ordinal names are generated"
                                                     + " ('Column 1', 'Column 2', ...) and those ordinal names"
                                                     + " appear in 'columns' instead."))
-                            .property(
+                            .conditionalParam(
+                                    "delimiter_char_code",
+                                    "integer",
+                                    "Conditional on file type derived from file_path."
+                                            + " Required when file_path is a non-Excel file"
+                                            + " (CSV, TSV, pipe-delimited, etc.)."
+                                            + " ASCII code of the column delimiter"
+                                            + " (44=comma, 9=tab, 124=pipe)."
+                                            + " Waive when file_path is an Excel file (.xlsx/.xls)"
+                                            + " — use excel_sheet instead."
+                                            + " Inspect the file extension to determine which"
+                                            + " applies. Confirm with the user before setting or"
+                                            + " waiving.")
+                            .conditionalParam(
                                     "excel_sheet",
-                                    new McpSchema.InputProperty(
-                                            "string",
-                                            "Optional. Name of the Excel sheet to read."
-                                                    + " Required when reading an Excel file."
-                                                    + " Ignored for text files."))
+                                    "string",
+                                    "Conditional on file type derived from file_path."
+                                            + " Required when file_path is an Excel file"
+                                            + " (.xlsx/.xls). Name of the Excel sheet to read."
+                                            + " Waive for non-Excel files — use"
+                                            + " delimiter_char_code instead."
+                                            + " Inspect the file extension and available sheets"
+                                            + " to determine the correct one."
+                                            + " Confirm the sheet name with the user before"
+                                            + " setting or waiving.")
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(GetFileColumnsCallResult.class);
+
+    private final TabularTypeConverter typeConverter;
+    private final ValidationService validationService;
+
+    public GetFileColumnsTool(
+            TabularTypeConverter typeConverter, ValidationService validationService) {
+        this.typeConverter = typeConverter;
+        this.validationService = validationService;
+    }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
     public McpServerFeatures.SyncToolSpecification toSpec() {
@@ -152,8 +173,7 @@ public class GetFileColumnsTool {
         LOGGER.info("Tool call received: {}", TOOL_NAME);
 
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> args = (Map<String, Object>) request.arguments();
+            Map<String, Object> args = request.arguments();
 
             String filePath = (String) args.get("file_path");
             if (filePath == null || filePath.isBlank()) {
@@ -166,13 +186,44 @@ public class GetFileColumnsTool {
             }
             boolean useHeaderRow = Boolean.TRUE.equals(useHeaderObj);
 
-            String excelSheet = (String) args.get("excel_sheet");
-            Number delimCode = (Number) args.get("delimiter_char_code");
-
             File file = new File(filePath);
             if (!file.exists()) {
                 return error("File not found: " + filePath);
             }
+
+            boolean isExcel =
+                    filePath.toLowerCase().endsWith(".xlsx")
+                            || filePath.toLowerCase().endsWith(".xls");
+
+            if (isExcel) {
+                CallToolResult err =
+                        validationService.validateConditionalParams(
+                                "file_path",
+                                filePath,
+                                args,
+                                List.of(
+                                        new ValidationService.ConditionalParam(
+                                                "excel_sheet", "the Excel sheet to read", false)));
+                if (err != null) return err;
+            } else {
+                CallToolResult err =
+                        validationService.validateConditionalParams(
+                                "file_path",
+                                filePath,
+                                args,
+                                List.of(
+                                        new ValidationService.ConditionalParam(
+                                                "delimiter_char_code",
+                                                "the ASCII code of the column delimiter",
+                                                false)));
+                if (err != null) return err;
+            }
+
+            String excelSheet =
+                    validationService.unwrapToolInputValue(args.get("excel_sheet"), String.class);
+            Integer delimCode =
+                    validationService.unwrapToolInputValue(
+                            args.get("delimiter_char_code"), Integer.class);
 
             if (excelSheet != null) {
                 return handleExcel(file, excelSheet, useHeaderRow);
@@ -204,14 +255,14 @@ public class GetFileColumnsTool {
             }
 
             int colCount = firstRow.getLastCellNum();
-            List<String> columns;
+            List<String> columnNames;
             int sampleStart;
 
             if (useHeaderRow) {
-                columns = readRowCells(firstRow, colCount, fmt);
+                columnNames = readRowCells(firstRow, colCount, fmt);
                 sampleStart = firstRowIndex + 1;
             } else {
-                columns = ordinalNames(colCount);
+                columnNames = ordinalNames(colCount);
                 sampleStart = firstRowIndex;
             }
 
@@ -222,7 +273,7 @@ public class GetFileColumnsTool {
                 sampleRows.add(readRowCells(row, colCount, fmt));
             }
 
-            return buildResult(columns, sampleRows);
+            return buildResult(columnNames, sampleRows);
         }
     }
 
@@ -248,13 +299,13 @@ public class GetFileColumnsTool {
             }
 
             String[] firstParts = firstLine.split(delimPattern, -1);
-            List<String> columns;
+            List<String> columnNames;
             List<List<String>> sampleRows = new ArrayList<>();
 
             if (useHeaderRow) {
-                columns = trimAll(firstParts);
+                columnNames = trimAll(firstParts);
             } else {
-                columns = ordinalNames(firstParts.length);
+                columnNames = ordinalNames(firstParts.length);
                 sampleRows.add(trimAll(firstParts));
             }
 
@@ -264,7 +315,7 @@ public class GetFileColumnsTool {
                 sampleRows.add(trimAll(line.split(delimPattern, -1)));
             }
 
-            return buildResult(columns, sampleRows);
+            return buildResult(columnNames, sampleRows);
         }
     }
 
@@ -286,7 +337,25 @@ public class GetFileColumnsTool {
         return list;
     }
 
-    private CallToolResult buildResult(List<String> columns, List<List<String>> sampleRows) {
+    /**
+     * Infers types from sample rows and constructs the result. Each column name is paired with a
+     * {@link DataColumn.CyDataType} inferred from up to three sample values.
+     */
+    private CallToolResult buildResult(List<String> columnNames, List<List<String>> sampleRows) {
+        List<DataColumn> columns = new ArrayList<>(columnNames.size());
+        for (int i = 0; i < columnNames.size(); i++) {
+            List<String> samples = new ArrayList<>(sampleRows.size());
+            for (List<String> row : sampleRows) {
+                if (i < row.size()) {
+                    String val = row.get(i);
+                    if (val != null && !val.isBlank()) {
+                        samples.add(val);
+                    }
+                }
+            }
+            DataColumn.CyDataType type = typeConverter.inferType(samples);
+            columns.add(new DataColumn(columnNames.get(i), type));
+        }
         return CallToolResult.builder()
                 .structuredContent(new GetFileColumnsCallResult(columns, sampleRows))
                 .build();

@@ -59,15 +59,11 @@ public class SetVisualDefaultTool {
                     + " default; retrieve the current style defaults first to discover all valid"
                     + " property identifiers, their allowed value formats, available font families"
                     + " and styles, and dependency lock IDs, then provide only the entries you want"
-                    + " to update. For font properties, compose the value as Family-Style-Size"
-                    + " using a family name and style from the style defaults (e.g."
-                    + " Arial-Bold-14). For dependency toggles, provide the dependency ID and the"
-                    + " desired enabled state from the style defaults response. Returns an error if"
-                    + " no network is currently loaded, if a property identifier is not recognized,"
-                    + " or if a value cannot be parsed or falls outside the valid range — each"
-                    + " error message identifies the specific property and failure reason."
-                    + " State-mutating; modifies the active visual style and immediately updates"
-                    + " the current view if one exists.";
+                    + " to update. The prior retrieval of style defaults includes the active style name —"
+                    + " mention this name as confirmation to the user before invoking this tool so they know which"
+                    + " style is being modified. The only way a style can be edited is through this tool which requires the style be set on current view."
+                    + " State-mutating; modifies the active visual style defaults and immediately"
+                    + " rerenders the current view.";
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
@@ -185,66 +181,71 @@ public class SetVisualDefaultTool {
     static final String INPUT_SCHEMA =
             McpSchema.toJson(
                     McpSchema.InputSchema.builder()
-                            .property(
+                            .conditionalParam(
                                     "node_properties",
-                                    new McpSchema.InputProperty(
-                                            "array",
-                                            "Optional. List of node visual property updates."
-                                                    + " Each entry requires an 'id' field matching a"
-                                                    + " property identifier from the style defaults"
-                                                    + " response and a 'currentValue' field with the"
-                                                    + " new default value as a string, formatted"
-                                                    + " according to the property's value type and"
-                                                    + " allowed values documented in that response."
-                                                    + " For font properties, compose the value as"
-                                                    + " Family-Style-Size using a family from the"
-                                                    + " font_families list and a style from the"
-                                                    + " font_styles list in the style defaults"
-                                                    + " response."
-                                                    + "\n\nExamples:"
-                                                    + " [{\"id\": \"NODE_FILL_COLOR\","
-                                                    + " \"currentValue\": \"#FF6600\"}],"
-                                                    + " [{\"id\": \"NODE_SHAPE\","
-                                                    + " \"currentValue\": \"Rectangle\"}],"
-                                                    + " [{\"id\": \"NODE_LABEL_FONT_FACE\","
-                                                    + " \"currentValue\": \"Arial-Bold-14\"}]"))
-                            .property(
+                                    "array",
+                                    "Discretionary. List of node visual property updates."
+                                            + " Each entry requires an 'id' field matching a"
+                                            + " property identifier from the style defaults"
+                                            + " response and a 'currentValue' field with the"
+                                            + " new default value as a string, formatted"
+                                            + " according to the property's value type and"
+                                            + " allowed values documented in that response."
+                                            + " For font properties, compose the value as"
+                                            + " Family-Style-Size using a family from the"
+                                            + " font_families list and a style from the"
+                                            + " font_styles list in the style defaults response."
+                                            + " Waive if no node visual defaults need updating."
+                                            + " Confirm with the user which node properties to"
+                                            + " update before setting or waiving."
+                                            + "\n\nExamples:"
+                                            + " [{\"id\": \"NODE_FILL_COLOR\","
+                                            + " \"currentValue\": \"#FF6600\"}],"
+                                            + " [{\"id\": \"NODE_SHAPE\","
+                                            + " \"currentValue\": \"Rectangle\"}],"
+                                            + " [{\"id\": \"NODE_LABEL_FONT_FACE\","
+                                            + " \"currentValue\": \"Arial-Bold-14\"}]")
+                            .conditionalParam(
                                     "edge_properties",
-                                    new McpSchema.InputProperty(
-                                            "array",
-                                            "Optional. List of edge visual property updates."
-                                                    + " Each entry requires 'id' and 'currentValue'"
-                                                    + " using the same format conventions as node"
-                                                    + " properties — property identifiers, value"
-                                                    + " types, allowed values, font families, and"
-                                                    + " font styles are documented in the style"
-                                                    + " defaults response."
-                                                    + "\n\nExamples:"
-                                                    + " [{\"id\": \"EDGE_WIDTH\","
-                                                    + " \"currentValue\": \"3.0\"}],"
-                                                    + " [{\"id\": \"EDGE_LINE_TYPE\","
-                                                    + " \"currentValue\": \"Dash\"}],"
-                                                    + " [{\"id\": \"EDGE_LABEL_FONT_FACE\","
-                                                    + " \"currentValue\":"
-                                                    + " \"Courier New-Italic-12\"}]"))
-                            .property(
+                                    "array",
+                                    "Discretionary. List of edge visual property updates."
+                                            + " Each entry requires 'id' and 'currentValue'"
+                                            + " using the same format conventions as node"
+                                            + " properties — property identifiers, value"
+                                            + " types, allowed values, font families, and"
+                                            + " font styles are documented in the style"
+                                            + " defaults response."
+                                            + " Waive if no edge visual defaults need updating."
+                                            + " Confirm with the user which edge properties to"
+                                            + " update before setting or waiving."
+                                            + "\n\nExamples:"
+                                            + " [{\"id\": \"EDGE_WIDTH\","
+                                            + " \"currentValue\": \"3.0\"}],"
+                                            + " [{\"id\": \"EDGE_LINE_TYPE\","
+                                            + " \"currentValue\": \"Dash\"}],"
+                                            + " [{\"id\": \"EDGE_LABEL_FONT_FACE\","
+                                            + " \"currentValue\":"
+                                            + " \"Courier New-Italic-12\"}]")
+                            .conditionalParam(
                                     "dependencies",
-                                    new McpSchema.InputProperty(
-                                            "array",
-                                            "Optional. List of dependency lock toggles."
-                                                    + " Each entry requires an 'id' field matching"
-                                                    + " a dependency identifier from the style"
-                                                    + " defaults response and an 'enabled' field"
-                                                    + " (true/false) indicating whether the lock"
-                                                    + " should be active. Retrieve the current"
-                                                    + " style defaults first to discover available"
-                                                    + " dependency IDs and their current enabled"
-                                                    + " state."
-                                                    + "\n\nExamples:"
-                                                    + " [{\"id\": \"nodeSizeLocked\","
-                                                    + " \"enabled\": true}],"
-                                                    + " [{\"id\": \"arrowColorMatchesEdge\","
-                                                    + " \"enabled\": false}]"))
+                                    "array",
+                                    "Discretionary. List of dependency locks to toggle on/off."
+                                            + " Each entry requires an 'id' field matching"
+                                            + " a dependency identifier from the style"
+                                            + " defaults response and an 'enabled' field"
+                                            + " (true/false) indicating whether the lock"
+                                            + " should be active. Retrieve the current"
+                                            + " style defaults first to discover available"
+                                            + " dependency IDs and their current enabled"
+                                            + " state."
+                                            + " Waive if no dependency locks need changing."
+                                            + " Confirm with the user before setting or"
+                                            + " waiving."
+                                            + "\n\nExamples:"
+                                            + " [{\"id\": \"nodeSizeLocked\","
+                                            + " \"enabled\": true}],"
+                                            + " [{\"id\": \"arrowColorMatchesEdge\","
+                                            + " \"enabled\": false}]")
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(SetVisualDefaultsResponse.class);
@@ -255,16 +256,19 @@ public class SetVisualDefaultTool {
     private final VisualMappingManager vmmManager;
     private final RenderingEngineManager renderingEngineManager;
     private final VisualPropertyService vpService;
+    private final ValidationService validationService;
 
     public SetVisualDefaultTool(
             CyApplicationManager appManager,
             VisualMappingManager vmmManager,
             RenderingEngineManager renderingEngineManager,
-            VisualPropertyService vpService) {
+            VisualPropertyService vpService,
+            ValidationService validationService) {
         this.appManager = appManager;
         this.vmmManager = vmmManager;
         this.renderingEngineManager = renderingEngineManager;
         this.vpService = vpService;
+        this.validationService = validationService;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -314,9 +318,18 @@ public class SetVisualDefaultTool {
             Map<String, Object> args = request.arguments();
             if (args == null) args = Collections.emptyMap();
 
-            List<Map<String, Object>> nodeInput = safeList(args.get("node_properties"));
-            List<Map<String, Object>> edgeInput = safeList(args.get("edge_properties"));
-            List<Map<String, Object>> depInput = safeList(args.get("dependencies"));
+            List<Map<String, Object>> nodeInput =
+                    safeList(
+                            validationService.unwrapToolInputValue(
+                                    args.get("node_properties"), List.class));
+            List<Map<String, Object>> edgeInput =
+                    safeList(
+                            validationService.unwrapToolInputValue(
+                                    args.get("edge_properties"), List.class));
+            List<Map<String, Object>> depInput =
+                    safeList(
+                            validationService.unwrapToolInputValue(
+                                    args.get("dependencies"), List.class));
 
             // Validate all entries before making any mutations (fail-fast)
             List<PropertyUpdate> updates = new ArrayList<>();

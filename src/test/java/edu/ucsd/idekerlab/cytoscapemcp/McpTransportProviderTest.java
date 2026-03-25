@@ -4,12 +4,14 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -22,8 +24,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.modelcontextprotocol.server.transport.ServerTransportSecurityException;
+import io.modelcontextprotocol.server.transport.ServerTransportSecurityValidator;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpStreamableServerSession;
+import io.modelcontextprotocol.spec.McpStreamableServerTransport;
 import io.modelcontextprotocol.spec.ProtocolVersions;
 import reactor.core.publisher.Mono;
 
@@ -194,6 +199,26 @@ public class McpTransportProviderTest {
         assertEquals(404, r.getStatus());
     }
 
+    @Test
+    public void post_unknownSessionId_errorBodyIsCleanJson_noStackTrace() throws Exception {
+        wireFactory();
+        String toolCallJson =
+                "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}";
+        Response r = provider.handlePost(ACCEPT_BOTH, "unknown-session", body(toolCallJson));
+
+        String responseBody = r.getEntity().toString();
+        com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(responseBody);
+
+        // Must contain the standard error fields
+        assertTrue("body must contain 'code'", node.has("code"));
+        assertTrue("body must contain 'message'", node.has("message"));
+
+        // Must NOT look like a serialized Java exception
+        assertFalse("body must not contain 'stackTrace'", node.has("stackTrace"));
+        assertFalse("body must not contain 'cause'", node.has("cause"));
+        assertFalse("body must not contain 'suppressed'", node.has("suppressed"));
+    }
+
     // -------------------------------------------------------------------------
     // Notification / Response sent to known session
     // -------------------------------------------------------------------------
@@ -315,6 +340,139 @@ public class McpTransportProviderTest {
     public void notifyClients_withNoSessions_completesWithoutError() {
         // Should complete without throwing
         provider.notifyClients("notifications/message", null).block();
+    }
+
+    // -------------------------------------------------------------------------
+    // notifyClient
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void notifyClient_noSessions_returnsEmpty() {
+        provider.notifyClient("unknown", "notifications/message", null).block();
+    }
+
+    @Test
+    public void notifyClient_knownSession_delegatesToSendNotification() {
+        wireFactory();
+        provider.handlePost(ACCEPT_BOTH, null, body(initializeJson(1)));
+
+        when(session.sendNotification(any(), any())).thenReturn(Mono.empty());
+
+        provider.notifyClient("test-session-id", "notifications/message", null).block();
+
+        verify(session).sendNotification("notifications/message", null);
+    }
+
+    // -------------------------------------------------------------------------
+    // Security validator
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void post_securityValidationFailure_returnsValidatorStatusCode() {
+        ServerTransportSecurityValidator reject =
+                headers -> {
+                    throw new ServerTransportSecurityException(403, "Forbidden");
+                };
+        provider.setSecurityValidator(reject);
+
+        Response r = provider.handlePost(ACCEPT_BOTH, null, body(initializeJson(1)));
+        assertEquals(403, r.getStatus());
+    }
+
+    @Test
+    public void delete_securityValidationFailure_returnsValidatorStatusCode() {
+        ServerTransportSecurityValidator reject =
+                headers -> {
+                    throw new ServerTransportSecurityException(403, "Forbidden");
+                };
+        provider.setSecurityValidator(reject);
+
+        Response r = provider.handleDelete("some-id");
+        assertEquals(403, r.getStatus());
+    }
+
+    // -------------------------------------------------------------------------
+    // Error code alignment
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void post_badAccept_errorBodyUsesMethodNotFoundCode() throws Exception {
+        Response r = provider.handlePost(ACCEPT_JSON_ONLY, null, body(initializeJson(1)));
+        assertEquals(400, r.getStatus());
+
+        com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(r.getEntity().toString());
+        assertEquals(McpSchema.ErrorCodes.METHOD_NOT_FOUND, node.get("code").asInt());
+    }
+
+    @Test
+    public void delete_nullSessionId_errorBodyUsesMethodNotFoundCode() throws Exception {
+        Response r = provider.handleDelete(null);
+        assertEquals(400, r.getStatus());
+
+        com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(r.getEntity().toString());
+        assertEquals(McpSchema.ErrorCodes.METHOD_NOT_FOUND, node.get("code").asInt());
+    }
+
+    // -------------------------------------------------------------------------
+    // notifyClients with active sessions
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void notifyClients_withActiveSession_callsSendNotification() {
+        wireFactory();
+        provider.handlePost(ACCEPT_BOTH, null, body(initializeJson(1)));
+
+        when(session.sendNotification(any(), any())).thenReturn(Mono.empty());
+
+        provider.notifyClients("notifications/message", null).block();
+
+        verify(session).sendNotification("notifications/message", null);
+    }
+
+    // -------------------------------------------------------------------------
+    // Keep-alive lifecycle
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void startKeepAlive_thenCloseGracefully_completesWithoutError() {
+        provider.startKeepAlive(Duration.ofSeconds(30));
+        provider.closeGracefully().block();
+        assertFalse(provider.isRunning());
+    }
+
+    // -------------------------------------------------------------------------
+    // SSE event id regression (Issue #6)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void post_streamingOutput_sseEventHasNoIdLineWhenMessageIdIsNull() throws Exception {
+        wireFactory();
+        provider.handlePost(ACCEPT_BOTH, null, body(initializeJson(1)));
+
+        ArgumentCaptor<McpStreamableServerTransport> transportCaptor =
+                ArgumentCaptor.forClass(McpStreamableServerTransport.class);
+        when(session.responseStream(any(), transportCaptor.capture()))
+                .thenAnswer(
+                        inv -> {
+                            McpSchema.JSONRPCResponse msg =
+                                    new McpSchema.JSONRPCResponse(
+                                            McpSchema.JSONRPC_VERSION, 42, null, null);
+                            return transportCaptor.getValue().sendMessage(msg, null);
+                        });
+
+        String toolCallJson =
+                "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}";
+        Response r = provider.handlePost(ACCEPT_BOTH, "test-session-id", body(toolCallJson));
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ((StreamingOutput) r.getEntity()).write(baos);
+        String sseOutput = baos.toString(StandardCharsets.UTF_8);
+
+        assertFalse(
+                "SSE event must not contain id: line when messageId is null",
+                sseOutput.contains("\nid: ") || sseOutput.startsWith("id: "));
+        assertTrue(
+                "SSE event must contain event: message line", sseOutput.contains("event: message"));
     }
 
     // -------------------------------------------------------------------------

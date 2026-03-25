@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -37,6 +38,8 @@ import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualStyle;
 import org.cytoscape.work.FinishStatus;
 import org.cytoscape.work.Task;
 import org.cytoscape.work.TaskIterator;
@@ -50,6 +53,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -58,6 +62,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 
 /**
  * Exercises {@link LoadNetworkViewTool} through its public interface ({@code toSpec()}) by
@@ -96,10 +103,13 @@ public class LoadNetworkViewToolTest {
     @Mock private CyNetworkViewFactory networkViewFactory;
     @Mock private CyLayoutAlgorithmManager layoutAlgorithmManager;
     @Mock private CyLayoutAlgorithm layoutAlgorithm;
+    @Mock private VisualMappingManager vmmManager;
+    @Mock private VisualStyle visualStyle;
     @Mock private CyNetworkReader networkReader;
     @Mock private CyNetwork network;
     @Mock private CyNetworkView networkView;
     @Mock private CyRow networkRow;
+    @Mock private ValidationService validationService;
 
     // Tabular-import mocks
     @Mock private CyNetwork tabularNetwork;
@@ -124,25 +134,48 @@ public class LoadNetworkViewToolTest {
         props.setProperty("mcp.ndexbaseurl", "https://www.ndexbio.org");
         when(cyProperties.getProperties()).thenReturn(props);
 
+        // Stub vmmManager — getVisualStyle always returns the mock style
+        when(vmmManager.getVisualStyle(any())).thenReturn(visualStyle);
+
         // Stub layout manager — returns a mock algorithm with an empty TaskIterator
         when(layoutAlgorithmManager.getDefaultLayout()).thenReturn(layoutAlgorithm);
         when(layoutAlgorithmManager.getLayoutAttribute(any(), any())).thenReturn(null);
         when(layoutAlgorithm.createTaskIterator(any(), any(), any(), any()))
                 .thenReturn(new TaskIterator());
 
-        tool =
-                spy(
-                        new LoadNetworkViewTool(
-                                cyProperties,
-                                appManager,
-                                networkManager,
-                                viewManager,
-                                taskManager,
-                                cxReaderFactory,
-                                networkReaderManager,
-                                networkFactory,
-                                networkViewFactory,
-                                layoutAlgorithmManager));
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            Class<?> type = inv.getArgument(1);
+                            if (raw == null) return null;
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return null;
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return null;
+                            return type.isInstance(raw) ? raw : null;
+                        })
+                .when(validationService)
+                .unwrapToolInputValue(any(), any());
+
+        doAnswer(
+                        inv -> {
+                            Object raw = inv.getArgument(0);
+                            if (raw == null) return List.of();
+                            if (raw instanceof java.util.Map<?, ?> map
+                                    && map.containsKey("waived")) {
+                                if (Boolean.TRUE.equals(map.get("waived"))) return List.of();
+                                raw = map.get("parameter");
+                            }
+                            if (raw == null) return List.of();
+                            return MAPPER.convertValue(
+                                    raw, new TypeReference<List<DataColumn>>() {});
+                        })
+                .when(validationService)
+                .unwrapToolInputDataColumns(any());
+
+        tool = buildTool(validationService);
 
         // Prevent real HTTP connections — return an empty stream for any URL
         try {
@@ -152,11 +185,40 @@ public class LoadNetworkViewToolTest {
         }
     }
 
+    private LoadNetworkViewTool buildTool(ValidationService vs) {
+        return spy(
+                new LoadNetworkViewTool(
+                        cyProperties,
+                        appManager,
+                        networkManager,
+                        viewManager,
+                        taskManager,
+                        cxReaderFactory,
+                        networkReaderManager,
+                        networkFactory,
+                        networkViewFactory,
+                        layoutAlgorithmManager,
+                        vmmManager,
+                        new TabularTypeConverter(),
+                        vs));
+    }
+
     @After
     public void tearDown() {
         if (transport != null) {
             transport.close();
         }
+    }
+
+    /**
+     * Builds a {@link CallToolResult} error result suitable for stubbing {@link ValidationService}
+     * in validation-delegation tests.
+     */
+    private static CallToolResult stubError(String marker) {
+        return CallToolResult.builder()
+                .content(List.of(new TextContent(marker)))
+                .isError(true)
+                .build();
     }
 
     // -----------------------------------------------------------------------
@@ -277,7 +339,7 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"ndex\","
-                                + "\"network_id\":\"   \"}}}");
+                                + "\"network_id\":{\"waived\":false,\"parameter\":\"   \"}}}}");
 
         assertTrue(response.contains("\"isError\":true"));
         verify(networkManager, never()).addNetwork(any());
@@ -296,9 +358,9 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"network-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + tempFile.getAbsolutePath()
-                                + "\"}}}");
+                                + "\"}}}}");
 
         assertFalse("Should not be an error response", response.contains("\"isError\":true"));
         assertTrue(
@@ -318,6 +380,10 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void networkFileLoad_missingFilePath() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("network-file"), any(), any()))
+                .thenReturn(stubError("file_path is required"));
+
         String response =
                 callToolRaw(
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
@@ -335,7 +401,7 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"network-file\","
-                                + "\"file_path\":\"/nonexistent/path/test.sif\"}}}");
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\"/nonexistent/path/test.sif\"}}}}");
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
         assertTrue("Should mention File not found", response.contains("File not found"));
@@ -364,9 +430,9 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"network-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + tempFile.getAbsolutePath()
-                                + "\"}}}");
+                                + "\"}}}}");
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
         assertTrue("Should surface the error message", response.contains("Corrupt SIF file"));
@@ -394,9 +460,9 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"network-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + tempFile.getAbsolutePath()
-                                + "\"}}}");
+                                + "\"}}}}");
 
         assertTrue("Should be an error", response.contains("\"isError\":true"));
         assertTrue("Should mention No network", response.contains("No network"));
@@ -440,9 +506,9 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"network-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + tempFile.getAbsolutePath()
-                                + "\"}}}");
+                                + "\"}}}}");
 
         assertFalse("Should not be an error", response.contains("\"isError\":true"));
         // Verify the override was applied to the network row
@@ -467,13 +533,13 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + csvPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"delimiter_char_code\":44,"
-                                + "\"use_header_row\":true}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         assertTrue("Should be success", response.contains("\\\"status\\\":\\\"success\\\""));
@@ -494,13 +560,13 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + tsvPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"delimiter_char_code\":9,"
-                                + "\"use_header_row\":true}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":9},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(networkFactory).createNetwork();
@@ -517,13 +583,14 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + xlsxPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"excel_sheet\":\"Sheet1\","
-                                + "\"use_header_row\":true}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"excel_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_sheet\":{\"waived\":false,\"parameter\":null},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(networkFactory).createNetwork();
@@ -532,24 +599,23 @@ public class LoadNetworkViewToolTest {
 
     @Test
     public void tabularCsv_missingSourceColumn_returnsError() throws Exception {
-        stubTabularNetwork();
-        String csvPath = fixturePath("genes_comma.csv");
+        // Validation service reports source_column absent — tool must echo the error.
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(stubError("validation-error-source_column-absent"));
 
         String response =
                 callToolRaw(
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
-                                + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
-                                + csvPath
-                                + "\","
-                                + "\"delimiter_char_code\":44,"
-                                + "\"use_header_row\":true}}}");
+                                + "\"arguments\":{\"source\":\"tabular-file\"}}}");
 
         assertTrue("Should be error", response.contains("\"isError\":true"));
         assertTrue(
-                "Should mention missing source/target",
-                response.contains("source_column") || response.contains("target_column"));
+                "Should echo service error",
+                response.contains("validation-error-source_column-absent"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
         verify(networkFactory, never()).createNetwork();
     }
 
@@ -562,11 +628,11 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\"/no/such/file.csv\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"delimiter_char_code\":44,"
-                                + "\"use_header_row\":true}}}");
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\"/no/such/file.csv\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertTrue("Should be error", response.contains("\"isError\":true"));
         assertTrue("Should mention file not found", response.contains("not found"));
@@ -576,6 +642,10 @@ public class LoadNetworkViewToolTest {
     @Test
     public void tabularCsv_missingDelimiterForNonExcel_returnsError() throws Exception {
         stubTabularNetwork();
+        // Phase-1 and phase-2 pass (null = no error); phase-3b delimiter check returns error.
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(null, null, stubError("delimiter_char_code is required"));
         String csvPath = fixturePath("genes_comma.csv");
 
         String response =
@@ -583,12 +653,12 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + csvPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"use_header_row\":true}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertTrue("Should be error", response.contains("\"isError\":true"));
         assertTrue("Should mention delimiter_char_code", response.contains("delimiter_char_code"));
@@ -605,13 +675,13 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + csvPath
-                                + "\","
-                                + "\"source_column\":\"Column 1\","
-                                + "\"target_column\":\"Column 2\","
-                                + "\"delimiter_char_code\":44,"
-                                + "\"use_header_row\":false}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Column 1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Column 2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":false},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         // With no header row, "Gene1,Gene2,Score" becomes a data row with Column 1 = "Gene1"
         // so the network will be built successfully using ordinal column names
@@ -628,13 +698,13 @@ public class LoadNetworkViewToolTest {
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                         + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                         + "\"arguments\":{\"source\":\"tabular-file\","
-                        + "\"file_path\":\""
+                        + "\"file_path\":{\"waived\":false,\"parameter\":\""
                         + csvPath
-                        + "\","
-                        + "\"source_column\":\"Gene1\","
-                        + "\"target_column\":\"Gene2\","
-                        + "\"delimiter_char_code\":44,"
-                        + "\"use_header_row\":true}}}");
+                        + "\"},"
+                        + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                        + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         // No node_attributes_source_columns or target_columns → node set should never be iterated
         verify(tabularNetwork, never()).getNodeList();
@@ -658,14 +728,14 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + csvPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"delimiter_char_code\":44,"
-                                + "\"use_header_row\":true,"
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // node_attributes_source_columns triggers node set iteration (non-Excel uses source_column
@@ -689,16 +759,17 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + xlsxPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"excel_sheet\":\"Sheet1\","
-                                + "\"use_header_row\":true,"
-                                + "\"node_attributes_sheet\":\"Sheet1\","
-                                + "\"node_attributes_sheet_source_key_column\":\"Gene1\","
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"excel_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"node_attributes_sheet_source_key_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"node_attributes_sheet_target_key_column\":{\"waived\":false,\"parameter\":null},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(tabularNetwork, atLeastOnce()).getNodeList();
@@ -723,14 +794,14 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + csvPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"delimiter_char_code\":44,"
-                                + "\"use_header_row\":true,"
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // TP53 appears in the Gene1 (source_column) of the first data row; Score=0.95
@@ -752,14 +823,14 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + csvPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"delimiter_char_code\":44,"
-                                + "\"use_header_row\":true,"
-                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // MDM2 appears in the Gene2 (target_column) of the first data row; Score=0.95
@@ -785,15 +856,15 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + csvPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"delimiter_char_code\":44,"
-                                + "\"use_header_row\":true,"
-                                + "\"node_attributes_source_columns\":[\"Score\"],"
-                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},"
+                                + "\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // Source import (keyed by Gene1): TP53 row → set Score=0.95 on srcNode
@@ -817,16 +888,17 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + xlsxPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"excel_sheet\":\"Sheet1\","
-                                + "\"use_header_row\":true,"
-                                + "\"node_attributes_sheet\":\"Sheet1\","
-                                + "\"node_attributes_sheet_source_key_column\":\"Gene1\","
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"excel_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"node_attributes_sheet_source_key_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"node_attributes_sheet_target_key_column\":{\"waived\":false,\"parameter\":null},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // TP53 is in Gene1 col of Sheet1; Score numeric cell 0.95 → cellStringValue → "0.95"
@@ -848,16 +920,17 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + xlsxPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"excel_sheet\":\"Sheet1\","
-                                + "\"use_header_row\":true,"
-                                + "\"node_attributes_sheet\":\"Sheet1\","
-                                + "\"node_attributes_sheet_target_key_column\":\"Gene2\","
-                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"excel_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"node_attributes_sheet_source_key_column\":{\"waived\":false,\"parameter\":null},"
+                                + "\"node_attributes_sheet_target_key_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // MDM2 is in Gene2 col of Sheet1; Score numeric cell 0.95 → "0.95"
@@ -883,18 +956,18 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + xlsxPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"excel_sheet\":\"Sheet1\","
-                                + "\"use_header_row\":true,"
-                                + "\"node_attributes_sheet\":\"Sheet1\","
-                                + "\"node_attributes_sheet_source_key_column\":\"Gene1\","
-                                + "\"node_attributes_sheet_target_key_column\":\"Gene2\","
-                                + "\"node_attributes_source_columns\":[\"Score\"],"
-                                + "\"node_attributes_target_columns\":[\"Score\"]}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"excel_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_sheet\":{\"waived\":false,\"parameter\":\"Sheet1\"},"
+                                + "\"node_attributes_sheet_source_key_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"node_attributes_sheet_target_key_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},"
+                                + "\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         verify(srcNodeRow).set("Score", "0.95");
@@ -916,14 +989,14 @@ public class LoadNetworkViewToolTest {
                         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
                                 + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":\""
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
                                 + csvPath
-                                + "\","
-                                + "\"source_column\":\"Gene1\","
-                                + "\"target_column\":\"Gene2\","
-                                + "\"delimiter_char_code\":44,"
-                                + "\"use_header_row\":true,"
-                                + "\"node_attributes_source_columns\":[\"Score\"]}}}");
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
         // No CSV gene name matches "NONEXISTENT" → importNodeAttributes returns imported=false
@@ -931,6 +1004,165 @@ public class LoadNetworkViewToolTest {
                 "Should contain node_attributes_imported false",
                 response.contains("node_attributes_imported") && response.contains("false"));
         assertTrue("Should contain no-match warning", response.contains("No matching node IDs"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Typed column creation
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void tabularCsv_typedNodeAttr_setsDoubleValue() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        // Pass Score as DataColumn with inferred_data_type=double
+        callToolRaw(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":{\"waived\":false,\"parameter\":\""
+                        + csvPath
+                        + "\"},"
+                        + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                        + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                        + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":"
+                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
+
+        // Score=0.95 coerced to Double.class → set as 0.95 (Double)
+        verify(mockNodeTable).createColumn("Score", Double.class, false);
+        verify(srcNodeRow).set("Score", 0.95);
+    }
+
+    @Test
+    public void tabularCsv_edgeColumns_typedCreation() throws Exception {
+        stubTabularNetwork();
+        String csvPath = fixturePath("genes_comma.csv");
+
+        callToolRaw(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":{\"waived\":false,\"parameter\":\""
+                        + csvPath
+                        + "\"},"
+                        + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                        + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                        + "\"edge_columns\":{\"waived\":false,\"parameter\":"
+                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
+
+        // Score column should be created as Double on the edge table (called once per row since
+        // the mock CyTable does not track column state)
+        verify(mockEdgeTable, atLeastOnce()).createColumn("Score", Double.class, false);
+    }
+
+    @Test
+    public void tabularCsv_typedNodeAttr_parseFails_skipsSet() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        // Pass Gene1 (string values like "TP53") declared as integer — coercion must fail silently
+        callToolRaw(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":{\"waived\":false,\"parameter\":\""
+                        + csvPath
+                        + "\"},"
+                        + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                        + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                        + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":"
+                        + "[{\"name\":\"Score\",\"inferred_data_type\":\"integer\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
+
+        // "0.95" cannot be parsed as integer → coerceToColumnType returns null → set is skipped
+        verify(srcNodeRow, never()).set(org.mockito.ArgumentMatchers.eq("Score"), any());
+    }
+
+    @Test
+    public void tabularCsv_missingInferredType_fallsBackToString() throws Exception {
+        stubTabularNetwork();
+        CyNode srcNode = org.mockito.Mockito.mock(CyNode.class);
+        CyRow srcNodeRow = org.mockito.Mockito.mock(CyRow.class);
+        when(tabularNetwork.getNodeList()).thenReturn(List.of(srcNode));
+        when(tabularNetwork.getRow(srcNode)).thenReturn(srcNodeRow);
+        when(srcNodeRow.get(CyNetwork.NAME, String.class)).thenReturn("TP53");
+
+        String csvPath = fixturePath("genes_comma.csv");
+        // Pass DataColumn without inferred_data_type → should default to String
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\","
+                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
+                                + csvPath
+                                + "\"},"
+                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
+                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
+                                + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":"
+                                + "[{\"name\":\"Score\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        // Column is created as String (default) and value is set as "0.95"
+        verify(mockNodeTable).createColumn("Score", String.class, false);
+        verify(srcNodeRow).set("Score", "0.95");
+    }
+
+    // -----------------------------------------------------------------------
+    // Numeric coercion — integer vs string delimiter_char_code
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void tabularDelimiterAsNumber_succeeds() throws Exception {
+        stubTabularNetwork();
+        String path = fixturePath("genes_comma.csv");
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":{\"waived\":false,\"parameter\":\""
+                        + path
+                        + "\"},"
+                        + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
+                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}";
+        String response = callToolRaw(toolCall);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
+    }
+
+    @Test
+    public void tabularDelimiterAsString_succeeds() throws Exception {
+        stubTabularNetwork();
+        String path = fixturePath("genes_comma.csv");
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                        + "\"arguments\":{\"source\":\"tabular-file\","
+                        + "\"file_path\":{\"waived\":false,\"parameter\":\""
+                        + path
+                        + "\"},"
+                        + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
+                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":\"44\"},"
+                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}";
+        String response = callToolRaw(toolCall);
+        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
     }
 
     // -----------------------------------------------------------------------
@@ -1049,9 +1281,9 @@ public class LoadNetworkViewToolTest {
     private String buildToolCall(String networkId) {
         return "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                 + "\"params\":{\"name\":\"load_cytoscape_network_view\","
-                + "\"arguments\":{\"source\":\"ndex\",\"network_id\":\""
+                + "\"arguments\":{\"source\":\"ndex\",\"network_id\":{\"waived\":false,\"parameter\":\""
                 + networkId
-                + "\"}}}";
+                + "\"}}}}";
     }
 
     /**
@@ -1112,6 +1344,264 @@ public class LoadNetworkViewToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Validation tests — ConditionalParameter presence/waive enforcement
+    //
+    // These tests verify that LoadNetworkViewTool delegates to ValidationService
+    // and faithfully returns whatever error the service produces. Logic for
+    // specific param/chain/waive behaviour is covered by ValidationServiceTest.
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void tabularCsv_missingNodeAttrSourceColumns_validationError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(stubError("validation-error-node_attributes_source_columns-absent"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-node_attributes_source_columns-absent"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_missingNodeAttrTargetColumns_validationError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(stubError("validation-error-node_attributes_target_columns-absent"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-node_attributes_target_columns-absent"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_sourceColumn_waivedTrue_returnsError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(stubError("validation-error-source_column-cannot-waive"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-source_column-cannot-waive"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_missingFilePath_validationError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(stubError("validation-error-file_path-absent"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-file_path-absent"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void ndex_missingNetworkId_validationError() throws Exception {
+        when(validationService.validateConditionalParams(eq("source"), eq("ndex"), any(), any()))
+                .thenReturn(stubError("validation-error-network_id-absent"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"ndex\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-network_id-absent"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("ndex"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void ndex_networkId_waivedTrue_returnsError() throws Exception {
+        when(validationService.validateConditionalParams(eq("source"), eq("ndex"), any(), any()))
+                .thenReturn(stubError("validation-error-network_id-cannot-waive"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"ndex\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-network_id-cannot-waive"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("ndex"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void networkFile_missingFilePath_validationError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("network-file"), any(), any()))
+                .thenReturn(stubError("validation-error-file_path-absent-network-file"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"network-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-file_path-absent-network-file"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("network-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void networkFile_filePath_waivedTrue_returnsError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("network-file"), any(), any()))
+                .thenReturn(stubError("validation-error-file_path-cannot-waive-network-file"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"network-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-file_path-cannot-waive-network-file"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("network-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_missingTargetColumn_validationError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(stubError("validation-error-target_column-absent"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-target_column-absent"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_targetColumn_waivedTrue_returnsError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(stubError("validation-error-target_column-cannot-waive"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-target_column-cannot-waive"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_useHeaderRow_waivedTrue_returnsError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(stubError("validation-error-use_header_row-cannot-waive"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-use_header_row-cannot-waive"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    @Test
+    public void tabularCsv_missingUseHeaderRow_validationError() throws Exception {
+        when(validationService.validateConditionalParams(
+                        eq("source"), eq("tabular-file"), any(), any()))
+                .thenReturn(stubError("validation-error-use_header_row-absent"));
+
+        String response =
+                callToolRaw(
+                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
+                                + "\"arguments\":{\"source\":\"tabular-file\"}}}");
+
+        assertTrue("Should be error", response.contains("\"isError\":true"));
+        assertTrue(
+                "Should echo service error",
+                response.contains("validation-error-use_header_row-absent"));
+        verify(validationService, atLeastOnce())
+                .validateConditionalParams(eq("source"), eq("tabular-file"), any(), any());
+        verify(networkFactory, never()).createNetwork();
+    }
+
+    // -----------------------------------------------------------------------
     // Schema tests
     // -----------------------------------------------------------------------
 
@@ -1165,32 +1655,46 @@ public class LoadNetworkViewToolTest {
                     "node_attributes_sheet_source_key_column",
                     "node_attributes_sheet_target_key_column",
                     "node_attributes_source_columns",
-                    "node_attributes_target_columns"
+                    "node_attributes_target_columns",
+                    "edge_columns"
                 }) {
             assertFalse("Missing property: " + key, props.path(key).isMissingNode());
         }
     }
 
     @Test
-    public void inputSchema_arrayPropertiesHaveStringItems() throws Exception {
+    public void inputSchema_arrayPropertiesHaveDataColumnItems() throws Exception {
         JsonNode schema = MAPPER.readTree(LoadNetworkViewTool.INPUT_SCHEMA);
+        // ConditionalParameter wraps each: items lives at
+        // /properties/<param>/properties/parameter/items
         assertEquals(
-                "string",
-                schema.at("/properties/node_attributes_source_columns/items/type").asText());
+                "object",
+                schema.at(
+                                "/properties/node_attributes_source_columns/properties/parameter/items/type")
+                        .asText());
         assertEquals(
-                "string",
-                schema.at("/properties/node_attributes_target_columns/items/type").asText());
+                "object",
+                schema.at(
+                                "/properties/node_attributes_target_columns/properties/parameter/items/type")
+                        .asText());
+        assertEquals(
+                "object",
+                schema.at("/properties/edge_columns/properties/parameter/items/type").asText());
     }
 
     @Test
     public void inputSchema_delimiterCharCodeIsInteger() throws Exception {
         JsonNode schema = MAPPER.readTree(LoadNetworkViewTool.INPUT_SCHEMA);
-        assertEquals("integer", schema.at("/properties/delimiter_char_code/type").asText());
+        assertEquals(
+                "integer",
+                schema.at("/properties/delimiter_char_code/properties/parameter/type").asText());
     }
 
     @Test
     public void inputSchema_useHeaderRowIsBoolean() throws Exception {
         JsonNode schema = MAPPER.readTree(LoadNetworkViewTool.INPUT_SCHEMA);
-        assertEquals("boolean", schema.at("/properties/use_header_row/type").asText());
+        assertEquals(
+                "boolean",
+                schema.at("/properties/use_header_row/properties/parameter/type").asText());
     }
 }

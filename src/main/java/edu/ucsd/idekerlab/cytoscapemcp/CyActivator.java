@@ -30,12 +30,14 @@ import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.AbstractConfigDirPropsReader;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.service.util.AbstractCyActivator;
+import org.cytoscape.util.color.PaletteProviderManager;
 import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.view.presentation.RenderingEngineManager;
 import org.cytoscape.view.vizmap.VisualMappingFunctionFactory;
 import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualStyleFactory;
 import org.cytoscape.work.SynchronousTaskManager;
 import org.cytoscape.work.TaskManager;
 
@@ -161,6 +163,13 @@ public class CyActivator extends AbstractCyActivator {
         CommandExecutorTaskFactory commandExecutorTaskFactory =
                 getService(bundleContext, CommandExecutorTaskFactory.class);
 
+        // Visual style factory (for creating new styles by cloning).
+        VisualStyleFactory visualStyleFactory = getService(bundleContext, VisualStyleFactory.class);
+
+        // Palette provider manager (for auto-generating color mappings).
+        PaletteProviderManager paletteProviderManager =
+                getService(bundleContext, PaletteProviderManager.class);
+
         startMcpServer(
                 cyProperties,
                 appManager,
@@ -178,7 +187,9 @@ public class CyActivator extends AbstractCyActivator {
                 networkFactory,
                 networkViewFactory,
                 syncTaskManager,
-                commandExecutorTaskFactory);
+                commandExecutorTaskFactory,
+                visualStyleFactory,
+                paletteProviderManager);
 
         // Read the CyREST port for display in the status panel.
         @SuppressWarnings("unchecked")
@@ -240,7 +251,9 @@ public class CyActivator extends AbstractCyActivator {
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
             SynchronousTaskManager<?> syncTaskManager,
-            CommandExecutorTaskFactory commandExecutorTaskFactory) {
+            CommandExecutorTaskFactory commandExecutorTaskFactory,
+            VisualStyleFactory visualStyleFactory,
+            PaletteProviderManager paletteProviderManager) {
 
         transportProvider = new McpTransportProvider();
 
@@ -269,7 +282,9 @@ public class CyActivator extends AbstractCyActivator {
                         networkFactory,
                         networkViewFactory,
                         syncTaskManager,
-                        commandExecutorTaskFactory);
+                        commandExecutorTaskFactory,
+                        visualStyleFactory,
+                        paletteProviderManager);
         LOGGER.info("MCP sync server built");
 
         // Register McpEndpoint as an OSGi service under its concrete class type.
@@ -420,20 +435,24 @@ public class CyActivator extends AbstractCyActivator {
     }
 
     private void stopServers() {
-        if (transportProvider != null) {
-            try {
-                transportProvider.closeGracefully().block();
-                LOGGER.info("MCP transport provider closed gracefully");
-            } catch (Exception e) {
-                LOGGER.warn("Error closing MCP transport provider", e);
-            }
-        }
+        // Close the SDK server first so it can perform its own orderly shutdown,
+        // then close the transport. mcpServer.close() delegates to the transport's
+        // closeGracefully() internally, so closing transport first would cause the
+        // SDK to see an already-closed transport during its shutdown sequence.
         if (mcpServer != null) {
             try {
                 mcpServer.close();
                 LOGGER.info("MCP server stopped");
             } catch (Exception e) {
                 LOGGER.warn("Error stopping MCP server", e);
+            }
+        }
+        if (transportProvider != null) {
+            try {
+                transportProvider.closeGracefully().block();
+                LOGGER.info("MCP transport provider closed gracefully");
+            } catch (Exception e) {
+                LOGGER.warn("Error closing MCP transport provider", e);
             }
         }
     }

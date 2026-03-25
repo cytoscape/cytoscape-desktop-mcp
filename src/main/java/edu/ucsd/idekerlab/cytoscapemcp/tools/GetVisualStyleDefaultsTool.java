@@ -58,13 +58,12 @@ public class GetVisualStyleDefaultsTool {
 
     private static final String TOOL_DESCRIPTION =
             "Retrieves all default visual property values for the active Cytoscape Desktop visual"
-                    + " style, including node properties, edge properties, available font families"
-                    + " and styles, and visual property dependency locks. Use when you need to"
-                    + " inspect current styling for the active network, discover all valid property"
-                    + " identifiers and their allowed value formats, or audit the full style state"
-                    + " before applying any visual changes. Read-only; does not modify state."
-                    + " Returns an error if no network is currently loaded or if the active network"
-                    + " has no view, each with a descriptive message indicating the specific cause.";
+                    + " style. Use when you need to inspect current styling for the active network,"
+                    + " discover all valid property identifiers and their allowed value formats, or"
+                    + " audit the full style state before applying any visual changes. See the"
+                    + " output schema for the complete result structure including node/edge"
+                    + " properties, font options, and dependency locks. Read-only; does not modify"
+                    + " state.";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

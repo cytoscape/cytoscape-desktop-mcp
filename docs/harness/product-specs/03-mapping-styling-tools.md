@@ -276,7 +276,7 @@
 {
   "name": "create_discrete_mapping_generated",
   "title": "Create Cytoscape Desktop Auto Mapping",
-  "description": "Create a discrete mapping in Cytoscape Desktop where property values are auto-generated for all distinct column values. Useful when there are many categories. Supports Rainbow (evenly-spaced hues), Random, and Brewer palette generators for colors; shape cycling for shapes; and evenly-distributed numeric ranges for sizes.",
+  "description": "Create a discrete mapping in Cytoscape Desktop where property values are auto-generated for all distinct column values. Useful when there are too many discrete values. Supports Rainbow (evenly-spaced hues), Random, and Brewer palette generators for colors; shape cycling for shapes; and evenly-distributed numeric ranges for sizes.",
   "inputSchema": {
     "type": "object",
     "properties": {

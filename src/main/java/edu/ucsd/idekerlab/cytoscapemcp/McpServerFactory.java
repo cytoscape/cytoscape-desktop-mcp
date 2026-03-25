@@ -6,15 +6,28 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.ucsd.idekerlab.cytoscapemcp.tools.AnalyzeNetworkTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.ApplyLayoutTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateContinuousMappingTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateDiscreteMappingGeneratedTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateDiscreteMappingTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateNetworkViewTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.CreatePassthroughMappingTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GeneratorService;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetColumnDistinctValuesTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetColumnRangeTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetCompatibleColumnsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetFileColumnsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLayoutAlgorithmsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetLoadedNetworkViewsTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetMappablePropertiesTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.GetStylesTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.GetVisualStyleDefaultsTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.InspectTabularFileTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetVisualDefaultTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.SwitchCurrentStyleTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.TabularTypeConverter;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.ValidationService;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.VisualPropertyService;
 
 import org.cytoscape.application.CyApplicationManager;
@@ -24,12 +37,14 @@ import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.property.CyProperty;
+import org.cytoscape.util.color.PaletteProviderManager;
 import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
 import org.cytoscape.view.presentation.RenderingEngineManager;
 import org.cytoscape.view.vizmap.VisualMappingFunctionFactory;
 import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualStyleFactory;
 import org.cytoscape.work.SynchronousTaskManager;
 import org.cytoscape.work.TaskManager;
 
@@ -75,6 +90,7 @@ public final class McpServerFactory {
      * @param syncTaskManager synchronous task manager (nullable)
      * @param commandExecutorTaskFactory command executor for invoking registered app commands
      *     (nullable)
+     * @param visualStyleFactory factory for creating new visual styles (nullable)
      */
     public static McpSyncServer create(
             McpTransportProvider transportProvider,
@@ -96,7 +112,9 @@ public final class McpServerFactory {
             CyNetworkFactory networkFactory,
             CyNetworkViewFactory networkViewFactory,
             SynchronousTaskManager<?> syncTaskManager,
-            CommandExecutorTaskFactory commandExecutorTaskFactory) {
+            CommandExecutorTaskFactory commandExecutorTaskFactory,
+            VisualStyleFactory visualStyleFactory,
+            PaletteProviderManager paletteProviderManager) {
 
         // Explicitly supply jsonMapper and jsonSchemaValidator to bypass McpJsonDefaults,
         // which uses ServiceLoader with the Thread context classloader — that classloader
@@ -110,6 +128,10 @@ public final class McpServerFactory {
                         .jsonSchemaValidator(new DefaultJsonSchemaValidator(objectMapper))
                         .build();
 
+        // Shared stateless helper for column-type inference and value coercion.
+        TabularTypeConverter typeConverter = new TabularTypeConverter();
+        ValidationService validationService = new ValidationService();
+
         // Register tools.
         server.addTool(
                 new LoadNetworkViewTool(
@@ -122,29 +144,96 @@ public final class McpServerFactory {
                                 networkReaderManager,
                                 networkFactory,
                                 networkViewFactory,
-                                layoutManager)
+                                layoutManager,
+                                vmmManager,
+                                typeConverter,
+                                validationService)
                         .toSpec());
-        server.addTool(new GetLoadedNetworkViewsTool(networkManager, viewManager).toSpec());
+        server.addTool(
+                new GetLoadedNetworkViewsTool(appManager, networkManager, viewManager, vmmManager)
+                        .toSpec());
         server.addTool(
                 new SetCurrentNetworkViewTool(appManager, networkManager, viewManager).toSpec());
         server.addTool(
                 new CreateNetworkViewTool(
-                                appManager, networkManager, viewManager, networkViewFactory)
+                                appManager,
+                                networkManager,
+                                viewManager,
+                                networkViewFactory,
+                                validationService)
                         .toSpec());
         server.addTool(new InspectTabularFileTool().toSpec());
-        server.addTool(new GetFileColumnsTool().toSpec());
+        server.addTool(new GetFileColumnsTool(typeConverter, validationService).toSpec());
         server.addTool(
-                new AnalyzeNetworkTool(appManager, syncTaskManager, commandExecutorTaskFactory)
+                new AnalyzeNetworkTool(
+                                appManager,
+                                syncTaskManager,
+                                commandExecutorTaskFactory,
+                                validationService)
                         .toSpec());
         server.addTool(new GetLayoutAlgorithmsTool(layoutManager).toSpec());
         server.addTool(new ApplyLayoutTool(appManager, layoutManager, syncTaskManager).toSpec());
         VisualPropertyService vpService = new VisualPropertyService();
+        GeneratorService generatorService = new GeneratorService(paletteProviderManager);
         server.addTool(
                 new GetVisualStyleDefaultsTool(
                                 appManager, vmmManager, renderingEngineManager, vpService)
                         .toSpec());
         server.addTool(
-                new SetVisualDefaultTool(appManager, vmmManager, renderingEngineManager, vpService)
+                new SetVisualDefaultTool(
+                                appManager,
+                                vmmManager,
+                                renderingEngineManager,
+                                vpService,
+                                validationService)
+                        .toSpec());
+        server.addTool(
+                new GetMappablePropertiesTool(
+                                appManager, vmmManager, renderingEngineManager, vpService)
+                        .toSpec());
+        server.addTool(
+                new GetCompatibleColumnsTool(appManager, renderingEngineManager, vpService)
+                        .toSpec());
+        server.addTool(new GetColumnRangeTool(appManager).toSpec());
+        server.addTool(new GetColumnDistinctValuesTool(appManager, validationService).toSpec());
+        server.addTool(
+                new CreateContinuousMappingTool(
+                                appManager,
+                                vmmManager,
+                                renderingEngineManager,
+                                continuousMappingFactory,
+                                vpService)
+                        .toSpec());
+        server.addTool(
+                new CreateDiscreteMappingTool(
+                                appManager,
+                                vmmManager,
+                                renderingEngineManager,
+                                discreteMappingFactory,
+                                vpService)
+                        .toSpec());
+        server.addTool(
+                new CreateDiscreteMappingGeneratedTool(
+                                appManager,
+                                vmmManager,
+                                renderingEngineManager,
+                                discreteMappingFactory,
+                                vpService,
+                                generatorService,
+                                validationService)
+                        .toSpec());
+        server.addTool(
+                new CreatePassthroughMappingTool(
+                                appManager,
+                                vmmManager,
+                                renderingEngineManager,
+                                passthroughMappingFactory,
+                                vpService)
+                        .toSpec());
+        server.addTool(new GetStylesTool(vmmManager).toSpec());
+        server.addTool(
+                new SwitchCurrentStyleTool(
+                                appManager, vmmManager, visualStyleFactory, validationService)
                         .toSpec());
         return server;
     }

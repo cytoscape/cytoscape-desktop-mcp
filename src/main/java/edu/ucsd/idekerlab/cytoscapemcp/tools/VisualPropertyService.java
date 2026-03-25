@@ -3,6 +3,7 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Paint;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -20,6 +21,13 @@ import org.cytoscape.view.presentation.property.values.LabelBackgroundShape;
 import org.cytoscape.view.presentation.property.values.LineType;
 import org.cytoscape.view.presentation.property.values.NodeShape;
 import org.cytoscape.view.presentation.property.values.VisualPropertyValue;
+import org.cytoscape.view.vizmap.VisualMappingFunction;
+import org.cytoscape.view.vizmap.VisualPropertyDependency;
+import org.cytoscape.view.vizmap.VisualStyle;
+import org.cytoscape.view.vizmap.mappings.ContinuousMapping;
+import org.cytoscape.view.vizmap.mappings.ContinuousMappingPoint;
+import org.cytoscape.view.vizmap.mappings.DiscreteMapping;
+import org.cytoscape.view.vizmap.mappings.PassthroughMapping;
 
 /** Service for visual property type conversion and discovery. */
 public class VisualPropertyService {
@@ -58,6 +66,35 @@ public class VisualPropertyService {
                     Font.class,
                     String.class,
                     Boolean.class);
+
+    /**
+     * Returns {@code true} if the VP is a node property, {@code false} if edge, {@code null} if
+     * neither (network-level). Uses the lexicon's descendant hierarchy.
+     */
+    @SuppressWarnings("unchecked")
+    public Boolean isNodeProperty(VisualLexicon lexicon, VisualProperty<?> vp) {
+        Collection<VisualProperty<?>> nodeDescendants =
+                (Collection<VisualProperty<?>>)
+                        (Collection<?>) lexicon.getAllDescendants(BasicVisualLexicon.NODE);
+        if (nodeDescendants == null) return null;
+        if (nodeDescendants.contains(vp)) return true;
+        Collection<VisualProperty<?>> edgeDescendants =
+                (Collection<VisualProperty<?>>)
+                        (Collection<?>) lexicon.getAllDescendants(BasicVisualLexicon.EDGE);
+        if (edgeDescendants == null) return null;
+        if (edgeDescendants.contains(vp)) return false;
+        return null;
+    }
+
+    /**
+     * Returns {@code "node"}, {@code "edge"}, or {@code null} (network-level). Convenience wrapper
+     * around {@link #isNodeProperty(VisualLexicon, VisualProperty)}.
+     */
+    public String getTableName(VisualLexicon lexicon, VisualProperty<?> vp) {
+        Boolean isNode = isNodeProperty(lexicon, vp);
+        if (isNode == null) return null;
+        return isNode ? "node" : "edge";
+    }
 
     /** Finds a VisualProperty by its ID string in the given lexicon. Returns null if not found. */
     public VisualProperty<?> findPropertyById(VisualLexicon lexicon, String idString) {
@@ -264,6 +301,52 @@ public class VisualPropertyService {
                 BasicVisualLexicon.EDGE_LINE_TYPE, LineType.class, name, "line type");
     }
 
+    /**
+     * Extracts a {@link MappingInfo} summary from a visual mapping function. Returns null if the
+     * mapping is null (no mapping applied). Produces a human-readable summary string:
+     *
+     * <ul>
+     *   <li>Continuous: "column → firstEqualFormatted–lastEqualFormatted"
+     *   <li>Discrete: "column → N entries"
+     *   <li>Passthrough: "column (passthrough)"
+     * </ul>
+     */
+    public MappingInfo getMappingInfo(VisualMappingFunction<?, ?> mapping) {
+        if (mapping == null) return null;
+
+        String column = mapping.getMappingColumnName();
+
+        if (mapping instanceof ContinuousMapping<?, ?> cm) {
+            String summary = buildContinuousSummary(column, cm);
+            return new MappingInfo("ContinuousMapping", column, summary);
+        } else if (mapping instanceof DiscreteMapping<?, ?> dm) {
+            int count = dm.getAll().size();
+            return new MappingInfo(
+                    "DiscreteMapping", column, column + " \u2192 " + count + " entries");
+        } else if (mapping instanceof PassthroughMapping<?, ?>) {
+            return new MappingInfo("PassthroughMapping", column, column + " (passthrough)");
+        }
+        // Unknown mapping type — use class name as fallback.
+        return new MappingInfo(mapping.getClass().getSimpleName(), column, column);
+    }
+
+    /**
+     * Builds a continuous mapping summary showing the formatted equal values of the first and last
+     * breakpoints, e.g. "Degree → 10.0–50.0" or "Degree → #FF0000–#0000FF".
+     */
+    private String buildContinuousSummary(String column, ContinuousMapping<?, ?> cm) {
+        List<?> points = cm.getAllPoints();
+        if (points == null || points.isEmpty()) {
+            return column + " \u2192 (no breakpoints)";
+        }
+        ContinuousMappingPoint<?, ?> first = (ContinuousMappingPoint<?, ?>) points.get(0);
+        ContinuousMappingPoint<?, ?> last =
+                (ContinuousMappingPoint<?, ?>) points.get(points.size() - 1);
+        String firstVal = formatValue(first.getRange().equalValue);
+        String lastVal = formatValue(last.getRange().equalValue);
+        return column + " \u2192 " + firstVal + "\u2013" + lastVal;
+    }
+
     // ---- Private helpers ----
 
     private Color parseColor(String colorStr) throws Exception {
@@ -371,5 +454,85 @@ public class VisualPropertyService {
                     || vpv.getSerializableString().equalsIgnoreCase(name);
         }
         return String.valueOf(value).equalsIgnoreCase(name);
+    }
+
+    /**
+     * Resolves a column type name string to the corresponding Java class. Used by mapping-creation
+     * tools (tasks 18–21) to coerce column-type inputs to exact Java types.
+     *
+     * @throws IllegalArgumentException if the type name is not a supported column type.
+     */
+    public Class<?> resolveColumnType(String typeName) {
+        return switch (typeName) {
+            case "Integer" -> Integer.class;
+            case "Long" -> Long.class;
+            case "Double" -> Double.class;
+            case "String" -> String.class;
+            case "Boolean" -> Boolean.class;
+            default -> throw new IllegalArgumentException(
+                    "Unsupported column type: '"
+                            + typeName
+                            + "'. Valid types: Integer, Long, Double, String, Boolean.");
+        };
+    }
+
+    /**
+     * Coerces a JSON-parsed value to the exact Java type expected by the mapping factory. Jackson
+     * may produce Integer, Long, or Double depending on magnitude/representation; this ensures the
+     * passed breakpoint value is the correct type at runtime (safe due to Java type erasure).
+     */
+    public Object convertColumnValue(Object rawValue, Class<?> columnType) {
+        if (rawValue instanceof Number n) {
+            if (columnType == Integer.class) return n.intValue();
+            if (columnType == Long.class) return n.longValue();
+            if (columnType == Double.class) return n.doubleValue();
+        }
+        if (columnType == String.class) return String.valueOf(rawValue);
+        if (columnType == Boolean.class) return Boolean.valueOf(String.valueOf(rawValue));
+        return rawValue;
+    }
+
+    /**
+     * Parses a string JSON-object key to the typed Java value expected as a DiscreteMapping key.
+     * JSON object keys are always strings; this method converts them to the appropriate column
+     * type.
+     *
+     * @throws IllegalArgumentException if the string cannot be parsed as the specified type.
+     */
+    public Object parseColumnKey(String strKey, Class<?> columnType) {
+        try {
+            if (columnType == Integer.class) return Integer.parseInt(strKey);
+            if (columnType == Long.class) return Long.parseLong(strKey);
+            if (columnType == Double.class) return Double.parseDouble(strKey);
+            if (columnType == String.class) return strKey;
+            if (columnType == Boolean.class) return Boolean.valueOf(strKey);
+            throw new IllegalArgumentException(
+                    "Unsupported column type: " + columnType.getSimpleName());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "Entry key '"
+                            + strKey
+                            + "' cannot be parsed as "
+                            + columnType.getSimpleName()
+                            + ".");
+        }
+    }
+
+    /**
+     * When the target property is NODE_SIZE, automatically enables the "nodeSizeLocked" dependency
+     * so the size mapping is applied immediately without the user needing to manually toggle "Lock
+     * node width and height". Must be called on the Swing EDT while applying the mapping.
+     */
+    public void enableNodeSizeLockIfNeeded(VisualProperty<?> vp, VisualStyle style) {
+        if ("NODE_SIZE".equals(vp.getIdString())) {
+            for (VisualPropertyDependency<?> dep : style.getAllVisualPropertyDependencies()) {
+                if ("nodeSizeLocked".equals(dep.getIdString())) {
+                    if (!dep.isDependencyEnabled()) {
+                        dep.setDependency(true);
+                    }
+                    break;
+                }
+            }
+        }
     }
 }

@@ -89,13 +89,21 @@ public class CreateNetworkViewTool {
                                     new McpSchema.InputProperty(
                                             "integer",
                                             "Required. SUID of the network in Cytoscape Desktop that needs a view."))
-                            .property(
+                            .conditionalParam(
                                     "create_if_exists",
-                                    new McpSchema.InputProperty(
-                                            "boolean",
-                                            "Optional. Default is false. When false and a view already exists,"
-                                                    + " returns the existing current view (or first available) without creating a duplicate."
-                                                    + " When true, always creates a new view even if views already exist."))
+                                    "boolean",
+                                    "Discretionary. Controls whether a new view is created when"
+                                            + " the network already has views."
+                                            + " Set to true (waived=false, parameter=true) to"
+                                            + " always create a new view even when views exist."
+                                            + " Set to false (waived=false, parameter=false) to"
+                                            + " return the existing current view (or first"
+                                            + " available) without creating a duplicate."
+                                            + " Waive to accept the default behaviour (false)."
+                                            + " Confirm with the user before setting or waiving."
+                                            + "\n\nExamples: {\"waived\": false, \"parameter\":"
+                                            + " true}, {\"waived\": false, \"parameter\": false},"
+                                            + " {\"waived\": true}")
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(CreateNetworkViewCallResult.class);
@@ -103,16 +111,19 @@ public class CreateNetworkViewTool {
     private final CyNetworkManager networkManager;
     private final CyNetworkViewManager viewManager;
     private final CyNetworkViewFactory networkViewFactory;
+    private final ValidationService validationService;
 
     public CreateNetworkViewTool(
             CyApplicationManager appManager,
             CyNetworkManager networkManager,
             CyNetworkViewManager viewManager,
-            CyNetworkViewFactory networkViewFactory) {
+            CyNetworkViewFactory networkViewFactory,
+            ValidationService validationService) {
         this.appManager = appManager;
         this.networkManager = networkManager;
         this.viewManager = viewManager;
         this.networkViewFactory = networkViewFactory;
+        this.validationService = validationService;
     }
 
     /** Returns the MCP SyncToolSpecification to register with the McpSyncServer. */
@@ -144,7 +155,7 @@ public class CreateNetworkViewTool {
         LOGGER.info("Tool call received: {}", TOOL_NAME);
 
         try {
-            long networkSuid = ((Number) request.arguments().get("network_suid")).longValue();
+            long networkSuid = Long.parseLong(request.arguments().get("network_suid").toString());
 
             // Look up the network.
             CyNetwork network = networkManager.getNetwork(networkSuid);
@@ -152,7 +163,9 @@ public class CreateNetworkViewTool {
                 return error("Network with SUID " + networkSuid + " not found.");
             }
 
-            Boolean createIfExists = (Boolean) request.arguments().get("create_if_exists");
+            Boolean createIfExists =
+                    validationService.unwrapToolInputValue(
+                            request.arguments().get("create_if_exists"), Boolean.class);
             if (createIfExists == null) createIfExists = Boolean.FALSE;
 
             // Check for existing views.
