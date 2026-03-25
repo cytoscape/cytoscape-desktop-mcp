@@ -426,13 +426,13 @@ Example 3 — Focus Cytoscape desktop on a particular network before applying st
 {
   "type" : "object",
   "properties" : {
-    "view_suid" : {
-      "type" : "integer",
-      "description" : "Required. SUID of the target network view in Cytoscape Desktop."
-    },
     "network_suid" : {
       "type" : "integer",
       "description" : "Required. SUID of the target network in Cytoscape Desktop."
+    },
+    "view_suid" : {
+      "type" : "integer",
+      "description" : "Required. SUID of the target network view in Cytoscape Desktop."
     }
   },
   "required" : [ "network_suid", "view_suid" ]
@@ -647,13 +647,13 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "file_path" : {
-      "type" : "string",
-      "description" : "Required. Absolute path to the tabular file."
-    },
     "use_header_row" : {
       "type" : "boolean",
       "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
+    },
+    "file_path" : {
+      "type" : "string",
+      "description" : "Required. Absolute path to the tabular file."
     },
     "delimiter_char_code" : {
       "type" : "object",
@@ -1399,6 +1399,11 @@ Example 4 — Batch: inspect all numeric node columns needed to configure a full
 {
   "type" : "object",
   "properties" : {
+    "table" : {
+      "type" : "string",
+      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
+      "enum" : [ "node", "edge" ]
+    },
     "column_names" : {
       "type" : "array",
       "description" : "Required. One or more column names to compute range statistics for. Pass all columns you need in a single call — each is processed independently and its result (or per-column error) appears in the response map. Must be a non-empty list. Each column must be a numeric type (Integer, Long, or Double).\n\nExamples: [\"Degree\"], [\"Degree\", \"BetweennessCentrality\", \"expression\"]",
@@ -1406,11 +1411,6 @@ Example 4 — Batch: inspect all numeric node columns needed to configure a full
         "type" : "string",
         "description" : "Name of a numeric column in the specified table."
       }
-    },
-    "table" : {
-      "type" : "string",
-      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
-      "enum" : [ "node", "edge" ]
     }
   },
   "required" : [ "column_names", "table" ]
@@ -1463,6 +1463,11 @@ Example 5 — Limit returned values for a high-cardinality column:
 {
   "type" : "object",
   "properties" : {
+    "table" : {
+      "type" : "string",
+      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
+      "enum" : [ "node", "edge" ]
+    },
     "column_names" : {
       "type" : "array",
       "description" : "Required. One or more column names to enumerate distinct values for. Pass all columns you need in a single call — each is processed independently and its result (or per-column error) appears in the response map. Must be a non-empty list. Works with any non-list column type: String, Integer, Long, Double, or Boolean.\n\nExamples: [\"GeneType\"], [\"GeneType\", \"community\", \"interaction\"]",
@@ -1470,11 +1475,6 @@ Example 5 — Limit returned values for a high-cardinality column:
         "type" : "string",
         "description" : "Name of a column in the specified table."
       }
-    },
-    "table" : {
-      "type" : "string",
-      "description" : "Required. Which data table to query — node table or edge table. Applies to all columns in the list.\n\nExamples: \"node\", \"edge\"",
-      "enum" : [ "node", "edge" ]
     },
     "max_values" : {
       "type" : "object",
@@ -1536,14 +1536,6 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
 {
   "type" : "object",
   "properties" : {
-    "points" : {
-      "type" : "array",
-      "description" : "Required. Minimum 2 breakpoints. Defines the piecewise continuous mapping function: each breakpoint anchors the visual property at a specific data value, and Cytoscape interpolates between adjacent breakpoints — so at least one lower and one upper anchor is needed to form a valid range. Breakpoints must be in ascending order by value; the tool sorts them automatically but rejects duplicates. Each entry has: value (number — the data value at this breakpoint anchor); lesser (property value applied for data values strictly below this breakpoint); equal (property value applied for data values exactly at this breakpoint); greater (property value applied for data values strictly above this breakpoint). For color-gradient properties (Paint), use hex strings (#RRGGBB). For discrete-typed properties (NodeShape, LineType), use display names. For numeric properties (Double, Integer), use numbers.",
-      "items" : {
-        "type" : "object",
-        "description" : "A breakpoint entry with fields: value (number), lesser (property value below this point), equal (property value at this point), greater (property value above this point)."
-      }
-    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column.",
@@ -1556,6 +1548,14 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
     "property_id" : {
       "type" : "string",
       "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
+    },
+    "points" : {
+      "type" : "array",
+      "description" : "Required. Minimum 2 breakpoints. Defines the piecewise continuous mapping function: each breakpoint anchors the visual property at a specific data value, and Cytoscape interpolates between adjacent breakpoints — so at least one lower and one upper anchor is needed to form a valid range. Breakpoints must be in ascending order by value; the tool sorts them automatically but rejects duplicates. Each entry has: value (number — the data value at this breakpoint anchor); lesser (property value applied for data values strictly below this breakpoint); equal (property value applied for data values exactly at this breakpoint); greater (property value applied for data values strictly above this breakpoint). For color-gradient properties (Paint), use hex strings (#RRGGBB). For discrete-typed properties (NodeShape, LineType), use display names. For numeric properties (Double, Integer), use numbers.",
+      "items" : {
+        "type" : "object",
+        "description" : "A breakpoint entry with fields: value (number), lesser (property value below this point), equal (property value at this point), greater (property value above this point)."
+      }
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "points" ]
@@ -1626,10 +1626,6 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
 {
   "type" : "object",
   "properties" : {
-    "entries" : {
-      "type" : "object",
-      "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
-    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
@@ -1642,6 +1638,10 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
     "property_id" : {
       "type" : "string",
       "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
+    },
+    "entries" : {
+      "type" : "object",
+      "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "entries" ]
@@ -1711,6 +1711,10 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
 {
   "type" : "object",
   "properties" : {
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column to drive the mapping. Query compatible network columns for the chosen property using other tooling available."
+    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
@@ -1719,10 +1723,6 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
     "property_id" : {
       "type" : "string",
       "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
-    },
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the data column to drive the mapping. Query compatible network columns for the chosen property using other tooling available."
     },
     "generator" : {
       "type" : "object",
@@ -1825,6 +1825,10 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
 {
   "type" : "object",
   "properties" : {
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column whose values will be used directly as the visual property value. The column must already exist in the node or edge table of the current network — use other available tools to confirm available columns before invoking."
+    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid; the column value will be rendered as-is by Cytoscape.",
@@ -1833,10 +1837,6 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
     "property_id" : {
       "type" : "string",
       "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
-    },
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the data column whose values will be used directly as the visual property value. The column must already exist in the node or edge table of the current network — use other available tools to confirm available columns before invoking."
     }
   },
   "required" : [ "property_id", "column_name", "column_type" ]
