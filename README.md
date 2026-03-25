@@ -43,34 +43,14 @@ AI Agent──► HTTP──► http://localhost:{rest.port}/mcp ──► Cytos
 * An MCP-compatible AI client that also supports the Streamable HTTP transport(not SSE which is [deprecated as of 02/2025](https://auth0.com/blog/mcp-streamable-http/)) (e.g. Claude Desktop)
 
 ## Try it! 
+Get the mcp app jar:
+* Download the latest `cytoscape-mcp-<VERSION>.jar` from the [Releases](../../releases) page.
+* or [Build](#building-from-source) the jar  
 
-### Build from Source
-
-Requirements:
-* [Java][java] 17 with JDK
-* [Git][git]
-* [Make][make]
-
-```bash
-git clone https://github.com/idekerlab/cytoscape-mcp
-cd cytoscape-mcp
-make build
-```
-
-The JAR is produced at `build/libs/cytoscape-mcp-<VERSION>.jar`.
-
-For a full list of build targets:
-```bash
-make help
-```
 ### Cytoscape Desktop Installation
-
-1. Get the mcp app jar:
-    * Download the latest `cytoscape-mcp-<VERSION>.jar` from the [Releases](../../releases) page.
-    * or [Build](#building-from-source) the jar 
-2. Open Cytoscape Desktop.
-3. Navigate to **Apps > App Manager > Install from File**.
-4. Select the file path to the MCP App JAR and restart Cytoscape if prompted.
+1. Open Cytoscape Desktop.
+2. Navigate to **Apps > App Manager > Install from File**.
+3. Select the file path to the MCP App JAR and restart Cytoscape if prompted.
 
 After startup, the MCP status can be viewed via the [MCP button](#mcp-toolbar-button) in the status bar.
 
@@ -86,6 +66,26 @@ See [docs/AgentConfiguration.md](docs/AgentConfiguration.md) for step-by-step se
   Replace `{rest.port}` with Cytoscape's CyREST port (shown in the Agent Configuration dialog). You should see `{"status":"ok","transport":"mcp-streamable-http"}`. A "connection refused" error means Cytoscape is not running or the port is wrong.
 * Use external MCP introspection tools against the Desktop MCP server running at `http://localhost:{rest.port}/mcp` to validate or view current tools catalog - [modelcontextprotocol/inspector](https://github.com/modelcontextprotocol/inspector?tab=readme-ov-file#running-the-inspector)
 
+### Building from source
+If you want to build the app jar directly from source instead of using release jars.
+
+Requirements:
+* [Java][java] 17 with JDK
+* [Git][git]
+* [Make][make]
+
+```bash
+git clone https://github.com/idekerlab/cytoscape-mcp
+cd cytoscape-mcp
+make install
+```
+
+The JAR is produced at `build/libs/cytoscape-mcp-<VERSION>.jar`.
+
+For a full list of build targets:
+```bash
+make help
+```
 
 ## Cytoscape Desktop MCP Tool Catalog
 The MCP server provides a human-readable catalog of every tool registered on the server formatted as Markdown with complete MCP Protocol JSON schema definitions for each tool's input and output. You can obtain the catalog through multiple options:
