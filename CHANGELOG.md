@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `> set color gradient on nodes from blue to red based on eccentricity`
   - pass through mapping
     - `> set node label to gene1`
+  - manage styles
+    - `> switch network style`
+    - `> switch network style to default`  
 
 
 ---
