@@ -26,7 +26,6 @@ import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.spec.HttpHeaders;
-import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpStreamableServerSession;
 import io.modelcontextprotocol.spec.McpStreamableServerTransport;
@@ -413,10 +412,11 @@ public class McpTransportProvider implements McpStreamableServerTransportProvide
 
     private String errorJson(int code, String message) {
         try {
-            return objectMapper.writeValueAsString(McpError.builder(code).message(message).build());
+            return objectMapper.writeValueAsString(
+                    java.util.Map.of("code", code, "message", message));
         } catch (Exception e) {
             logger.error(FAILED_TO_SEND_ERROR_RESPONSE, e.getMessage());
-            return "{\"error\":\"" + message.replace("\"", "\\\"") + "\"}";
+            return "{\"code\":" + code + ",\"message\":\"" + message.replace("\"", "\\\"") + "\"}";
         }
     }
 

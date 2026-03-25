@@ -194,6 +194,26 @@ public class McpTransportProviderTest {
         assertEquals(404, r.getStatus());
     }
 
+    @Test
+    public void post_unknownSessionId_errorBodyIsCleanJson_noStackTrace() throws Exception {
+        wireFactory();
+        String toolCallJson =
+                "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}";
+        Response r = provider.handlePost(ACCEPT_BOTH, "unknown-session", body(toolCallJson));
+
+        String responseBody = r.getEntity().toString();
+        com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(responseBody);
+
+        // Must contain the standard error fields
+        assertTrue("body must contain 'code'", node.has("code"));
+        assertTrue("body must contain 'message'", node.has("message"));
+
+        // Must NOT look like a serialized Java exception
+        assertFalse("body must not contain 'stackTrace'", node.has("stackTrace"));
+        assertFalse("body must not contain 'cause'", node.has("cause"));
+        assertFalse("body must not contain 'suppressed'", node.has("suppressed"));
+    }
+
     // -------------------------------------------------------------------------
     // Notification / Response sent to known session
     // -------------------------------------------------------------------------

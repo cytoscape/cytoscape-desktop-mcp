@@ -1544,18 +1544,18 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
         "description" : "A breakpoint entry with fields: value (number), lesser (property value below this point), equal (property value at this point), greater (property value above this point)."
       }
     },
-    "property_id" : {
+    "column_type" : {
       "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
+      "description" : "Required. Java type of the data column.",
+      "enum" : [ "Integer", "Long", "Double" ]
     },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the numeric data column driving the mapping. Query numeric network columns compatible with continuous mapping for the chosen property using other tooling available."
     },
-    "column_type" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Java type of the data column.",
-      "enum" : [ "Integer", "Long", "Double" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "points" ]
@@ -1630,18 +1630,18 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
       "type" : "object",
       "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
     },
-    "property_id" : {
+    "column_type" : {
       "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
+      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
+      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
     },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the data column driving the mapping. Query compatible network columns for the chosen property using other tooling available."
     },
-    "column_type" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
-      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "entries" ]
@@ -1711,14 +1711,14 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
 {
   "type" : "object",
   "properties" : {
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
-    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     },
     "column_name" : {
       "type" : "string",
@@ -1825,14 +1825,14 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
 {
   "type" : "object",
   "properties" : {
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
-    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid; the column value will be rendered as-is by Cytoscape.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
     },
     "column_name" : {
       "type" : "string",
