@@ -12,17 +12,21 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.BundleEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandETLService;
+import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandService;
 import edu.ucsd.idekerlab.cytoscapemcp.ui.McpStatusPanel;
 
 import org.cytoscape.app.event.AppsFinishedStartingEvent;
 import org.cytoscape.app.event.AppsFinishedStartingListener;
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.application.swing.CySwingApplication;
+import org.cytoscape.command.AvailableCommands;
 import org.cytoscape.command.CommandExecutorTaskFactory;
 import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetworkFactory;
@@ -50,6 +54,8 @@ public class CyActivator extends AbstractCyActivator {
     private volatile McpSyncServer mcpServer;
     private volatile McpTransportProvider transportProvider;
     private volatile BundleContext bundleContext;
+    private volatile CommandService commandService;
+    private volatile CommandETLService commandETLService;
 
     /**
      * Reads app properties from cytoscapemcp.props bundled in the JAR, then merges any user
@@ -170,6 +176,21 @@ public class CyActivator extends AbstractCyActivator {
         PaletteProviderManager paletteProviderManager =
                 getService(bundleContext, PaletteProviderManager.class);
 
+        // Gateway services — AvailableCommands registry + Lucene command index.
+        AvailableCommands availableCommands = getService(bundleContext, AvailableCommands.class);
+        try {
+            commandService = new CommandService();
+        } catch (Exception e) {
+            LOGGER.error(
+                    "Failed to initialize CommandService (Lucene index); gateway tools"
+                            + " will return errors",
+                    e);
+            commandService = null;
+        }
+        if (availableCommands != null && commandService != null) {
+            commandETLService = new CommandETLService(availableCommands, commandService);
+        }
+
         startMcpServer(
                 cyProperties,
                 appManager,
@@ -189,7 +210,22 @@ public class CyActivator extends AbstractCyActivator {
                 syncTaskManager,
                 commandExecutorTaskFactory,
                 visualStyleFactory,
-                paletteProviderManager);
+                paletteProviderManager,
+                availableCommands,
+                commandService);
+
+        // Trigger initial ETL scan and register OSGi BundleListener for push updates.
+        if (commandETLService != null) {
+            commandETLService.scheduleScan();
+            bundleContext.addBundleListener(
+                    event -> {
+                        int type = event.getType();
+                        if (type == BundleEvent.STARTED || type == BundleEvent.STOPPED) {
+                            commandETLService.scheduleScan();
+                        }
+                    });
+            LOGGER.info("CommandETLService started; BundleListener registered for push ETL");
+        }
 
         // Read the CyREST port for display in the status panel.
         @SuppressWarnings("unchecked")
@@ -253,7 +289,9 @@ public class CyActivator extends AbstractCyActivator {
             SynchronousTaskManager<?> syncTaskManager,
             CommandExecutorTaskFactory commandExecutorTaskFactory,
             VisualStyleFactory visualStyleFactory,
-            PaletteProviderManager paletteProviderManager) {
+            PaletteProviderManager paletteProviderManager,
+            AvailableCommands availableCommands,
+            CommandService commandService) {
 
         transportProvider = new McpTransportProvider();
 
@@ -284,7 +322,9 @@ public class CyActivator extends AbstractCyActivator {
                         syncTaskManager,
                         commandExecutorTaskFactory,
                         visualStyleFactory,
-                        paletteProviderManager);
+                        paletteProviderManager,
+                        availableCommands,
+                        commandService);
         LOGGER.info("MCP sync server built");
 
         // Register McpEndpoint as an OSGi service under its concrete class type.
@@ -435,6 +475,12 @@ public class CyActivator extends AbstractCyActivator {
     }
 
     private void stopServers() {
+        if (commandETLService != null) {
+            commandETLService.shutdown();
+        }
+        if (commandService != null) {
+            commandService.close();
+        }
         // Close the SDK server first so it can perform its own orderly shutdown,
         // then close the transport. mcpServer.close() delegates to the transport's
         // closeGracefully() internally, so closing transport first would cause the

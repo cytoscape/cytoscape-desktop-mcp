@@ -59,14 +59,14 @@ code --add-mcp '{"name":"cytoscape-mcp","type":"http","url":"http://localhost:{r
 
 ## GitHub Copilot CLI
 
-Inside a Copilot CLI interactive session, run `/mcp add` and fill in the form (Tab to navigate, Ctrl+S to save):
+```
+copilot mcp add --transport http cytoscape http://localhost:1234/mcp
+```
 
-**Server Name:** `cytoscape-mcp`
-**Server Type:** SSE
-**URL:** `http://localhost:{rest.port}/mcp`
-**HTTP Headers:** leave blank
-
-To verify: run `/mcp show` inside the session.
+To verify: 
+```
+copilot mcp list
+```
 
 ---
 
