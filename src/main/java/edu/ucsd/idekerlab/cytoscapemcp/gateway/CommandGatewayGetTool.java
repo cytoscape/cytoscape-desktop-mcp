@@ -170,14 +170,7 @@ public class CommandGatewayGetTool {
         }
 
         if (results.isEmpty()) {
-            return CallToolResult.builder()
-                    .structuredContent(
-                            new DesktopCommandsResponse(
-                                    false,
-                                    "No matching commands found for the supplied keys.",
-                                    List.of()))
-                    .isError(true)
-                    .build();
+            return error("No matching commands found for the supplied keys.");
         }
         return CallToolResult.builder()
                 .structuredContent(new DesktopCommandsResponse(true, null, results))

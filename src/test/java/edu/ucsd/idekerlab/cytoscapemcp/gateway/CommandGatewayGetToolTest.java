@@ -188,6 +188,19 @@ public class CommandGatewayGetToolTest {
     }
 
     @Test
+    public void getCommand_noMatchingKeys_returnsTextError() throws Exception {
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(getCall("[\"nonexistent command\"]"));
+        transport.await();
+
+        JsonNode response = lastResponse();
+        assertTrue(response.at("/result/isError").asBoolean());
+        String msg = response.at("/result/content/0/text").asText();
+        assertTrue(msg.contains("No matching commands found"));
+    }
+
+    @Test
     public void getCommand_keysExceedingTen_onlyFirstTenProcessed() throws Exception {
         // Build array of 11 valid-format keys (most won't exist and will be silently skipped)
         StringBuilder keys = new StringBuilder("[");

@@ -217,6 +217,7 @@ public class CommandGatewayInvokeTool {
         // --- execute ---
         StringBuilder resultJson = new StringBuilder();
         boolean[] succeeded = {true};
+        String[] failMsg = {null};
 
         TaskObserver observer =
                 new TaskObserver() {
@@ -234,6 +235,10 @@ public class CommandGatewayInvokeTool {
                         if (status.getType() != FinishStatus.Type.SUCCEEDED) {
                             succeeded[0] = false;
                             resultJson.setLength(0);
+                            if (status.getType() == FinishStatus.Type.FAILED) {
+                                Exception ex = status.getException();
+                                if (ex != null) failMsg[0] = buildExceptionMessage(ex);
+                            }
                         }
                     }
                 };
@@ -242,20 +247,23 @@ public class CommandGatewayInvokeTool {
             TaskIterator ti =
                     commandExecutorTaskFactory.createTaskIterator(
                             namespace, commandName, new HashMap<>(inputParams), observer);
-            syncTaskManager.execute(ti);
+            syncTaskManager.execute(ti, observer);
         } catch (Exception e) {
             return error("Command execution failed: " + e.getMessage());
         }
 
         if (!succeeded[0]) {
-            return CallToolResult.builder()
-                    .structuredContent(
-                            new CommandInvocationResponse(
-                                    false,
-                                    "Command '" + commandKey + "' reported execution failure.",
-                                    null))
-                    .isError(true)
-                    .build();
+            String msg =
+                    failMsg[0] != null
+                            ? "Command '" + commandKey + "' execution failed: " + failMsg[0]
+                            : "Command '"
+                                    + commandKey
+                                    + "' was rejected during input validation. "
+                                    + "Use command_gateway_get to retrieve the full schema for"
+                                    + " this command and verify that every required and optional"
+                                    + " parameter name, type, and value matches the schema"
+                                    + " exactly before retrying.";
+            return error(msg);
         }
 
         String result = resultJson.length() > 0 ? resultJson.toString() : null;
@@ -269,5 +277,20 @@ public class CommandGatewayInvokeTool {
                 .content(List.of(new TextContent(message)))
                 .isError(true)
                 .build();
+    }
+
+    private static String buildExceptionMessage(Throwable t) {
+        StringBuilder sb = new StringBuilder();
+        Set<Throwable> seen = new HashSet<>();
+        while (t != null && seen.add(t)) {
+            if (sb.length() > 0) sb.append(" → caused by: ");
+            sb.append(t.getClass().getSimpleName()).append(": ").append(t.getMessage());
+            t = t.getCause();
+            if (sb.length() > 2000) {
+                sb.append(" [truncated]");
+                break;
+            }
+        }
+        return sb.toString();
     }
 }

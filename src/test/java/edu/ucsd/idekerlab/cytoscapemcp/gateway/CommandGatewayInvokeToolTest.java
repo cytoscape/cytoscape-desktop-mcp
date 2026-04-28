@@ -25,11 +25,11 @@ import org.cytoscape.work.TaskMonitor;
 import org.cytoscape.work.TaskObserver;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 /**
@@ -224,8 +224,81 @@ public class CommandGatewayInvokeToolTest {
         transport.await();
 
         JsonNode response = lastResponse();
-        JsonNode content = response.at("/result/structuredContent");
-        assertFalse(content.path("success").asBoolean());
+        assertTrue(response.at("/result/isError").asBoolean());
+        String msg = response.at("/result/content/0/text").asText();
+        assertTrue(msg.contains("cmd failed"));
+    }
+
+    @Test
+    public void invoke_taskFinishCancelled_returnsValidationHint() throws Exception {
+        when(commandExecutorTaskFactory.createTaskIterator(
+                        anyString(), anyString(), anyMap(), any(TaskObserver.class)))
+                .thenAnswer(
+                        inv -> {
+                            TaskObserver observer = inv.getArgument(3);
+                            observer.allFinished(FinishStatus.newCancelled(NO_OP_TASK));
+                            return new TaskIterator(NO_OP_TASK);
+                        });
+
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(invokeCall("network select", "{}"));
+        transport.await();
+
+        JsonNode response = lastResponse();
+        assertTrue(response.at("/result/isError").asBoolean());
+        String msg = response.at("/result/content/0/text").asText();
+        assertTrue(msg.contains("validation"));
+        assertTrue(msg.contains("command_gateway_get"));
+    }
+
+    @Test
+    public void invoke_syncTaskManagerException_returnsErrorWithMessage() throws Exception {
+        doAnswer(
+                        inv -> {
+                            TaskObserver observer = inv.getArgument(1);
+                            observer.allFinished(
+                                    FinishStatus.newFailed(
+                                            NO_OP_TASK, new RuntimeException("disk full")));
+                            return null;
+                        })
+                .when(syncTaskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
+
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(invokeCall("network select", "{}"));
+        transport.await();
+
+        JsonNode response = lastResponse();
+        assertTrue(response.at("/result/isError").asBoolean());
+        String msg = response.at("/result/content/0/text").asText();
+        assertTrue(msg.contains("disk full"));
+    }
+
+    @Test
+    public void invoke_failedStatus_exceptionChain_includedInMessage() throws Exception {
+        when(commandExecutorTaskFactory.createTaskIterator(
+                        anyString(), anyString(), anyMap(), any(TaskObserver.class)))
+                .thenAnswer(
+                        inv -> {
+                            TaskObserver observer = inv.getArgument(3);
+                            observer.allFinished(
+                                    FinishStatus.newFailed(
+                                            NO_OP_TASK,
+                                            new RuntimeException(
+                                                    "outer", new IllegalStateException("inner"))));
+                            return new TaskIterator(NO_OP_TASK);
+                        });
+
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(invokeCall("network select", "{}"));
+        transport.await();
+
+        String msg = lastResponse().at("/result/content/0/text").asText();
+        assertTrue(msg.contains("outer"));
+        assertTrue(msg.contains("inner"));
     }
 
     @Test
