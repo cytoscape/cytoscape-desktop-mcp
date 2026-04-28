@@ -19,9 +19,9 @@ public record DesktopCommand(
         @JsonPropertyDescription("True if this command produces a JSON result.")
                 boolean supportsJson,
         @JsonPropertyDescription(
-                        "JSON Schema string for the input parameters. Use when invoking this"
-                                + " command.")
-                String inputSchema,
+                        "Structured input parameter definitions, split into required and optional"
+                                + " parameters.")
+                CommandInputParameters inputSchema,
         @JsonPropertyDescription(
                         "Representative JSON example of the command's output data. Not a formal"
                                 + " JSON Schema — use it to understand the output field names and"

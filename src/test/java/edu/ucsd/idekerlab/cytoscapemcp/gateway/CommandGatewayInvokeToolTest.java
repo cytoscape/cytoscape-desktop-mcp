@@ -1,11 +1,14 @@
 package edu.ucsd.idekerlab.cytoscapemcp.gateway;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -29,7 +32,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -51,6 +56,7 @@ public class CommandGatewayInvokeToolTest {
     @Mock private AvailableCommands availableCommands;
     @Mock private SynchronousTaskManager<?> syncTaskManager;
     @Mock private CommandExecutorTaskFactory commandExecutorTaskFactory;
+    @Mock private CommandInvokeValidator invokeValidator;
     private AutoCloseable mocks;
     private InMemoryTransport transport;
 
@@ -108,6 +114,10 @@ public class CommandGatewayInvokeToolTest {
                             return new TaskIterator(NO_OP_TASK);
                         });
 
+        // Default: validator approves all calls with an empty coerced-params map
+        when(invokeValidator.validate(anyString(), anyString(), anyMap()))
+                .thenReturn(new CommandInvokeValidator.Result.Ok(Map.of()));
+
         transport = new InMemoryTransport();
         transport.startServer(
                 "test",
@@ -116,7 +126,8 @@ public class CommandGatewayInvokeToolTest {
                         new CommandGatewayInvokeTool(
                                         availableCommands,
                                         syncTaskManager,
-                                        commandExecutorTaskFactory)
+                                        commandExecutorTaskFactory,
+                                        invokeValidator)
                                 .toSpec()));
     }
 
@@ -166,23 +177,32 @@ public class CommandGatewayInvokeToolTest {
 
     @Test
     public void invoke_missingRequiredParam_returnsError() throws Exception {
-        // Make "network" required
-        when(availableCommands.getArgRequired("network", "select", "network")).thenReturn(true);
+        when(invokeValidator.validate(anyString(), anyString(), anyMap()))
+                .thenReturn(
+                        new CommandInvokeValidator.Result.Failure(
+                                "network",
+                                "required parameter is missing (expected type: string)"));
 
         transport.send(INIT_REQUEST);
         transport.send(INITIALIZED_NOTIFICATION);
-        // Don't supply "network" param
         transport.send(invokeCall("network select", "{\"nodeList\":\"all\"}"));
         transport.await();
 
         JsonNode response = lastResponse();
         assertTrue(response.at("/result/isError").asBoolean());
         String msg = response.at("/result/content/0/text").asText();
-        assertTrue(msg.contains("Missing required parameters"));
+        assertTrue(msg.contains("required parameter is missing"));
+        assertTrue(msg.contains("network"));
     }
 
     @Test
     public void invoke_unknownParam_returnsError() throws Exception {
+        when(invokeValidator.validate(anyString(), anyString(), anyMap()))
+                .thenReturn(
+                        new CommandInvokeValidator.Result.Failure(
+                                "unknownParam",
+                                "unknown parameter \u2014 valid parameters: network, nodeList"));
+
         transport.send(INIT_REQUEST);
         transport.send(INITIALIZED_NOTIFICATION);
         transport.send(invokeCall("network select", "{\"unknownParam\":\"value\"}"));
@@ -191,7 +211,8 @@ public class CommandGatewayInvokeToolTest {
         JsonNode response = lastResponse();
         assertTrue(response.at("/result/isError").asBoolean());
         String msg = response.at("/result/content/0/text").asText();
-        assertTrue(msg.contains("Unknown parameters"));
+        assertTrue(msg.contains("unknown parameter"));
+        assertTrue(msg.contains("unknownParam"));
     }
 
     @Test
@@ -310,6 +331,62 @@ public class CommandGatewayInvokeToolTest {
 
         JsonNode response = lastResponse();
         assertTrue(response.at("/result/structuredContent/success").asBoolean());
+    }
+
+    @Test
+    public void invoke_validatorOk_coercedParamsForwardedToCreateTaskIterator() throws Exception {
+        Map<String, Object> coerced = new LinkedHashMap<>();
+        coerced.put("count", 5);
+        when(invokeValidator.validate(anyString(), anyString(), anyMap()))
+                .thenReturn(new CommandInvokeValidator.Result.Ok(coerced));
+
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(invokeCall("network select", "{\"count\":\"5\"}"));
+        transport.await();
+
+        assertTrue(lastResponse().at("/result/structuredContent/success").asBoolean());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(commandExecutorTaskFactory)
+                .createTaskIterator(
+                        eq("network"), eq("select"), captor.capture(), any(TaskObserver.class));
+        assertEquals(Integer.valueOf(5), captor.getValue().get("count"));
+    }
+
+    @Test
+    public void invoke_validatorFailure_returnsErrorWithParamAndReason() throws Exception {
+        when(invokeValidator.validate(anyString(), anyString(), anyMap()))
+                .thenReturn(
+                        new CommandInvokeValidator.Result.Failure(
+                                "count", "expected integer, cannot parse 'abc'"));
+
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(invokeCall("network select", "{\"count\":\"abc\"}"));
+        transport.await();
+
+        JsonNode response = lastResponse();
+        assertTrue(response.at("/result/isError").asBoolean());
+        String msg = response.at("/result/content/0/text").asText();
+        assertTrue(msg.contains("count"));
+        assertTrue(msg.contains("expected integer"));
+    }
+
+    @Test
+    public void invoke_validatorOk_booleanCoercion_succeeds() throws Exception {
+        Map<String, Object> coerced = new LinkedHashMap<>();
+        coerced.put("verbose", Boolean.TRUE);
+        when(invokeValidator.validate(anyString(), anyString(), anyMap()))
+                .thenReturn(new CommandInvokeValidator.Result.Ok(coerced));
+
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(invokeCall("network select", "{\"verbose\":\"true\"}"));
+        transport.await();
+
+        assertTrue(lastResponse().at("/result/structuredContent/success").asBoolean());
     }
 
     // -- Helpers --------------------------------------------------------------

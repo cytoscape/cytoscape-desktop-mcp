@@ -1,7 +1,6 @@
 package edu.ucsd.idekerlab.cytoscapemcp.gateway;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -155,7 +154,8 @@ public class CommandGatewayGetTool {
             String outputExample =
                     supportsJson ? availableCommands.getExampleJSON(namespace, commandName) : null;
             List<String> argNames = availableCommands.getArguments(namespace, commandName);
-            String inputSchema = buildInputSchemaJson(namespace, commandName, argNames);
+            CommandInputParameters inputParameters =
+                    buildInputParameters(namespace, commandName, argNames);
 
             results.add(
                     new DesktopCommand(
@@ -165,7 +165,7 @@ public class CommandGatewayGetTool {
                             description,
                             longDescription,
                             supportsJson,
-                            inputSchema,
+                            inputParameters,
                             outputExample));
         }
 
@@ -179,30 +179,30 @@ public class CommandGatewayGetTool {
 
     // -- Helpers --------------------------------------------------------------
 
-    private String buildInputSchemaJson(String ns, String cmd, List<String> argNames) {
-        Map<String, Object> properties = new LinkedHashMap<>();
-        List<String> required = new ArrayList<>();
+    private CommandInputParameters buildInputParameters(
+            String ns, String cmd, List<String> argNames) {
+        List<CommandInputParameter> requiredList = new ArrayList<>();
+        List<CommandInputParameter> optionalList = new ArrayList<>();
         for (String arg : argNames) {
             Class<?> argType = availableCommands.getArgType(ns, cmd, arg);
             String jsonType = CommandETLService.mapArgType(argType);
             String desc = availableCommands.getArgDescription(ns, cmd, arg);
             String example = availableCommands.getArgExampleStringValue(ns, cmd, arg);
-            Map<String, Object> prop = new LinkedHashMap<>();
-            prop.put("type", jsonType);
-            if (desc != null && !desc.isBlank()) prop.put("description", desc);
-            if (example != null && !example.isBlank()) prop.put("examples", List.of(example));
-            properties.put(arg, prop);
-            if (availableCommands.getArgRequired(ns, cmd, arg)) required.add(arg);
+            boolean isRequired = availableCommands.getArgRequired(ns, cmd, arg);
+            CommandInputParameter param =
+                    new CommandInputParameter(
+                            arg,
+                            jsonType,
+                            (desc != null && !desc.isBlank()) ? desc : null,
+                            (example != null && !example.isBlank()) ? List.of(example) : null,
+                            isRequired);
+            if (isRequired) {
+                requiredList.add(param);
+            } else {
+                optionalList.add(param);
+            }
         }
-        Map<String, Object> schema = new LinkedHashMap<>();
-        schema.put("type", "object");
-        schema.put("properties", properties);
-        if (!required.isEmpty()) schema.put("required", required);
-        try {
-            return MAPPER.writeValueAsString(schema);
-        } catch (Exception e) {
-            return "{}";
-        }
+        return new CommandInputParameters(requiredList, optionalList);
     }
 
     private static CallToolResult error(String message) {

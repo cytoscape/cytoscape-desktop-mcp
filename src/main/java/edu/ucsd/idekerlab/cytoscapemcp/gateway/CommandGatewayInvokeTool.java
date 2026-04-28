@@ -1,12 +1,10 @@
 package edu.ucsd.idekerlab.cytoscapemcp.gateway;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,14 +106,17 @@ public class CommandGatewayInvokeTool {
     private final AvailableCommands availableCommands;
     private final SynchronousTaskManager<?> syncTaskManager;
     private final CommandExecutorTaskFactory commandExecutorTaskFactory;
+    private final CommandInvokeValidator invokeValidator;
 
     public CommandGatewayInvokeTool(
             AvailableCommands availableCommands,
             SynchronousTaskManager<?> syncTaskManager,
-            CommandExecutorTaskFactory commandExecutorTaskFactory) {
+            CommandExecutorTaskFactory commandExecutorTaskFactory,
+            CommandInvokeValidator invokeValidator) {
         this.availableCommands = availableCommands;
         this.syncTaskManager = syncTaskManager;
         this.commandExecutorTaskFactory = commandExecutorTaskFactory;
+        this.invokeValidator = invokeValidator;
     }
 
     public McpServerFeatures.SyncToolSpecification toSpec() {
@@ -186,33 +187,14 @@ public class CommandGatewayInvokeTool {
             return error("'inputParams' must be a JSON object.");
         }
 
-        // --- required-param validation ---
-        List<String> argNames = availableCommands.getArguments(namespace, commandName);
-        List<String> missing = new ArrayList<>();
-        for (String arg : argNames) {
-            if (availableCommands.getArgRequired(namespace, commandName, arg)
-                    && !inputParams.containsKey(arg)) {
-                missing.add(arg);
-            }
+        // --- validate and coerce ---
+        CommandInvokeValidator.Result validationResult =
+                invokeValidator.validate(namespace, commandName, inputParams);
+        if (validationResult instanceof CommandInvokeValidator.Result.Failure f) {
+            return error(f.toErrorMessage(commandKey));
         }
-        if (!missing.isEmpty()) {
-            return error("Missing required parameters: " + String.join(", ", missing));
-        }
-
-        // --- unknown-param validation ---
-        Set<String> knownArgs = new HashSet<>(argNames);
-        List<String> unknown =
-                inputParams.keySet().stream()
-                        .filter(k -> !knownArgs.contains(k))
-                        .sorted()
-                        .collect(Collectors.toList());
-        if (!unknown.isEmpty()) {
-            return error(
-                    "Unknown parameters: "
-                            + String.join(", ", unknown)
-                            + ". Valid parameters: "
-                            + String.join(", ", argNames));
-        }
+        Map<String, Object> coercedParams =
+                ((CommandInvokeValidator.Result.Ok) validationResult).coercedParams();
 
         // --- execute ---
         StringBuilder resultJson = new StringBuilder();
@@ -246,7 +228,7 @@ public class CommandGatewayInvokeTool {
         try {
             TaskIterator ti =
                     commandExecutorTaskFactory.createTaskIterator(
-                            namespace, commandName, new HashMap<>(inputParams), observer);
+                            namespace, commandName, new HashMap<>(coercedParams), observer);
             syncTaskManager.execute(ti, observer);
         } catch (Exception e) {
             return error("Command execution failed: " + e.getMessage());

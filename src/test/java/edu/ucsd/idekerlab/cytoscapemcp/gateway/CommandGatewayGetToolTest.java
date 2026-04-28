@@ -1,5 +1,6 @@
 package edu.ucsd.idekerlab.cytoscapemcp.gateway;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -120,12 +121,16 @@ public class CommandGatewayGetToolTest {
         assertEquals("Select nodes in the network", cmd.path("description").asText());
         assertTrue(cmd.path("supportsJson").asBoolean());
 
-        // inputSchema should be valid JSON with properties
-        String inputSchema = cmd.path("inputSchema").asText();
-        JsonNode schema = MAPPER.readTree(inputSchema);
-        assertTrue(schema.has("properties"));
-        assertTrue(schema.path("properties").has("network"));
-        assertTrue(schema.path("properties").has("nodeList"));
+        // inputSchema is now a structured object — both args are non-required so land in optional
+        JsonNode inputSchema = cmd.path("inputSchema");
+        assertTrue(inputSchema.isObject());
+        JsonNode optional = inputSchema.path("optional");
+        assertTrue(optional.isArray());
+        assertEquals(2, optional.size());
+        List<String> paramNames = new ArrayList<>();
+        for (JsonNode p : optional) paramNames.add(p.path("name").asText());
+        assertTrue(paramNames.contains("network"));
+        assertTrue(paramNames.contains("nodeList"));
 
         // outputExample present since supportsJson=true
         assertFalse(cmd.path("outputExample").asText().isEmpty());

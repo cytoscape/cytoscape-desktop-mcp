@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandGatewayGetTool;
 import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandGatewayInvokeTool;
 import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandGatewaySearchTool;
+import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandInvokeValidator;
 import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandService;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.AnalyzeNetworkTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.ApplyLayoutTool;
@@ -250,7 +251,10 @@ public final class McpServerFactory {
         server.addTool(new CommandGatewayGetTool(availableCommands).toSpec());
         server.addTool(
                 new CommandGatewayInvokeTool(
-                                availableCommands, syncTaskManager, commandExecutorTaskFactory)
+                                availableCommands,
+                                syncTaskManager,
+                                commandExecutorTaskFactory,
+                                new CommandInvokeValidator(availableCommands))
                         .toSpec());
 
         return server;
