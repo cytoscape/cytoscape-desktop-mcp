@@ -108,7 +108,19 @@ public class CommandGatewayInvokeTool {
                                                     + " \"current\"},"
                                                     + " {\"filePath\": \"/data/net.sif\","
                                                     + " \"firstRowAsColumnNames\": true}."))
-                            .required("commandKey", "inputParams")
+                            .property(
+                                    "retrievedDesktopCommandSchema",
+                                    new McpSchema.InputProperty(
+                                            "boolean",
+                                            "Required. Set to true only if the full command schema"
+                                                    + " for the specified commandKey has already"
+                                                    + " been retrieved via the schema retrieval"
+                                                    + " functionality in this session and was used"
+                                                    + " as advice for setting the inputParams. Do"
+                                                    + " not set to true speculatively — the schema"
+                                                    + " must have been explicitly retrieved before"
+                                                    + " this invocation."))
+                            .required("commandKey", "inputParams", "retrievedDesktopCommandSchema")
                             .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(CommandInvocationResponse.class);
@@ -165,6 +177,15 @@ public class CommandGatewayInvokeTool {
 
         Map<String, Object> args = request.arguments();
         if (args == null) args = Map.of();
+
+        // --- schema retrieval guard ---
+        if (!Boolean.TRUE.equals(args.get("retrievedDesktopCommandSchema"))) {
+            return error(
+                    "A command schema must be retrieved for the target commandKey before"
+                            + " invoking a command. Use the schema retrieval functionality to"
+                            + " fetch the full schema, then use it as advice for constructing"
+                            + " the command's input parameters.");
+        }
 
         // --- commandKey ---
         String commandKey = args.get("commandKey") instanceof String s ? s : null;
@@ -253,10 +274,10 @@ public class CommandGatewayInvokeTool {
                             : "Command '"
                                     + commandKey
                                     + "' was rejected during input validation. "
-                                    + "Use command_gateway_get to retrieve the full schema for"
-                                    + " this command and verify that every required and optional"
-                                    + " parameter name, type, and value matches the schema"
-                                    + " exactly before retrying.";
+                                    + "Use the schema retrieval functionality to fetch the full"
+                                    + " schema for this command and verify that every required"
+                                    + " and optional parameter name, type, and value matches"
+                                    + " the schema exactly before retrying.";
             return error(msg);
         }
 

@@ -273,7 +273,7 @@ public class CommandGatewayInvokeToolTest {
         assertTrue(response.at("/result/isError").asBoolean());
         String msg = response.at("/result/content/0/text").asText();
         assertTrue(msg.contains("validation"));
-        assertTrue(msg.contains("command_gateway_get"));
+        assertTrue(msg.contains("schema retrieval"));
     }
 
     @Test
@@ -414,6 +414,7 @@ public class CommandGatewayInvokeToolTest {
         required.forEach(n -> reqList.add(n.asText()));
         assertTrue(reqList.contains("commandKey"));
         assertTrue(reqList.contains("inputParams"));
+        assertTrue(reqList.contains("retrievedDesktopCommandSchema"));
     }
 
     @Test
@@ -421,12 +422,14 @@ public class CommandGatewayInvokeToolTest {
         JsonNode props = MAPPER.readTree(CommandGatewayInvokeTool.INPUT_SCHEMA).get("properties");
         assertEquals("string", props.at("/commandKey/type").asText());
         assertEquals("object", props.at("/inputParams/type").asText());
+        assertEquals("boolean", props.at("/retrievedDesktopCommandSchema/type").asText());
     }
 
     @Test
     public void inputSchema_allPropertiesHaveDescriptions() throws Exception {
         JsonNode props = MAPPER.readTree(CommandGatewayInvokeTool.INPUT_SCHEMA).get("properties");
-        for (String propName : List.of("commandKey", "inputParams")) {
+        for (String propName :
+                List.of("commandKey", "inputParams", "retrievedDesktopCommandSchema")) {
             JsonNode desc = props.at("/" + propName + "/description");
             assertFalse("Property " + propName + " should have description", desc.isMissingNode());
             assertFalse(
@@ -435,9 +438,51 @@ public class CommandGatewayInvokeToolTest {
         }
     }
 
+    @Test
+    public void invoke_missingRetrievedDesktopCommandSchema_returnsError() throws Exception {
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(invokeCallNoSchema("network select", "{}"));
+        transport.await();
+
+        JsonNode response = lastResponse();
+        assertTrue(response.at("/result/isError").asBoolean());
+        String msg = response.at("/result/content/0/text").asText();
+        assertTrue(msg.contains("schema retrieval"));
+    }
+
+    @Test
+    public void invoke_retrievedDesktopCommandSchemaFalse_returnsError() throws Exception {
+        String call =
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                        + "\"params\":{\"name\":\"command_gateway_invoke\","
+                        + "\"arguments\":{\"commandKey\":\"network select\","
+                        + "\"inputParams\":{},"
+                        + "\"retrievedDesktopCommandSchema\":false}}}";
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(call);
+        transport.await();
+
+        JsonNode response = lastResponse();
+        assertTrue(response.at("/result/isError").asBoolean());
+        String msg = response.at("/result/content/0/text").asText();
+        assertTrue(msg.contains("schema retrieval"));
+    }
+
     // -- Helpers --------------------------------------------------------------
 
     private static String invokeCall(String commandKey, String inputParamsJson) {
+        return "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                + "\"params\":{\"name\":\"command_gateway_invoke\","
+                + "\"arguments\":{\"commandKey\":\""
+                + commandKey
+                + "\",\"inputParams\":"
+                + inputParamsJson
+                + ",\"retrievedDesktopCommandSchema\":true}}}";
+    }
+
+    private static String invokeCallNoSchema(String commandKey, String inputParamsJson) {
         return "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
                 + "\"params\":{\"name\":\"command_gateway_invoke\","
                 + "\"arguments\":{\"commandKey\":\""
