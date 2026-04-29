@@ -77,27 +77,39 @@ public class CommandGatewayInvokeTool {
                     + "{\"commandKey\": \"network destroy\","
                     + " \"inputParams\": {\"network\": \"myNetwork\"}}";
 
-    private static final String INPUT_SCHEMA =
-            "{"
-                    + "\"type\":\"object\","
-                    + "\"required\":[\"commandKey\",\"inputParams\"],"
-                    + "\"properties\":{"
-                    + "\"commandKey\":{"
-                    + "\"type\":\"string\","
-                    + "\"description\":\"Required. Fully qualified command key in 'namespace"
-                    + " command' format. Must match a key returned by the search or retrieval"
-                    + " tools. Example values: 'network select', 'layout force-directed',"
-                    + " 'table import file'.\""
-                    + "},"
-                    + "\"inputParams\":{"
-                    + "\"type\":\"object\","
-                    + "\"additionalProperties\":true,"
-                    + "\"description\":\"Required. JSON object whose keys are the command's input"
-                    + " parameter names and values are the parameter values. Required parameters"
-                    + " per the command's input schema must be present. Unknown parameter names"
-                    + " are rejected. Example: {}, {\\\"network\\\": \\\"current\\\"},"
-                    + " {\\\"filePath\\\": \\\"/data/net.sif\\\",'firstRowAsColumnNames': true}.\""
-                    + "}}}";
+    static final String INPUT_SCHEMA =
+            McpSchema.toJson(
+                    McpSchema.InputSchema.builder()
+                            .property(
+                                    "commandKey",
+                                    new McpSchema.InputProperty(
+                                            "string",
+                                            "Required. Fully qualified command key in 'namespace"
+                                                    + " command' format. Must match a key returned"
+                                                    + " by the command search and retrieval"
+                                                    + " functionality available in this server."
+                                                    + "\n\nExample values: 'network select',"
+                                                    + " 'layout force-directed',"
+                                                    + " 'table import file'."))
+                            .property(
+                                    "inputParams",
+                                    new McpSchema.InputProperty(
+                                            "object",
+                                            "Required. JSON object of input parameter key-value"
+                                                    + " pairs for the command being invoked. The"
+                                                    + " valid keys and their expected value types"
+                                                    + " for a given command are defined by that"
+                                                    + " command's input schema — obtain the"
+                                                    + " command's full schema via the schema"
+                                                    + " retrieval functionality available in this"
+                                                    + " server before composing this object."
+                                                    + " Unknown parameter names are rejected."
+                                                    + "\n\nExample: {}, {\"network\":"
+                                                    + " \"current\"},"
+                                                    + " {\"filePath\": \"/data/net.sif\","
+                                                    + " \"firstRowAsColumnNames\": true}."))
+                            .required("commandKey", "inputParams")
+                            .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(CommandInvocationResponse.class);
 

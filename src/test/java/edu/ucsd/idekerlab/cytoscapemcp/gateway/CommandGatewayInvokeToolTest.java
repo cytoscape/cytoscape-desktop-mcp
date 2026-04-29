@@ -1,5 +1,6 @@
 package edu.ucsd.idekerlab.cytoscapemcp.gateway;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,6 +29,8 @@ import org.cytoscape.work.TaskMonitor;
 import org.cytoscape.work.TaskObserver;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -387,6 +390,49 @@ public class CommandGatewayInvokeToolTest {
         transport.await();
 
         assertTrue(lastResponse().at("/result/structuredContent/success").asBoolean());
+    }
+
+    @Test
+    public void inputSchema_isValidJson() throws Exception {
+        JsonNode schema = MAPPER.readTree(CommandGatewayInvokeTool.INPUT_SCHEMA);
+        assertNotNull(schema);
+        assertTrue(schema.isObject());
+    }
+
+    @Test
+    public void inputSchema_typeIsObject() throws Exception {
+        JsonNode schema = MAPPER.readTree(CommandGatewayInvokeTool.INPUT_SCHEMA);
+        assertEquals("object", schema.get("type").asText());
+    }
+
+    @Test
+    public void inputSchema_requiredContainsCommandKeyAndInputParams() throws Exception {
+        JsonNode required = MAPPER.readTree(CommandGatewayInvokeTool.INPUT_SCHEMA).get("required");
+        assertNotNull(required);
+        assertTrue(required.isArray());
+        List<String> reqList = new ArrayList<>();
+        required.forEach(n -> reqList.add(n.asText()));
+        assertTrue(reqList.contains("commandKey"));
+        assertTrue(reqList.contains("inputParams"));
+    }
+
+    @Test
+    public void inputSchema_propertyTypes() throws Exception {
+        JsonNode props = MAPPER.readTree(CommandGatewayInvokeTool.INPUT_SCHEMA).get("properties");
+        assertEquals("string", props.at("/commandKey/type").asText());
+        assertEquals("object", props.at("/inputParams/type").asText());
+    }
+
+    @Test
+    public void inputSchema_allPropertiesHaveDescriptions() throws Exception {
+        JsonNode props = MAPPER.readTree(CommandGatewayInvokeTool.INPUT_SCHEMA).get("properties");
+        for (String propName : List.of("commandKey", "inputParams")) {
+            JsonNode desc = props.at("/" + propName + "/description");
+            assertFalse("Property " + propName + " should have description", desc.isMissingNode());
+            assertFalse(
+                    "Property " + propName + " description should not be empty",
+                    desc.asText().isEmpty());
+        }
     }
 
     // -- Helpers --------------------------------------------------------------

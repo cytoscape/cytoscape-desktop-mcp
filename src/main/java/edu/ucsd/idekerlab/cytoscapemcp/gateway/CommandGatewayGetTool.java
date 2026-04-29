@@ -59,23 +59,31 @@ public class CommandGatewayGetTool {
                     + "Example 3 — Get parameter details for a table export command:\n"
                     + "{\"commandKeys\": [\"table export\"]}";
 
-    // Raw JSON string for inputSchema — uses array type which InputSchema.builder doesn't support
-    private static final String INPUT_SCHEMA =
-            "{"
-                    + "\"type\":\"object\","
-                    + "\"required\":[\"commandKeys\"],"
-                    + "\"properties\":{"
-                    + "\"commandKeys\":{"
-                    + "\"type\":\"array\","
-                    + "\"items\":{\"type\":\"string\"},"
-                    + "\"minItems\":1,"
-                    + "\"maxItems\":10,"
-                    + "\"description\":\"Required. One or more fully qualified command keys in"
-                    + " 'namespace command' format as returned by the command search tool."
-                    + " Maximum 10 keys per call; excess keys are ignored."
-                    + " Example: [\\\"network select\\\"],"
-                    + " [\\\"layout force-directed\\\", \\\"layout hierarchical\\\"].\""
-                    + "}}}";
+    static final String INPUT_SCHEMA =
+            McpSchema.toJson(
+                    McpSchema.InputSchema.builder()
+                            .property(
+                                    "commandKeys",
+                                    new McpSchema.InputProperty(
+                                            "array",
+                                            "Required. One or more fully qualified command keys in"
+                                                    + " 'namespace command' format as returned by"
+                                                    + " the command search and retrieval"
+                                                    + " functionality available in this server."
+                                                    + " Maximum 10 keys per call; excess keys are"
+                                                    + " ignored."
+                                                    + "\n\nExamples: [\"network select\"],"
+                                                    + " [\"layout force-directed\","
+                                                    + " \"layout hierarchical\"].",
+                                            new McpSchema.InputProperty(
+                                                    "string",
+                                                    "Fully qualified command key in 'namespace"
+                                                            + " command' format as returned by the"
+                                                            + " command search and retrieval"
+                                                            + " functionality."),
+                                            null))
+                            .required("commandKeys")
+                            .build());
 
     static final String OUTPUT_SCHEMA = McpSchema.toSchemaJson(DesktopCommandsResponse.class);
 

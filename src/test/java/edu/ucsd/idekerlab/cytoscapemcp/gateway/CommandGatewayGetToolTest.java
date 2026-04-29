@@ -19,6 +19,7 @@ import org.cytoscape.command.AvailableCommands;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
@@ -223,6 +224,44 @@ public class CommandGatewayGetToolTest {
         // Should complete without error (limit enforced silently)
         JsonNode response = lastResponse();
         assertFalse(response.has("error"));
+    }
+
+    @Test
+    public void inputSchema_isValidJson() throws Exception {
+        JsonNode schema = MAPPER.readTree(CommandGatewayGetTool.INPUT_SCHEMA);
+        assertNotNull(schema);
+        assertTrue(schema.isObject());
+    }
+
+    @Test
+    public void inputSchema_typeIsObject() throws Exception {
+        JsonNode schema = MAPPER.readTree(CommandGatewayGetTool.INPUT_SCHEMA);
+        assertEquals("object", schema.get("type").asText());
+    }
+
+    @Test
+    public void inputSchema_requiredContainsCommandKeys() throws Exception {
+        JsonNode required = MAPPER.readTree(CommandGatewayGetTool.INPUT_SCHEMA).get("required");
+        assertNotNull(required);
+        assertTrue(required.isArray());
+        List<String> reqList = new ArrayList<>();
+        required.forEach(n -> reqList.add(n.asText()));
+        assertTrue(reqList.contains("commandKeys"));
+    }
+
+    @Test
+    public void inputSchema_propertyTypes() throws Exception {
+        JsonNode props = MAPPER.readTree(CommandGatewayGetTool.INPUT_SCHEMA).get("properties");
+        assertEquals("array", props.at("/commandKeys/type").asText());
+        assertEquals("string", props.at("/commandKeys/items/type").asText());
+    }
+
+    @Test
+    public void inputSchema_allPropertiesHaveDescriptions() throws Exception {
+        JsonNode props = MAPPER.readTree(CommandGatewayGetTool.INPUT_SCHEMA).get("properties");
+        JsonNode desc = props.at("/commandKeys/description");
+        assertFalse("commandKeys should have description", desc.isMissingNode());
+        assertFalse("commandKeys description should not be empty", desc.asText().isEmpty());
     }
 
     // -- Helpers --------------------------------------------------------------
