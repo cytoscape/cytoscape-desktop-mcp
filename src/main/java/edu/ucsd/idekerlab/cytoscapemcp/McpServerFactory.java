@@ -4,6 +4,11 @@ import java.util.Properties;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandGatewayGetTool;
+import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandGatewayInvokeTool;
+import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandGatewaySearchTool;
+import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandInvokeValidator;
+import edu.ucsd.idekerlab.cytoscapemcp.gateway.CommandService;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.AnalyzeNetworkTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.ApplyLayoutTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.CreateContinuousMappingTool;
@@ -31,6 +36,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.ValidationService;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.VisualPropertyService;
 
 import org.cytoscape.application.CyApplicationManager;
+import org.cytoscape.command.AvailableCommands;
 import org.cytoscape.command.CommandExecutorTaskFactory;
 import org.cytoscape.io.read.CyNetworkReaderManager;
 import org.cytoscape.io.read.InputStreamTaskFactory;
@@ -91,6 +97,8 @@ public final class McpServerFactory {
      * @param commandExecutorTaskFactory command executor for invoking registered app commands
      *     (nullable)
      * @param visualStyleFactory factory for creating new visual styles (nullable)
+     * @param availableCommands Cytoscape command registry for gateway tools (nullable)
+     * @param commandService Lucene-backed command index for gateway search (nullable)
      */
     public static McpSyncServer create(
             McpTransportProvider transportProvider,
@@ -114,7 +122,9 @@ public final class McpServerFactory {
             SynchronousTaskManager<?> syncTaskManager,
             CommandExecutorTaskFactory commandExecutorTaskFactory,
             VisualStyleFactory visualStyleFactory,
-            PaletteProviderManager paletteProviderManager) {
+            PaletteProviderManager paletteProviderManager,
+            AvailableCommands availableCommands,
+            CommandService commandService) {
 
         // Explicitly supply jsonMapper and jsonSchemaValidator to bypass McpJsonDefaults,
         // which uses ServiceLoader with the Thread context classloader — that classloader
@@ -235,6 +245,18 @@ public final class McpServerFactory {
                 new SwitchCurrentStyleTool(
                                 appManager, vmmManager, visualStyleFactory, validationService)
                         .toSpec());
+
+        // Gateway tools — Desktop command discovery, schema retrieval, and invocation.
+        server.addTool(new CommandGatewaySearchTool(commandService).toSpec());
+        server.addTool(new CommandGatewayGetTool(availableCommands).toSpec());
+        server.addTool(
+                new CommandGatewayInvokeTool(
+                                availableCommands,
+                                syncTaskManager,
+                                commandExecutorTaskFactory,
+                                new CommandInvokeValidator(availableCommands))
+                        .toSpec());
+
         return server;
     }
 }

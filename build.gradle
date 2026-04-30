@@ -93,6 +93,11 @@ dependencies {
     embed 'org.apache.poi:poi:5.2.5'
     embed 'org.apache.poi:poi-ooxml:5.2.5'
 
+    // === Lucene — in-memory FTS index for CommandService ===
+    embed 'org.apache.lucene:lucene-core:9.11.1'
+    embed 'org.apache.lucene:lucene-queryparser:9.11.1'
+    embed 'org.apache.lucene:lucene-analysis-common:9.11.1'
+
     // === Test ===
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.mockito:mockito-core:4.11.0"
@@ -118,6 +123,9 @@ dependencies {
     testImplementation "org.glassfish.jersey.core:jersey-common:2.23"
     testImplementation 'org.apache.poi:poi:5.2.5'
     testImplementation 'org.apache.poi:poi-ooxml:5.2.5'
+    testImplementation 'org.apache.lucene:lucene-core:9.11.1'
+    testImplementation 'org.apache.lucene:lucene-queryparser:9.11.1'
+    testImplementation 'org.apache.lucene:lucene-analysis-common:9.11.1'
 }
 
 // Run spotlessCheck before every compile so formatting violations are caught
@@ -178,7 +186,7 @@ jar {
 
             # No Export-Package — identical to diffusion and cy-ndex-2 which export nothing.
             # publisher-5.3 discovers @Path resources via OSGi service instances, not package imports.
-            Private-Package: edu.ucsd.idekerlab.cytoscapemcp,edu.ucsd.idekerlab.cytoscapemcp.tools,edu.ucsd.idekerlab.cytoscapemcp.ui
+            Private-Package: edu.ucsd.idekerlab.cytoscapemcp,edu.ucsd.idekerlab.cytoscapemcp.tools,edu.ucsd.idekerlab.cytoscapemcp.ui,edu.ucsd.idekerlab.cytoscapemcp.gateway
             Embed-Dependency: *;scope=!provided|test;groupId=!org.cytoscape
             Embed-Transitive: true
 

@@ -1536,18 +1536,18 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
 {
   "type" : "object",
   "properties" : {
-    "column_type" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Java type of the data column.",
-      "enum" : [ "Integer", "Long", "Double" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the numeric data column driving the mapping. Query numeric network columns compatible with continuous mapping for the chosen property using other tooling available."
     },
-    "property_id" : {
+    "column_type" : {
       "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
+      "description" : "Required. Java type of the data column.",
+      "enum" : [ "Integer", "Long", "Double" ]
     },
     "points" : {
       "type" : "array",
@@ -1626,18 +1626,18 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
 {
   "type" : "object",
   "properties" : {
-    "column_type" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
-      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
     },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the data column driving the mapping. Query compatible network columns for the chosen property using other tooling available."
     },
-    "property_id" : {
+    "column_type" : {
       "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
+      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
+      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
     },
     "entries" : {
       "type" : "object",
@@ -1715,14 +1715,14 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
       "type" : "string",
       "description" : "Required. Name of the data column to drive the mapping. Query compatible network columns for the chosen property using other tooling available."
     },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
+    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
-    },
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     },
     "generator" : {
       "type" : "object",
@@ -1829,14 +1829,14 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
       "type" : "string",
       "description" : "Required. Name of the data column whose values will be used directly as the visual property value. The column must already exist in the node or edge table of the current network — use other available tools to confirm available columns before invoking."
     },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
+    },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid; the column value will be rendered as-is by Cytoscape.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
-    },
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
     }
   },
   "required" : [ "property_id", "column_name", "column_type" ]
@@ -1982,6 +1982,334 @@ Example 3 — Create a new style cloned from the current style:
     "status" : {
       "type" : "boolean",
       "description" : "Whether the style switch was successful. When true, the current network view is now using the style specified by the request. When false, the error_msg field explains what went wrong.\n\nExamples: true, false"
+    }
+  }
+}
+```
+
+---
+
+### `command_gateway_search`
+
+**Title:** Search Desktop Commands
+
+**Description:** Search the full catalog of Cytoscape Desktop commands registered on user's machine  using a Lucene full-text query. Use this tool whenever the current user conversation touches on any Cytoscape Desktop oriented task — selecting elements, running algorithms, exporting data, changing layouts, manipulating tables, adjusting styles, or any other desktop action. Submit a Lucene-formatted query built from keywords in the user's current context; the tool returns a ranked list of matching commands with relevance scores so you can quickly identify the best candidates of commands.
+
+WHEN TO USE: Call this tool proactively whenever you detect the user describing a Cytoscape action — even partial context is enough. The search is fast and designed for repeated calls as the conversation evolves. A targeted keyword query is more useful than a broad one; the match score on each result row is the key signal: a high-scoring result is very likely the right command. Use field-scoped queries (e.g., inputParams:filePath or description:export) to drill into specific aspects of the command metadata. After reviewing scores and summaries and deciding upon which command to invoke, it is required to invoke the command schema retrieval tool first for a commandKey from search results to get the full schema and description of the command's required and optional input parameters before invoking.
+
+LUCENE QUERY SYNTAX: Keywords search across all indexed command text by default. Field-specific syntax: description:X, inputParams:X, outputSchema:X, namespace:X. Boolean operators: AND, OR, NOT. Phrase matching: "exact phrase". Wildcards: select*, lay?ut. Boosting: select^2 nodes. Submit a query, review match scores, refine if needed.
+
+Returns a SearchResults response. On error, success is false and the failure field describes the cause (e.g., malformed Lucene query syntax).
+
+## Examples
+
+WHEN TO SUGGEST INSTALLING NEW APP IN CYTOSCAPE: IF you don't find any strong hits on existing commands that align  to functional terms that user is mentioning on Cytoscape desktop, then intiate a web search for same terms from user  and Cytoscape App Store(https://apps.cytoscape.org/) and see if any apps show up on those search results  If you find apps in there that aligh to  what the user is trying to accomplish then you should suggest them to install the app direclty on Cytoscape App Store(https://apps.cytoscape.org/).  Once the app is installed on desktop it will register any commands it supports to desktop and the commands will also be loaded into the command gateway tool.  The new commands then are availbe in command gateway search and can be invoked.
+
+Example 1 — User asks to select all high-degree nodes:
+{"query": "select nodes degree filter", "max": 10}
+
+Example 2 — User wants to export the network as a PNG image:
+{"query": "export network image file png", "max": 5}
+
+Example 3 — User asks to apply a force-directed layout:
+{"query": "layout force-directed", "max": 5}
+
+Example 4 — Find commands that return node list in their output:
+{"query": "outputSchema:nodeList", "max": 10}
+
+Example 5 — Search for table import commands:
+{"query": "description:import AND namespace:table", "max": 8}
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : {
+    "max" : {
+      "type" : "integer",
+      "description" : "Required. Maximum number of result rows to return. Use 5–15 for targeted queries; up to 50 for broad exploratory scans. Example values: 5, 10, 25."
+    },
+    "query" : {
+      "type" : "string",
+      "description" : "Required. Lucene query string to search command metadata. Evaluated against command descriptions, input parameter names and descriptions, output schema text, and namespace. Supports full Lucene query syntax: bare keywords search across all indexed text; field-scoped syntax (e.g., 'inputParams:filePath', 'namespace:network'); boolean operators AND, OR, NOT; phrase quotes; wildcards (e.g., 'select*'). Invalid syntax returns success=false with a parse error. Example values: 'layout force-directed', 'export table csv', 'namespace:network'."
+    }
+  },
+  "required" : [ "query", "max" ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "failure" : {
+      "type" : "string",
+      "description" : "When success is false, a human-readable description of the error. Null on success."
+    },
+    "results" : {
+      "description" : "Ranked list of matching commands ordered by descending match score.",
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "commandKey" : {
+            "type" : "string",
+            "description" : "Fully qualified command key in 'namespace command' format, e.g. 'network select'."
+          },
+          "inputs" : {
+            "description" : "Names of input parameters accepted by this command.",
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "outputs" : {
+            "description" : "Top-level output field names from this command's output model. Empty if command does not return JSON.",
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "score" : {
+            "type" : "number",
+            "description" : "Lucene relevance score; higher means a closer match to the query."
+          },
+          "summary" : {
+            "type" : "string",
+            "description" : "One-sentence summary of what the command does."
+          }
+        }
+      }
+    },
+    "success" : {
+      "type" : "boolean",
+      "description" : "True when the search executed without error."
+    }
+  }
+}
+```
+
+---
+
+### `command_gateway_get`
+
+**Title:** Get Desktop Command Schemas
+
+**Description:** Retrieve the complete schema definition for one or more Cytoscape Desktop commands by their fully qualified command key. Use this tool after identifying candidate command keys through the command search tool to obtain the precise input parameter definitions — names, types, required vs optional, descriptions, and example values — and the full output schema before invoking a command. Accepts up to 10 command keys per call for batching. This tool is read-only and does not modify desktop state.
+
+WHEN TO USE: Call this tool for every command you plan to invoke, to obtain the input schema needed to construct valid invocation parameters. If a command key returned by search has a high match score and the summary looks right, retrieve its full schema here before invoking. Batch multiple candidate keys in a single call when comparing alternatives.
+
+Returns a DesktopCommandsResponse. Command keys not found in the desktop are silently omitted from results. If no keys are found, success is false.
+
+## Examples
+
+Example 1 — Retrieve full schema for a single command found by search:
+{"commandKeys": ["network select"]}
+
+Example 2 — Batch-retrieve schemas for two layout candidates:
+{"commandKeys": ["layout force-directed", "layout hierarchical"]}
+
+Example 3 — Get parameter details for a table export command:
+{"commandKeys": ["table export"]}
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : {
+    "commandKeys" : {
+      "type" : "array",
+      "description" : "Required. One or more fully qualified command keys in 'namespace command' format as returned by the command search and retrieval functionality available in this server. Maximum 10 keys per call; excess keys are ignored.\n\nExamples: [\"network select\"], [\"layout force-directed\", \"layout hierarchical\"].",
+      "items" : {
+        "type" : "string",
+        "description" : "Fully qualified command key in 'namespace command' format as returned by the command search and retrieval functionality."
+      }
+    }
+  },
+  "required" : [ "commandKeys" ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$defs" : {
+    "CommandInputParameter" : {
+      "type" : "object",
+      "properties" : {
+        "description" : {
+          "type" : "string",
+          "description" : "Human-readable description of the parameter. Null if not provided."
+        },
+        "examples" : {
+          "description" : "One or more example values for this parameter.",
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "name" : {
+          "type" : "string",
+          "description" : "The argument name as accepted by the Cytoscape command."
+        },
+        "required" : {
+          "type" : "boolean",
+          "description" : "True if this parameter must be provided to invoke the command."
+        },
+        "type" : {
+          "type" : "string",
+          "description" : "JSON Schema type for this parameter: string, integer, number, or boolean."
+        }
+      }
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "failure" : {
+      "type" : "string",
+      "description" : "When success is false, a human-readable error. Null on success."
+    },
+    "results" : {
+      "description" : "One entry per command key that was found in the desktop.",
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "commandKey" : {
+            "type" : "string",
+            "description" : "Fully qualified command key in 'namespace command' format."
+          },
+          "commandName" : {
+            "type" : "string",
+            "description" : "Command name within the namespace, e.g. 'select', 'force-directed'."
+          },
+          "description" : {
+            "type" : "string",
+            "description" : "Short description of the command."
+          },
+          "inputSchema" : {
+            "type" : "object",
+            "properties" : {
+              "optional" : {
+                "description" : "Parameters that may optionally be provided to the command.",
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/$defs/CommandInputParameter"
+                }
+              },
+              "required" : {
+                "description" : "Parameters that must be provided to invoke the command.",
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/$defs/CommandInputParameter"
+                }
+              }
+            },
+            "description" : "Structured input parameter definitions, split into required and optional parameters."
+          },
+          "longDescription" : {
+            "type" : "string",
+            "description" : "Extended description if provided by the command's author. May be null."
+          },
+          "namespace" : {
+            "type" : "string",
+            "description" : "Command namespace, e.g. 'network', 'layout', 'table'."
+          },
+          "outputExample" : {
+            "type" : "string",
+            "description" : "Representative JSON example of the command's output data. Not a formal JSON Schema — use it to understand the output field names and value shapes. Null if supportsJson is false."
+          },
+          "supportsJson" : {
+            "type" : "boolean",
+            "description" : "True if this command produces a JSON result."
+          }
+        }
+      }
+    },
+    "success" : {
+      "type" : "boolean",
+      "description" : "True when at least one command was found and returned."
+    }
+  }
+}
+```
+
+---
+
+### `command_gateway_invoke`
+
+**Title:** Invoke Desktop Command
+
+**Description:** Execute a registered Cytoscape Desktop command by name with a JSON input parameter set and return the command's response. Use this tool only after retrieving the command's full schema from the command retrieval tool to ensure parameters are correct. The tool validates the supplied input parameters against the command's schema: required parameters must be present, unknown parameter names are rejected — all before the command is sent to the desktop. On validation failure, success is false and the failure field lists the specific problems.
+
+WHEN TO USE: This is the execution step after search and schema retrieval. Do not guess at parameter names or values — always retrieve the command's schema first. For commands that modify desktop state (layout, selection, style changes, imports) be aware that execution is immediate and irreversible unless the desktop provides an undo mechanism.
+
+WARNING: This tool is state-mutating. Desktop networks, views, tables, and styles may change as a result of invocation depending on the command.
+
+Returns a CommandInvocationResponse. On error, success is false and failure describes the reason; result is null.
+
+## Examples
+
+Example 1 — Select all nodes in the current network:
+{"commandKey": "network select", "inputParams": {"network": "current", "nodeList": "all"}}
+
+Example 2 — Apply force-directed layout with default parameters:
+{"commandKey": "layout force-directed", "inputParams": {}}
+
+Example 3 — Export the current network as a SIF file:
+{"commandKey": "network export", "inputParams": {"options": "SIF", "OutputFile": "/tmp/mynet.sif"}}
+
+Example 4 — Close a named network:
+{"commandKey": "network destroy", "inputParams": {"network": "myNetwork"}}
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : {
+    "inputParams" : {
+      "type" : "object",
+      "description" : "Required. JSON object of input parameter key-value pairs for the command being invoked. The valid keys and their expected value types for a given command are defined by that command's input schema — obtain the command's full schema via the schema retrieval functionality available in this server before composing this object. Unknown parameter names are rejected.\n\nExample: {}, {\"network\": \"current\"}, {\"filePath\": \"/data/net.sif\", \"firstRowAsColumnNames\": true}."
+    },
+    "commandKey" : {
+      "type" : "string",
+      "description" : "Required. Fully qualified command key in 'namespace command' format. Must match a key returned by the command search and retrieval functionality available in this server.\n\nExample values: 'network select', 'layout force-directed', 'table import file'."
+    },
+    "retrievedDesktopCommandSchema" : {
+      "type" : "boolean",
+      "description" : "Required. Set to true only if the full command schema for the specified commandKey has already been retrieved via the schema retrieval functionality in this session and was used as advice for setting the inputParams. Do not set to true speculatively — the schema must have been explicitly retrieved before this invocation."
+    }
+  },
+  "required" : [ "commandKey", "inputParams", "retrievedDesktopCommandSchema" ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "failure" : {
+      "type" : "string",
+      "description" : "When success is false, describes validation failures or execution errors. Null on success."
+    },
+    "result" : {
+      "type" : "string",
+      "description" : "JSON blob of the command's response data. Null on failure or if the command produces no output."
+    },
+    "success" : {
+      "type" : "boolean",
+      "description" : "True if the command was found, validated, and executed without error."
     }
   }
 }

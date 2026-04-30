@@ -59,7 +59,9 @@ public final class McpManifest {
                         /* syncTaskManager= */ null,
                         /* commandExecutorTaskFactory= */ null,
                         /* visualStyleFactory= */ null,
-                        /* paletteProviderManager= */ null);
+                        /* paletteProviderManager= */ null,
+                        /* availableCommands= */ null,
+                        /* commandService= */ null);
 
         String toolsSection = renderTools(server.listTools(), mapper);
         String template = loadTemplate();

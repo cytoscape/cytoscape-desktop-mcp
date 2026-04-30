@@ -1,0 +1,2 @@
+org.apache.lucene.codecs.lucene99.Lucene99PostingsFormat
+org.apache.lucene.sandbox.codecs.idversion.IDVersionPostingsFormat
