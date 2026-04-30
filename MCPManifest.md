@@ -1536,18 +1536,18 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
 {
   "type" : "object",
   "properties" : {
-    "column_type" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Java type of the data column.",
-      "enum" : [ "Integer", "Long", "Double" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the numeric data column driving the mapping. Query numeric network columns compatible with continuous mapping for the chosen property using other tooling available."
     },
-    "property_id" : {
+    "column_type" : {
       "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
+      "description" : "Required. Java type of the data column.",
+      "enum" : [ "Integer", "Long", "Double" ]
     },
     "points" : {
       "type" : "array",
@@ -1626,18 +1626,18 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
 {
   "type" : "object",
   "properties" : {
-    "column_type" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
-      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
     },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the data column driving the mapping. Query compatible network columns for the chosen property using other tooling available."
     },
-    "property_id" : {
+    "column_type" : {
       "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
+      "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
+      "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
     },
     "entries" : {
       "type" : "object",
@@ -1711,13 +1711,13 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
 {
   "type" : "object",
   "properties" : {
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
-    },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the data column to drive the mapping. Query compatible network columns for the chosen property using other tooling available."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     },
     "column_type" : {
       "type" : "string",
@@ -1825,13 +1825,13 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
 {
   "type" : "object",
   "properties" : {
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
-    },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the data column whose values will be used directly as the visual property value. The column must already exist in the node or edge table of the current network — use other available tools to confirm available columns before invoking."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
     },
     "column_type" : {
       "type" : "string",
@@ -1993,15 +1993,17 @@ Example 3 — Create a new style cloned from the current style:
 
 **Title:** Search Desktop Commands
 
-**Description:** Search the full catalog of Cytoscape Desktop commands registered by core and all installed apps using a Lucene full-text query. Use this tool whenever the current user conversation touches on any Cytoscape-oriented operation — selecting elements, running algorithms, exporting data, changing layouts, manipulating tables, adjusting styles, or any other desktop action. Submit a Lucene-formatted query built from keywords in the user's current context; the tool returns a ranked list of matching commands with relevance scores so you can quickly identify the best candidate commands.
+**Description:** Search the full catalog of Cytoscape Desktop commands registered on user's machine  using a Lucene full-text query. Use this tool whenever the current user conversation touches on any Cytoscape Desktop oriented task — selecting elements, running algorithms, exporting data, changing layouts, manipulating tables, adjusting styles, or any other desktop action. Submit a Lucene-formatted query built from keywords in the user's current context; the tool returns a ranked list of matching commands with relevance scores so you can quickly identify the best candidates of commands.
 
-WHEN TO USE: Call this tool proactively whenever you detect the user describing a Cytoscape action — even partial context is enough. The search is fast and designed for repeated calls as the conversation evolves. A targeted keyword query is more useful than a broad one; the match score on each result row is the key signal: a high-scoring result is very likely the right command. Use field-scoped queries (e.g., inputParams:filePath or description:export) to drill into specific aspects of the command metadata. After reviewing scores and summaries, call the command retrieval tool on high-scoring candidates to get full schemas before invoking.
+WHEN TO USE: Call this tool proactively whenever you detect the user describing a Cytoscape action — even partial context is enough. The search is fast and designed for repeated calls as the conversation evolves. A targeted keyword query is more useful than a broad one; the match score on each result row is the key signal: a high-scoring result is very likely the right command. Use field-scoped queries (e.g., inputParams:filePath or description:export) to drill into specific aspects of the command metadata. After reviewing scores and summaries and deciding upon which command to invoke, it is required to invoke the command schema retrieval tool first for a commandKey from search results to get the full schema and description of the command's required and optional input parameters before invoking.
 
 LUCENE QUERY SYNTAX: Keywords search across all indexed command text by default. Field-specific syntax: description:X, inputParams:X, outputSchema:X, namespace:X. Boolean operators: AND, OR, NOT. Phrase matching: "exact phrase". Wildcards: select*, lay?ut. Boosting: select^2 nodes. Submit a query, review match scores, refine if needed.
 
 Returns a SearchResults response. On error, success is false and the failure field describes the cause (e.g., malformed Lucene query syntax).
 
 ## Examples
+
+WHEN TO SUGGEST INSTALLING NEW APP IN CYTOSCAPE: IF you don't find any strong hits on existing commands that align  to functional terms that user is mentioning on Cytoscape desktop, then intiate a web search for same terms from user  and Cytoscape App Store(https://apps.cytoscape.org/) and see if any apps show up on those search results  If you find apps in there that aligh to  what the user is trying to accomplish then you should suggest them to install the app direclty on Cytoscape App Store(https://apps.cytoscape.org/).  Once the app is installed on desktop it will register any commands it supports to desktop and the commands will also be loaded into the command gateway tool.  The new commands then are availbe in command gateway search and can be invoked.
 
 Example 1 — User asks to select all high-degree nodes:
 {"query": "select nodes degree filter", "max": 10}
@@ -2122,12 +2124,11 @@ Example 3 — Get parameter details for a table export command:
   "properties" : {
     "commandKeys" : {
       "type" : "array",
+      "description" : "Required. One or more fully qualified command keys in 'namespace command' format as returned by the command search and retrieval functionality available in this server. Maximum 10 keys per call; excess keys are ignored.\n\nExamples: [\"network select\"], [\"layout force-directed\", \"layout hierarchical\"].",
       "items" : {
-        "type" : "string"
-      },
-      "minItems" : 1,
-      "maxItems" : 10,
-      "description" : "Required. One or more fully qualified command keys in 'namespace command' format as returned by the command search tool. Maximum 10 keys per call; excess keys are ignored. Example: [\"network select\"], [\"layout force-directed\", \"layout hierarchical\"]."
+        "type" : "string",
+        "description" : "Fully qualified command key in 'namespace command' format as returned by the command search and retrieval functionality."
+      }
     }
   },
   "required" : [ "commandKeys" ]
@@ -2139,6 +2140,36 @@ Example 3 — Get parameter details for a table export command:
 ```json
 {
   "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$defs" : {
+    "CommandInputParameter" : {
+      "type" : "object",
+      "properties" : {
+        "description" : {
+          "type" : "string",
+          "description" : "Human-readable description of the parameter. Null if not provided."
+        },
+        "examples" : {
+          "description" : "One or more example values for this parameter.",
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "name" : {
+          "type" : "string",
+          "description" : "The argument name as accepted by the Cytoscape command."
+        },
+        "required" : {
+          "type" : "boolean",
+          "description" : "True if this parameter must be provided to invoke the command."
+        },
+        "type" : {
+          "type" : "string",
+          "description" : "JSON Schema type for this parameter: string, integer, number, or boolean."
+        }
+      }
+    }
+  },
   "type" : "object",
   "properties" : {
     "failure" : {
@@ -2164,8 +2195,24 @@ Example 3 — Get parameter details for a table export command:
             "description" : "Short description of the command."
           },
           "inputSchema" : {
-            "type" : "string",
-            "description" : "JSON Schema string for the input parameters. Use when invoking this command."
+            "type" : "object",
+            "properties" : {
+              "optional" : {
+                "description" : "Parameters that may optionally be provided to the command.",
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/$defs/CommandInputParameter"
+                }
+              },
+              "required" : {
+                "description" : "Parameters that must be provided to invoke the command.",
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/$defs/CommandInputParameter"
+                }
+              }
+            },
+            "description" : "Structured input parameter definitions, split into required and optional parameters."
           },
           "longDescription" : {
             "type" : "string",
@@ -2228,17 +2275,20 @@ Example 4 — Close a named network:
 {
   "type" : "object",
   "properties" : {
-    "commandKey" : {
-      "type" : "string",
-      "description" : "Required. Fully qualified command key in 'namespace command' format. Must match a key returned by the search or retrieval tools. Example values: 'network select', 'layout force-directed', 'table import file'."
-    },
     "inputParams" : {
       "type" : "object",
-      "additionalProperties" : true,
-      "description" : "Required. JSON object whose keys are the command's input parameter names and values are the parameter values. Required parameters per the command's input schema must be present. Unknown parameter names are rejected. Example: {}, {\"network\": \"current\"}, {\"filePath\": \"/data/net.sif\",'firstRowAsColumnNames': true}."
+      "description" : "Required. JSON object of input parameter key-value pairs for the command being invoked. The valid keys and their expected value types for a given command are defined by that command's input schema — obtain the command's full schema via the schema retrieval functionality available in this server before composing this object. Unknown parameter names are rejected.\n\nExample: {}, {\"network\": \"current\"}, {\"filePath\": \"/data/net.sif\", \"firstRowAsColumnNames\": true}."
+    },
+    "commandKey" : {
+      "type" : "string",
+      "description" : "Required. Fully qualified command key in 'namespace command' format. Must match a key returned by the command search and retrieval functionality available in this server.\n\nExample values: 'network select', 'layout force-directed', 'table import file'."
+    },
+    "retrievedDesktopCommandSchema" : {
+      "type" : "boolean",
+      "description" : "Required. Set to true only if the full command schema for the specified commandKey has already been retrieved via the schema retrieval functionality in this session and was used as advice for setting the inputParams. Do not set to true speculatively — the schema must have been explicitly retrieved before this invocation."
     }
   },
-  "required" : [ "commandKey", "inputParams" ]
+  "required" : [ "commandKey", "inputParams", "retrievedDesktopCommandSchema" ]
 }
 ```
 
