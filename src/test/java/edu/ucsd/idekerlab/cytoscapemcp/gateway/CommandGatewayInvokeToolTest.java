@@ -277,6 +277,142 @@ public class CommandGatewayInvokeToolTest {
     }
 
     @Test
+    public void invoke_taskFinishCancelledWithCapturedError_returnsSpecificMessage()
+            throws Exception {
+        // Inner task emits ERROR via showMessage then cancels — simulates Cytoscape's
+        // validateTunableInput() path where the diagnostic is only surfaced through the monitor
+        when(commandExecutorTaskFactory.createTaskIterator(
+                        anyString(), anyString(), anyMap(), any(TaskObserver.class)))
+                .thenAnswer(
+                        inv -> {
+                            TaskObserver innerObserver = inv.getArgument(3);
+                            Task innerTask =
+                                    new Task() {
+                                        @Override
+                                        public void run(TaskMonitor tm) {
+                                            tm.showMessage(
+                                                    TaskMonitor.Level.ERROR,
+                                                    "The primary key column needs to be"
+                                                            + " selected");
+                                            innerObserver.allFinished(
+                                                    FinishStatus.newCancelled(NO_OP_TASK));
+                                        }
+
+                                        @Override
+                                        public void cancel() {}
+                                    };
+                            return new TaskIterator(innerTask);
+                        });
+
+        // Drive wrapperTask.run() so the capturing TaskMonitor intercepts showMessage calls
+        doAnswer(
+                        inv -> {
+                            TaskIterator ti = inv.getArgument(0);
+                            TaskMonitor noOpTm =
+                                    new TaskMonitor() {
+                                        @Override
+                                        public void setTitle(String t) {}
+
+                                        @Override
+                                        public void setProgress(double p) {}
+
+                                        @Override
+                                        public void setStatusMessage(String m) {}
+
+                                        @Override
+                                        public void showMessage(TaskMonitor.Level l, String m) {}
+                                    };
+                            while (ti.hasNext()) {
+                                try {
+                                    ti.next().run(noOpTm);
+                                } catch (Exception e) {
+                                    // swallow so test can assert the captured error path
+                                }
+                            }
+                            return null;
+                        })
+                .when(syncTaskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
+
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(invokeCall("network select", "{}"));
+        transport.await();
+
+        JsonNode response = lastResponse();
+        assertTrue(response.at("/result/isError").asBoolean());
+        String msg = response.at("/result/content/0/text").asText();
+        assertTrue(
+                "Expected captured monitor error in response", msg.contains("primary key column"));
+    }
+
+    @Test
+    public void invoke_failMsgWinsOverCapturedErrors() throws Exception {
+        // Both failMsg (from FAILED exception) and a captured showMessage(ERROR) are present —
+        // the exception message must win
+        when(commandExecutorTaskFactory.createTaskIterator(
+                        anyString(), anyString(), anyMap(), any(TaskObserver.class)))
+                .thenAnswer(
+                        inv -> {
+                            TaskObserver innerObserver = inv.getArgument(3);
+                            Task innerTask =
+                                    new Task() {
+                                        @Override
+                                        public void run(TaskMonitor tm) {
+                                            tm.showMessage(
+                                                    TaskMonitor.Level.ERROR, "captured detail");
+                                            innerObserver.allFinished(
+                                                    FinishStatus.newFailed(
+                                                            NO_OP_TASK,
+                                                            new RuntimeException("exception msg")));
+                                        }
+
+                                        @Override
+                                        public void cancel() {}
+                                    };
+                            return new TaskIterator(innerTask);
+                        });
+
+        doAnswer(
+                        inv -> {
+                            TaskIterator ti = inv.getArgument(0);
+                            TaskMonitor noOpTm =
+                                    new TaskMonitor() {
+                                        @Override
+                                        public void setTitle(String t) {}
+
+                                        @Override
+                                        public void setProgress(double p) {}
+
+                                        @Override
+                                        public void setStatusMessage(String m) {}
+
+                                        @Override
+                                        public void showMessage(TaskMonitor.Level l, String m) {}
+                                    };
+                            while (ti.hasNext()) {
+                                try {
+                                    ti.next().run(noOpTm);
+                                } catch (Exception e) {
+                                    // swallow
+                                }
+                            }
+                            return null;
+                        })
+                .when(syncTaskManager)
+                .execute(any(TaskIterator.class), any(TaskObserver.class));
+
+        transport.send(INIT_REQUEST);
+        transport.send(INITIALIZED_NOTIFICATION);
+        transport.send(invokeCall("network select", "{}"));
+        transport.await();
+
+        String msg = lastResponse().at("/result/content/0/text").asText();
+        assertTrue(msg.contains("exception msg"));
+        assertFalse(msg.contains("captured detail"));
+    }
+
+    @Test
     public void invoke_syncTaskManagerException_returnsErrorWithMessage() throws Exception {
         doAnswer(
                         inv -> {

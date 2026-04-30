@@ -1,5 +1,6 @@
 package edu.ucsd.idekerlab.cytoscapemcp.gateway;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,10 +17,12 @@ import edu.ucsd.idekerlab.cytoscapemcp.McpSchema;
 
 import org.cytoscape.command.AvailableCommands;
 import org.cytoscape.command.CommandExecutorTaskFactory;
+import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.FinishStatus;
 import org.cytoscape.work.ObservableTask;
 import org.cytoscape.work.SynchronousTaskManager;
 import org.cytoscape.work.TaskIterator;
+import org.cytoscape.work.TaskMonitor;
 import org.cytoscape.work.TaskObserver;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -258,26 +261,73 @@ public class CommandGatewayInvokeTool {
                     }
                 };
 
+        List<String> capturedErrors = new ArrayList<>();
         try {
-            TaskIterator ti =
+            TaskIterator innerTi =
                     commandExecutorTaskFactory.createTaskIterator(
                             namespace, commandName, new HashMap<>(coercedParams), observer);
-            syncTaskManager.execute(ti, observer);
+            AbstractTask wrapperTask =
+                    new AbstractTask() {
+                        @Override
+                        public void run(TaskMonitor tm) throws Exception {
+                            TaskMonitor capturingTm =
+                                    new TaskMonitor() {
+                                        @Override
+                                        public void setTitle(String title) {
+                                            tm.setTitle(title);
+                                        }
+
+                                        @Override
+                                        public void setProgress(double progress) {
+                                            tm.setProgress(progress);
+                                        }
+
+                                        @Override
+                                        public void setStatusMessage(String message) {
+                                            tm.setStatusMessage(message);
+                                        }
+
+                                        @Override
+                                        public void showMessage(
+                                                TaskMonitor.Level level, String message) {
+                                            if (level == TaskMonitor.Level.ERROR
+                                                    && message != null
+                                                    && !message.isBlank()) {
+                                                capturedErrors.add(message);
+                                            }
+                                            tm.showMessage(level, message);
+                                        }
+                                    };
+                            while (innerTi.hasNext()) {
+                                innerTi.next().run(capturingTm);
+                            }
+                        }
+                    };
+            syncTaskManager.execute(new TaskIterator(wrapperTask), observer);
         } catch (Exception e) {
             return error("Command execution failed: " + e.getMessage());
         }
 
         if (!succeeded[0]) {
-            String msg =
-                    failMsg[0] != null
-                            ? "Command '" + commandKey + "' execution failed: " + failMsg[0]
-                            : "Command '"
-                                    + commandKey
-                                    + "' was rejected during input validation. "
-                                    + "Use the schema retrieval functionality to fetch the full"
-                                    + " schema for this command and verify that every required"
-                                    + " and optional parameter name, type, and value matches"
-                                    + " the schema exactly before retrying.";
+            String msg;
+            if (failMsg[0] != null) {
+                msg = "Command '" + commandKey + "' execution failed: " + failMsg[0];
+            } else if (!capturedErrors.isEmpty()) {
+                msg =
+                        "Command '"
+                                + commandKey
+                                + "' execution failed: "
+                                + String.join("; ", capturedErrors);
+            } else {
+                msg =
+                        "Command '"
+                                + commandKey
+                                + "' was rejected during input validation. "
+                                + "Use the schema retrieval functionality to fetch the full"
+                                + " schema for this command and verify that every required"
+                                + " and optional parameter name, type, and value matches"
+                                + " the schema exactly before retrying.";
+            }
             return error(msg);
         }
 
