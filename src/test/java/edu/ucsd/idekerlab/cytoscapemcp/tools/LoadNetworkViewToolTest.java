@@ -127,7 +127,7 @@ public class LoadNetworkViewToolTest {
     private InMemoryTransport transport;
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
 
         props = new Properties();
@@ -174,6 +174,15 @@ public class LoadNetworkViewToolTest {
                         })
                 .when(validationService)
                 .unwrapToolInputDataColumns(any());
+
+        ValidationService realVsForDetect = new ValidationService();
+        doAnswer(
+                        inv ->
+                                realVsForDetect.detectDelimiter(
+                                        inv.getArgument(0, File.class),
+                                        inv.getArgument(1, String.class)))
+                .when(validationService)
+                .detectDelimiter(any(), any());
 
         tool = buildTool(validationService);
 
@@ -538,7 +547,6 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
@@ -565,7 +573,6 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":9},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertFalse("Should not be error", response.contains("\"isError\":true"));
@@ -631,37 +638,11 @@ public class LoadNetworkViewToolTest {
                                 + "\"file_path\":{\"waived\":false,\"parameter\":\"/no/such/file.csv\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         assertTrue("Should be error", response.contains("\"isError\":true"));
         assertTrue("Should mention file not found", response.contains("not found"));
         verify(networkFactory, never()).createNetwork();
-    }
-
-    @Test
-    public void tabularCsv_missingDelimiterForNonExcel_returnsError() throws Exception {
-        stubTabularNetwork();
-        // Phase-1 and phase-2 pass (null = no error); phase-3b delimiter check returns error.
-        when(validationService.validateConditionalParams(
-                        eq("source"), eq("tabular-file"), any(), any()))
-                .thenReturn(null, null, stubError("delimiter_char_code is required"));
-        String csvPath = fixturePath("genes_comma.csv");
-
-        String response =
-                callToolRaw(
-                        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
-                                + "\"params\":{\"name\":\"load_cytoscape_network_view\","
-                                + "\"arguments\":{\"source\":\"tabular-file\","
-                                + "\"file_path\":{\"waived\":false,\"parameter\":\""
-                                + csvPath
-                                + "\"},"
-                                + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
-                                + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
-
-        assertTrue("Should be error", response.contains("\"isError\":true"));
-        assertTrue("Should mention delimiter_char_code", response.contains("delimiter_char_code"));
     }
 
     @Test
@@ -680,7 +661,6 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Column 1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Column 2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":false},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         // With no header row, "Gene1,Gene2,Score" becomes a data row with Column 1 = "Gene1"
@@ -703,7 +683,6 @@ public class LoadNetworkViewToolTest {
                         + "\"},"
                         + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                         + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                         + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
         // No node_attributes_source_columns or target_columns → node set should never be iterated
@@ -733,7 +712,6 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
@@ -799,7 +777,6 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
@@ -828,7 +805,6 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
 
@@ -861,7 +837,6 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},"
                                 + "\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]}}}}");
@@ -994,7 +969,6 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[{\"name\":\"Score\",\"inferred_data_type\":\"string\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
 
@@ -1030,7 +1004,6 @@ public class LoadNetworkViewToolTest {
                         + "\"},"
                         + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                         + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                         + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                         + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":"
                         + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
@@ -1054,7 +1027,6 @@ public class LoadNetworkViewToolTest {
                         + "\"},"
                         + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                         + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                         + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                         + "\"edge_columns\":{\"waived\":false,\"parameter\":"
                         + "[{\"name\":\"Score\",\"inferred_data_type\":\"double\"}]},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
@@ -1084,7 +1056,6 @@ public class LoadNetworkViewToolTest {
                         + "\"},"
                         + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                         + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                         + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                         + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":"
                         + "[{\"name\":\"Score\",\"inferred_data_type\":\"integer\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
@@ -1114,7 +1085,6 @@ public class LoadNetworkViewToolTest {
                                 + "\"},"
                                 + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},"
                                 + "\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                                + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
                                 + "\"use_header_row\":{\"waived\":false,\"parameter\":true},"
                                 + "\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":"
                                 + "[{\"name\":\"Score\"}]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}");
@@ -1123,46 +1093,6 @@ public class LoadNetworkViewToolTest {
         // Column is created as String (default) and value is set as "0.95"
         verify(mockNodeTable).createColumn("Score", String.class, false);
         verify(srcNodeRow).set("Score", "0.95");
-    }
-
-    // -----------------------------------------------------------------------
-    // Numeric coercion — integer vs string delimiter_char_code
-    // -----------------------------------------------------------------------
-
-    @Test
-    public void tabularDelimiterAsNumber_succeeds() throws Exception {
-        stubTabularNetwork();
-        String path = fixturePath("genes_comma.csv");
-        String toolCall =
-                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
-                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
-                        + "\"arguments\":{\"source\":\"tabular-file\","
-                        + "\"file_path\":{\"waived\":false,\"parameter\":\""
-                        + path
-                        + "\"},"
-                        + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":44},"
-                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}";
-        String response = callToolRaw(toolCall);
-        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
-    }
-
-    @Test
-    public void tabularDelimiterAsString_succeeds() throws Exception {
-        stubTabularNetwork();
-        String path = fixturePath("genes_comma.csv");
-        String toolCall =
-                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
-                        + "\"params\":{\"name\":\"load_cytoscape_network_view\","
-                        + "\"arguments\":{\"source\":\"tabular-file\","
-                        + "\"file_path\":{\"waived\":false,\"parameter\":\""
-                        + path
-                        + "\"},"
-                        + "\"source_column\":{\"waived\":false,\"parameter\":\"Gene1\"},\"target_column\":{\"waived\":false,\"parameter\":\"Gene2\"},"
-                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":\"44\"},"
-                        + "\"use_header_row\":{\"waived\":false,\"parameter\":true},\"node_attributes_source_columns\":{\"waived\":false,\"parameter\":[]},\"node_attributes_target_columns\":{\"waived\":false,\"parameter\":[]}}}}";
-        String response = callToolRaw(toolCall);
-        assertFalse("Should not be an error response", response.contains("\"isError\":true"));
     }
 
     // -----------------------------------------------------------------------
@@ -1648,7 +1578,6 @@ public class LoadNetworkViewToolTest {
                     "source_column",
                     "target_column",
                     "interaction_column",
-                    "delimiter_char_code",
                     "use_header_row",
                     "excel_sheet",
                     "node_attributes_sheet",
@@ -1680,14 +1609,6 @@ public class LoadNetworkViewToolTest {
         assertEquals(
                 "object",
                 schema.at("/properties/edge_columns/properties/parameter/items/type").asText());
-    }
-
-    @Test
-    public void inputSchema_delimiterCharCodeIsInteger() throws Exception {
-        JsonNode schema = MAPPER.readTree(LoadNetworkViewTool.INPUT_SCHEMA);
-        assertEquals(
-                "integer",
-                schema.at("/properties/delimiter_char_code/properties/parameter/type").asText());
     }
 
     @Test

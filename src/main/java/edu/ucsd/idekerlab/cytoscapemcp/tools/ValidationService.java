@@ -1,5 +1,12 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -269,6 +276,63 @@ public class ValidationService {
 
         if (value == null) return List.of();
         return MAPPER.convertValue(value, new TypeReference<List<DataColumn>>() {});
+    }
+
+    // -- Delimiter detection --------------------------------------------------
+
+    /**
+     * Detects the most likely column delimiter in a plain-text tabular file by finding the
+     * candidate (tab=9, comma=44, pipe=124, semicolon=59) whose occurrence count is positive and
+     * identical across the first five sampled non-blank, non-comment lines.
+     *
+     * @param file the file to sample
+     * @param commentChar lines starting with this character are skipped; {@code null} to disable
+     * @return the detected ASCII delimiter code, or {@code -1} if detection is ambiguous (no
+     *     candidate has a consistent count, two candidates tie, or fewer than 2 usable lines)
+     */
+    public int detectDelimiter(File file, String commentChar) throws IOException {
+        int[] candidates = {9, 44, 124, 59};
+        List<String> lines = new ArrayList<>();
+        try (BufferedReader r =
+                new BufferedReader(
+                        new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+            String line;
+            boolean firstLine = true;
+            while ((line = r.readLine()) != null && lines.size() < 5) {
+                if (firstLine) {
+                    if (line.startsWith("﻿")) line = line.substring(1);
+                    firstLine = false;
+                }
+                if (line.isBlank()) continue;
+                if (commentChar != null && line.startsWith(commentChar)) continue;
+                lines.add(line);
+            }
+        }
+        if (lines.size() < 2) return -1;
+
+        int winner = -1;
+        for (int delim : candidates) {
+            char c = (char) delim;
+            int[] counts = new int[lines.size()];
+            for (int i = 0; i < lines.size(); i++) {
+                for (char ch : lines.get(i).toCharArray()) {
+                    if (ch == c) counts[i]++;
+                }
+            }
+            if (counts[0] == 0) continue;
+            boolean consistent = true;
+            for (int i = 1; i < counts.length; i++) {
+                if (counts[i] != counts[0]) {
+                    consistent = false;
+                    break;
+                }
+            }
+            if (consistent) {
+                if (winner != -1) return -1; // two candidates match — ambiguous
+                winner = delim;
+            }
+        }
+        return winner;
     }
 
     // -- Internal helpers -----------------------------------------------------

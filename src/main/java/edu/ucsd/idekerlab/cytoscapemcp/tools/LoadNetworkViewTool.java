@@ -112,7 +112,6 @@ public class LoadNetworkViewTool {
                     + " \"file_path\": {\"waived\": false, \"parameter\": \"/path/to/data.csv\"},"
                     + " \"source_column\": {\"waived\": false, \"parameter\": \"Gene_A\"},"
                     + " \"target_column\": {\"waived\": false, \"parameter\": \"Gene_B\"},"
-                    + " \"delimiter_char_code\": {\"waived\": false, \"parameter\": 44},"
                     + " \"use_header_row\": {\"waived\": false, \"parameter\": true},"
                     + " \"interaction_column\": {\"waived\": true, \"parameter\": null},"
                     + " \"node_attributes_source_columns\": {\"waived\": false, \"parameter\":"
@@ -180,16 +179,6 @@ public class LoadNetworkViewTool {
                                             + " Applicable when source='tabular-file'."
                                             + " Confirm with the user whether an interaction column should be mapped or waived.")
                             .conditionalParam(
-                                    "delimiter_char_code",
-                                    "integer",
-                                    "Conditional on source='tabular-file' with a non-Excel file (i.e. excel_sheet not set)."
-                                            + " ASCII code of the column delimiter (e.g."
-                                            + " 44=comma, 9=tab)."
-                                            + " Use the file extension, or inspect the source file to determine the delimiter."
-                                            + " Required when source='tabular-file' and file is not Excel."
-                                            + " Ignored for Excel files (use excel_sheet instead)."
-                                            + " Confirm with the user by inspecting the file before setting or waiving.")
-                            .conditionalParam(
                                     "use_header_row",
                                     "boolean",
                                     "Conditional on source='tabular-file'. Whether the first row contains column headers."
@@ -201,12 +190,11 @@ public class LoadNetworkViewTool {
                             .conditionalParam(
                                     "excel_sheet",
                                     "string",
-                                    "Conditional on source='tabular-file' with an Excel file"
-                                            + " (mutually exclusive with delimiter_char_code — set one or the other, not both)."
+                                    "Conditional on source='tabular-file' with an Excel file."
                                             + " Name of the Excel sheet containing the network edge data."
                                             + " Inspect the source file to determine what sheets are available."
                                             + " Required when source='tabular-file' and file is Excel."
-                                            + " Ignored for non-Excel files (use delimiter_char_code instead)."
+                                            + " Ignored for non-Excel files — delimiter is detected automatically."
                                             + " Confirm with the user which sheet to use before setting or waiving.")
                             .conditionalParam(
                                     "node_attributes_sheet",
@@ -697,20 +685,6 @@ public class LoadNetworkViewTool {
         }
 
         // -- Phase 3b: delimiter required for non-Excel files -----------------
-        if (!isExcel) {
-            err =
-                    validationService.validateConditionalParams(
-                            "source",
-                            "tabular-file",
-                            args,
-                            List.of(
-                                    new ValidationService.ConditionalParam(
-                                            "delimiter_char_code",
-                                            "the ASCII code of the column delimiter",
-                                            false)));
-            if (err != null) return err;
-        }
-
         // -- Extract validated values -----------------------------------------
         String filePath =
                 validationService.unwrapToolInputValue(args.get("file_path"), String.class);
@@ -727,9 +701,22 @@ public class LoadNetworkViewTool {
         Boolean useHeaderRow =
                 validationService.unwrapToolInputValue(args.get("use_header_row"), Boolean.class);
 
-        Integer delimiterCharCode =
-                validationService.unwrapToolInputValue(
-                        args.get("delimiter_char_code"), Integer.class);
+        Integer delimiterCharCode = null;
+        if (!isExcel) {
+            int detected;
+            try {
+                detected = validationService.detectDelimiter(file, null);
+            } catch (IOException e) {
+                return error("Failed to read file '" + filePath + "': " + e.getMessage());
+            }
+            if (detected == -1) {
+                return error(
+                        "Cannot determine the column delimiter from the file content."
+                                + " The file must use a consistent tab, comma (,), pipe (|),"
+                                + " or semicolon (;) as the column separator across all rows.");
+            }
+            delimiterCharCode = detected;
+        }
 
         String interactionCol =
                 validationService.unwrapToolInputValue(

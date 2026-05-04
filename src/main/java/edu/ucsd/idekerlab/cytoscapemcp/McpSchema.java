@@ -105,9 +105,12 @@ public class McpSchema {
      *     LLM).
      * @param isDataColumnArray when {@code true}, the {@code parameter} field is rendered as a
      *     {@code DataColumn} array; {@code paramType} is ignored.
+     * @param itemType when {@code paramType} is {@code "array"} and this is non-null, the {@code
+     *     parameter} field's items schema is emitted as {@code {"type": <itemType>}}. Ignored when
+     *     {@code isDataColumnArray=true} or {@code paramType != "array"}.
      */
     public record ConditionalParamSpec(
-            String paramType, String description, boolean isDataColumnArray) {}
+            String paramType, String description, boolean isDataColumnArray, String itemType) {}
 
     /**
      * Runtime model for a deserialized {@code ConditionalParameter} wrapper. Represents the JSON
@@ -293,7 +296,24 @@ public class McpSchema {
              */
             public Builder conditionalParam(String name, String paramType, String description) {
                 conditionalParamSpecs.put(
-                        name, new ConditionalParamSpec(paramType, description, false));
+                        name, new ConditionalParamSpec(paramType, description, false, null));
+                return this;
+            }
+
+            /**
+             * Declare a conditional array parameter where the {@code parameter} field has a typed
+             * items schema. Use when the array element type must be communicated to the LLM (e.g.
+             * {@code "array"} of {@code "string"}).
+             *
+             * @param name parameter key in the schema
+             * @param paramType must be {@code "array"}
+             * @param itemType JSON primitive type for each array element (e.g. {@code "string"})
+             * @param description description on the wrapper object
+             */
+            public Builder conditionalParam(
+                    String name, String paramType, String itemType, String description) {
+                conditionalParamSpecs.put(
+                        name, new ConditionalParamSpec(paramType, description, false, itemType));
                 return this;
             }
 
@@ -307,7 +327,8 @@ public class McpSchema {
              * @param description description on the wrapper object
              */
             public Builder conditionalDataColumnParam(String name, String description) {
-                conditionalParamSpecs.put(name, new ConditionalParamSpec(null, description, true));
+                conditionalParamSpecs.put(
+                        name, new ConditionalParamSpec(null, description, true, null));
                 return this;
             }
 
@@ -394,6 +415,11 @@ public class McpSchema {
                     gen.writeStringField("type", "array");
                     gen.writeFieldName("items");
                     gen.writeTree(DATA_COLUMN_ITEM_SCHEMA);
+                } else if ("array".equals(spec.paramType()) && spec.itemType() != null) {
+                    gen.writeStringField("type", "array");
+                    gen.writeObjectFieldStart("items");
+                    gen.writeStringField("type", spec.itemType());
+                    gen.writeEndObject();
                 } else {
                     gen.writeStringField("type", spec.paramType());
                 }

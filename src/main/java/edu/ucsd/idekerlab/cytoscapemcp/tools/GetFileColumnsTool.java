@@ -2,7 +2,9 @@ package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,8 +44,8 @@ import io.modelcontextprotocol.spec.McpSchema.Tool;
  * <ul>
  *   <li><b>Excel</b> — {@code excel_sheet} is provided; opens the workbook via Apache POI and reads
  *       the named sheet.
- *   <li><b>Text (CSV/TSV/custom)</b> — {@code excel_sheet} is absent; opens the file as plain text
- *       and splits lines by {@code delimiter_char_code} (ASCII integer, defaults to comma).
+ *   <li><b>Text (CSV/TSV/custom)</b> — {@code excel_sheet} is absent; the column delimiter is
+ *       auto-detected from the file content.
  * </ul>
  */
 public class GetFileColumnsTool {
@@ -56,15 +58,14 @@ public class GetFileColumnsTool {
 
     private static final String TOOL_EXAMPLES =
             "\n\n## Examples\n\n"
-                    + "Example 1 — Read column headers from a file for Cytoscape desktop import:\n"
-                    + "{\"file_path\": \"/path/to/data.csv\", \"delimiter_char_code\": 44, \"use_header_row\": true}\n\n"
-                    + "Example 2 — Preview columns from a file:\n"
-                    + "{\"file_path\": \"/path/to/data.tsv\", \"delimiter_char_code\": 9, \"use_header_row\": true}\n\n"
-                    + "Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:\n"
+                    + "Example 1 — Read column headers from a CSV file:\n"
+                    + "{\"file_path\": \"/path/to/data.csv\", \"use_header_row\": true}\n\n"
+                    + "Example 2 — Preview columns from a TSV file:\n"
+                    + "{\"file_path\": \"/path/to/data.tsv\", \"use_header_row\": true}\n\n"
+                    + "Example 3 — Read columns from an Excel sheet:\n"
                     + "{\"file_path\": \"/path/to/data.xlsx\", \"use_header_row\": true, \"excel_sheet\": \"Sheet1\"}\n\n"
-                    + "Example 4 — Get column headers from a file:\n"
-                    + "Inspect the file first to determine input params as needed.\n"
-                    + "{\"file_path\": \"/path/to/data.csv\", \"delimiter_char_code\": 44, \"use_header_row\": true}\n\n";
+                    + "Example 4 — Get column headers from a pipe-delimited file:\n"
+                    + "{\"file_path\": \"/path/to/data.txt\", \"use_header_row\": true}\n\n";
 
     private static final String TOOL_DESCRIPTION =
             "Retrieve column headers and first three rows from a tabular file. Use when loading"
@@ -107,28 +108,14 @@ public class GetFileColumnsTool {
                                                     + " ('Column 1', 'Column 2', ...) and those ordinal names"
                                                     + " appear in 'columns' instead."))
                             .conditionalParam(
-                                    "delimiter_char_code",
-                                    "integer",
-                                    "Conditional on file type derived from file_path."
-                                            + " Required when file_path is a non-Excel file"
-                                            + " (CSV, TSV, pipe-delimited, etc.)."
-                                            + " ASCII code of the column delimiter"
-                                            + " (44=comma, 9=tab, 124=pipe)."
-                                            + " Waive when file_path is an Excel file (.xlsx/.xls)"
-                                            + " — use excel_sheet instead."
-                                            + " Inspect the file extension to determine which"
-                                            + " applies. Confirm with the user before setting or"
-                                            + " waiving.")
-                            .conditionalParam(
                                     "excel_sheet",
                                     "string",
                                     "Conditional on file type derived from file_path."
                                             + " Required when file_path is an Excel file"
                                             + " (.xlsx/.xls). Name of the Excel sheet to read."
-                                            + " Waive for non-Excel files — use"
-                                            + " delimiter_char_code instead."
-                                            + " Inspect the file extension and available sheets"
-                                            + " to determine the correct one."
+                                            + " Waive for non-Excel files — delimiter is detected"
+                                            + " automatically. Inspect the file extension and"
+                                            + " available sheets to determine the correct one."
                                             + " Confirm the sheet name with the user before"
                                             + " setting or waiving.")
                             .build());
@@ -205,31 +192,22 @@ public class GetFileColumnsTool {
                                         new ValidationService.ConditionalParam(
                                                 "excel_sheet", "the Excel sheet to read", false)));
                 if (err != null) return err;
-            } else {
-                CallToolResult err =
-                        validationService.validateConditionalParams(
-                                "file_path",
-                                filePath,
-                                args,
-                                List.of(
-                                        new ValidationService.ConditionalParam(
-                                                "delimiter_char_code",
-                                                "the ASCII code of the column delimiter",
-                                                false)));
-                if (err != null) return err;
             }
 
             String excelSheet =
                     validationService.unwrapToolInputValue(args.get("excel_sheet"), String.class);
-            Integer delimCode =
-                    validationService.unwrapToolInputValue(
-                            args.get("delimiter_char_code"), Integer.class);
 
             if (excelSheet != null) {
                 return handleExcel(file, excelSheet, useHeaderRow);
             } else {
-                char delimiter = delimCode != null ? (char) delimCode.intValue() : ',';
-                return handleText(file, delimiter, useHeaderRow);
+                int delimCode = validationService.detectDelimiter(file, null);
+                if (delimCode == -1) {
+                    return error(
+                            "Cannot determine the column delimiter from the file content."
+                                    + " The file must use a consistent tab, comma (,), pipe (|),"
+                                    + " or semicolon (;) as the column separator across all rows.");
+                }
+                return handleText(file, (char) delimCode, useHeaderRow);
             }
         } catch (Exception e) {
             LOGGER.error("Error reading file columns", e);
@@ -292,11 +270,14 @@ public class GetFileColumnsTool {
             throws Exception {
         String delimPattern = Pattern.quote(String.valueOf(delimiter));
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        try (BufferedReader reader =
+                new BufferedReader(
+                        new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
             String firstLine = reader.readLine();
             if (firstLine == null) {
                 return buildResult(List.of(), List.of());
             }
+            if (firstLine.startsWith("﻿")) firstLine = firstLine.substring(1);
 
             String[] firstParts = firstLine.split(delimPattern, -1);
             List<String> columnNames;

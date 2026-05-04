@@ -50,7 +50,7 @@ public class GetFileColumnsToolTest {
     private InMemoryTransport transport;
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
         doAnswer(
                         inv -> {
@@ -67,6 +67,14 @@ public class GetFileColumnsToolTest {
                         })
                 .when(validationService)
                 .unwrapToolInputValue(any(), any());
+        ValidationService realVsForDetect = new ValidationService();
+        doAnswer(
+                        inv ->
+                                realVsForDetect.detectDelimiter(
+                                        inv.getArgument(0, File.class),
+                                        inv.getArgument(1, String.class)))
+                .when(validationService)
+                .detectDelimiter(any(), any());
         tool = buildTool(validationService);
     }
 
@@ -88,7 +96,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void csvCommaDelimited_returnsHeaders() throws Exception {
         String path = fixturePath("genes_comma.csv");
-        String response = callTool(buildArgs(path, 44, true, null));
+        String response = callTool(buildArgs(path, true, null));
 
         assertNoError(response);
         JsonNode result = extractResult(response);
@@ -106,7 +114,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void tsvTabDelimited_returnsHeaders() throws Exception {
         String path = fixturePath("genes_tab.tsv");
-        String response = callTool(buildArgs(path, 9, true, null));
+        String response = callTool(buildArgs(path, true, null));
 
         assertNoError(response);
         JsonNode result = extractResult(response);
@@ -119,7 +127,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void pipeDelimited_returnsHeaders() throws Exception {
         String path = fixturePath("genes_pipe.txt");
-        String response = callTool(buildArgs(path, 124, true, null));
+        String response = callTool(buildArgs(path, true, null));
 
         assertNoError(response);
         JsonNode result = extractResult(response);
@@ -132,7 +140,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void useHeaderRowFalse_returnsOrdinalNames() throws Exception {
         String path = fixturePath("genes_comma.csv");
-        String response = callTool(buildArgs(path, 44, false, null));
+        String response = callTool(buildArgs(path, false, null));
 
         assertNoError(response);
         JsonNode result = extractResult(response);
@@ -155,7 +163,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void excelXlsx_returnsColumnsFromNamedSheet() throws Exception {
         String path = fixturePath("network_data.xlsx");
-        String response = callTool(buildArgs(path, null, true, "Sheet1"));
+        String response = callTool(buildArgs(path, true, "Sheet1"));
 
         assertNoError(response);
         JsonNode result = extractResult(response);
@@ -173,7 +181,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void excelMultiSheet_secondSheetReturnsItsColumns() throws Exception {
         String path = fixturePath("network_data.xlsx");
-        String response = callTool(buildArgs(path, null, true, "Interactions"));
+        String response = callTool(buildArgs(path, true, "Interactions"));
 
         assertNoError(response);
         JsonNode result = extractResult(response);
@@ -186,7 +194,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void excelXlsx_useHeaderRowFalse_returnsOrdinalNames() throws Exception {
         String path = fixturePath("network_data.xlsx");
-        String response = callTool(buildArgs(path, null, false, "Sheet1"));
+        String response = callTool(buildArgs(path, false, "Sheet1"));
 
         assertNoError(response);
         JsonNode result = extractResult(response);
@@ -203,40 +211,12 @@ public class GetFileColumnsToolTest {
     }
 
     // -----------------------------------------------------------------------
-    // Numeric coercion — integer vs string delimiter_char_code
-    // -----------------------------------------------------------------------
-
-    @Test
-    public void delimiterCharCodeAsInteger_succeeds() throws Exception {
-        String path = fixturePath("genes_comma.csv");
-        String response = callTool(buildArgs(path, 44, true, null)); // integer 44
-        assertNoError(response);
-        assertEquals(3, extractResult(response).get("columns").size());
-    }
-
-    @Test
-    public void delimiterCharCodeAsString_succeeds() throws Exception {
-        String path = fixturePath("genes_comma.csv");
-        String toolCall =
-                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
-                        + "\"params\":{\"name\":\"get_file_columns\",\"arguments\":{"
-                        + "\"file_path\":\""
-                        + path.replace("\\", "\\\\")
-                        + "\","
-                        + "\"use_header_row\":true,"
-                        + "\"delimiter_char_code\":{\"waived\":false,\"parameter\":\"44\"}}}}";
-        String response = callTool(toolCall);
-        assertNoError(response);
-        assertEquals(3, extractResult(response).get("columns").size());
-    }
-
-    // -----------------------------------------------------------------------
     // Error cases
     // -----------------------------------------------------------------------
 
     @Test
     public void fileNotFound_returnsError() throws Exception {
-        String response = callTool(buildArgs("/nonexistent/path/data.csv", 44, true, null));
+        String response = callTool(buildArgs("/nonexistent/path/data.csv", true, null));
 
         assertTrue("Should be error", response.contains("\"isError\":true"));
         assertTrue("Should mention file not found", response.contains("File not found"));
@@ -245,7 +225,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void excelSheetNotFound_returnsError() throws Exception {
         String path = fixturePath("network_data.xlsx");
-        String response = callTool(buildArgs(path, null, true, "NoSuchSheet"));
+        String response = callTool(buildArgs(path, true, "NoSuchSheet"));
 
         assertTrue("Should be error", response.contains("\"isError\":true"));
         assertTrue("Should mention sheet not found", response.contains("Sheet not found"));
@@ -284,20 +264,16 @@ public class GetFileColumnsToolTest {
         JsonNode props = MAPPER.readTree(GetFileColumnsTool.INPUT_SCHEMA).get("properties");
         assertEquals("string", props.at("/file_path/type").asText());
         assertEquals("boolean", props.at("/use_header_row/type").asText());
-        // ConditionalParameter wrappers appear as "object" at the top level
-        assertEquals("object", props.at("/delimiter_char_code/type").asText());
+        // ConditionalParameter wrapper appears as "object" at the top level
         assertEquals("object", props.at("/excel_sheet/type").asText());
-        // Inner parameter types are nested under /properties/parameter
-        assertEquals(
-                "integer", props.at("/delimiter_char_code/properties/parameter/type").asText());
+        // Inner parameter type is nested under /properties/parameter
         assertEquals("string", props.at("/excel_sheet/properties/parameter/type").asText());
     }
 
     @Test
     public void inputSchema_allPropertiesHaveDescriptions() throws Exception {
         JsonNode props = MAPPER.readTree(GetFileColumnsTool.INPUT_SCHEMA).get("properties");
-        for (String propName :
-                List.of("file_path", "use_header_row", "delimiter_char_code", "excel_sheet")) {
+        for (String propName : List.of("file_path", "use_header_row", "excel_sheet")) {
             JsonNode desc = props.at("/" + propName + "/description");
             assertFalse("Property " + propName + " should have description", desc.isMissingNode());
             assertFalse(
@@ -338,7 +314,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void csvWithNumericScore_inferredTypeIsDouble() throws Exception {
         String path = fixturePath("genes_comma.csv");
-        String response = callTool(buildArgs(path, 44, true, null));
+        String response = callTool(buildArgs(path, true, null));
 
         assertNoError(response);
         JsonNode columns = extractResult(response).get("columns");
@@ -351,7 +327,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void csvWithStringColumns_geneColumnsAreString() throws Exception {
         String path = fixturePath("genes_comma.csv");
-        String response = callTool(buildArgs(path, 44, true, null));
+        String response = callTool(buildArgs(path, true, null));
 
         assertNoError(response);
         JsonNode columns = extractResult(response).get("columns");
@@ -363,7 +339,7 @@ public class GetFileColumnsToolTest {
     @Test
     public void columnsHaveInferredDataTypeField() throws Exception {
         String path = fixturePath("genes_comma.csv");
-        String response = callTool(buildArgs(path, 44, true, null));
+        String response = callTool(buildArgs(path, true, null));
 
         assertNoError(response);
         JsonNode columns = extractResult(response).get("columns");
@@ -377,27 +353,6 @@ public class GetFileColumnsToolTest {
     // -----------------------------------------------------------------------
     // Delegation tests — ValidationService error propagation
     // -----------------------------------------------------------------------
-
-    @Test
-    public void csvFile_absentDelimiterCharCode_propagatesValidationError() throws Exception {
-        when(validationService.validateConditionalParams(anyString(), anyString(), any(), any()))
-                .thenReturn(stubError("stub-error: delimiter_char_code missing"));
-
-        String path = fixturePath("genes_comma.csv");
-        String toolCall =
-                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
-                        + "\"params\":{\"name\":\"get_file_columns\",\"arguments\":{"
-                        + "\"file_path\":\""
-                        + path.replace("\\", "\\\\")
-                        + "\","
-                        + "\"use_header_row\":true}}}";
-        String response = callTool(toolCall);
-
-        assertTrue("Should be error", response.contains("\"isError\":true"));
-        assertTrue(
-                "Should contain stub message",
-                response.contains("stub-error: delimiter_char_code missing"));
-    }
 
     @Test
     public void excelFile_absentExcelSheet_propagatesValidationError() throws Exception {
@@ -437,18 +392,12 @@ public class GetFileColumnsToolTest {
         return new File(url.toURI()).getAbsolutePath();
     }
 
-    private static String buildArgs(
-            String filePath, Integer delimCode, boolean useHeaderRow, String excelSheet) {
+    private static String buildArgs(String filePath, boolean useHeaderRow, String excelSheet) {
         StringBuilder sb = new StringBuilder();
         sb.append(
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"get_file_columns\",\"arguments\":{");
         sb.append("\"file_path\":\"").append(filePath.replace("\\", "\\\\")).append("\"");
         sb.append(",\"use_header_row\":").append(useHeaderRow);
-        if (delimCode != null) {
-            sb.append(",\"delimiter_char_code\":{\"waived\":false,\"parameter\":")
-                    .append(delimCode)
-                    .append("}");
-        }
         if (excelSheet != null) {
             sb.append(",\"excel_sheet\":{\"waived\":false,\"parameter\":\"")
                     .append(excelSheet)

@@ -1,6 +1,8 @@
 package edu.ucsd.idekerlab.cytoscapemcp.tools;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +70,38 @@ public class TabularTypeConverter {
         if (allDouble) return DataColumn.CyDataType.DOUBLE;
 
         return DataColumn.CyDataType.STRING;
+    }
+
+    /**
+     * Resolves the Java list-element class from a list-type code (e.g. {@code "sl"} → {@code
+     * String.class}, {@code "il"} → {@code Integer.class}). Returns {@code String.class} for
+     * unknown codes.
+     */
+    public Class<?> resolveListElementClass(String code) {
+        if (code == null) return String.class;
+        return switch (code.toLowerCase()) {
+            case "il" -> Integer.class;
+            case "ll" -> Long.class;
+            case "dl" -> Double.class;
+            case "bl" -> Boolean.class;
+            default -> String.class;
+        };
+    }
+
+    /**
+     * Splits {@code raw} on {@code listDelimiter} and coerces each element to {@code elementClass}
+     * via {@link #coerceToColumnType}. Elements that fail coercion are silently skipped. Returns an
+     * empty list when {@code raw} is null or blank.
+     */
+    public <T> List<T> coerceToListValue(String raw, String listDelimiter, Class<T> elementClass) {
+        if (raw == null || raw.isBlank()) return List.of();
+        String[] parts = raw.split(Pattern.quote(listDelimiter), -1);
+        List<T> result = new ArrayList<>(parts.length);
+        for (String part : parts) {
+            T val = coerceToColumnType(part.trim(), elementClass);
+            if (val != null) result.add(val);
+        }
+        return result;
     }
 
     /**
