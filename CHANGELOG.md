@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 First GA release.
 
--  Added TableImportFile mcp tool, [pull/4](https://github.com/cytoscape/cytoscape-desktop-mcp/pull/4)
+-  Added TableImportFile mcp tool, [pull/5](https://github.com/cytoscape/cytoscape-desktop-mcp/pull/5)
 
 ## [1.0.0-rc.4] - 2026-04-25
 
