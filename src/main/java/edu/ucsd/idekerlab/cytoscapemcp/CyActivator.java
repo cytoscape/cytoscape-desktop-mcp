@@ -3,6 +3,7 @@ package edu.ucsd.idekerlab.cytoscapemcp;
 import java.awt.Component;
 import java.awt.Container;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
@@ -31,6 +32,8 @@ import org.cytoscape.command.CommandExecutorTaskFactory;
 import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
+import org.cytoscape.model.CyTableFactory;
+import org.cytoscape.model.CyTableManager;
 import org.cytoscape.property.AbstractConfigDirPropsReader;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.service.util.AbstractCyActivator;
@@ -158,6 +161,10 @@ public class CyActivator extends AbstractCyActivator {
         // Network factory (for creating networks from tabular data).
         CyNetworkFactory networkFactory = getService(bundleContext, CyNetworkFactory.class);
 
+        // Table services (for importing tabular data into Cytoscape tables).
+        CyTableFactory tableFactory = getService(bundleContext, CyTableFactory.class);
+        CyTableManager tableManager = getService(bundleContext, CyTableManager.class);
+
         // View creation and synchronous task execution.
         CyNetworkViewFactory networkViewFactory =
                 getService(bundleContext, CyNetworkViewFactory.class);
@@ -188,7 +195,14 @@ public class CyActivator extends AbstractCyActivator {
             commandService = null;
         }
         if (availableCommands != null && commandService != null) {
-            commandETLService = new CommandETLService(availableCommands, commandService);
+            commandETLService =
+                    new CommandETLService(
+                            availableCommands,
+                            commandService,
+                            networkFactory,
+                            appManager,
+                            networkManager,
+                            networkViewFactory);
         }
 
         startMcpServer(
@@ -212,7 +226,9 @@ public class CyActivator extends AbstractCyActivator {
                 visualStyleFactory,
                 paletteProviderManager,
                 availableCommands,
-                commandService);
+                commandService,
+                tableFactory,
+                tableManager);
 
         // Trigger initial ETL scan and register OSGi BundleListener for push updates.
         if (commandETLService != null) {
@@ -291,7 +307,9 @@ public class CyActivator extends AbstractCyActivator {
             VisualStyleFactory visualStyleFactory,
             PaletteProviderManager paletteProviderManager,
             AvailableCommands availableCommands,
-            CommandService commandService) {
+            CommandService commandService,
+            CyTableFactory tableFactory,
+            CyTableManager tableManager) {
 
         transportProvider = new McpTransportProvider();
 
@@ -324,7 +342,9 @@ public class CyActivator extends AbstractCyActivator {
                         visualStyleFactory,
                         paletteProviderManager,
                         availableCommands,
-                        commandService);
+                        commandService,
+                        tableFactory,
+                        tableManager);
         LOGGER.info("MCP sync server built");
 
         // Register McpEndpoint as an OSGi service under its concrete class type.
@@ -477,6 +497,11 @@ public class CyActivator extends AbstractCyActivator {
     private void stopServers() {
         if (commandETLService != null) {
             commandETLService.shutdown();
+            try {
+                commandETLService.awaitIdle(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
         }
         if (commandService != null) {
             commandService.close();

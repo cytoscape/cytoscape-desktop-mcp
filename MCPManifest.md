@@ -26,7 +26,7 @@ Example 2 — Load network file into cytoscape desktop:
 {"source": "network-file", "file_path": {"waived": false, "parameter": "/path/to/network.sif"}}
 
 Example 3 — Load tabular file into cytoscape desktop - an example that will trigger asking for the conditional input parameters related to tabular file type :
-{"source": "tabular-file", "file_path": {"waived": false, "parameter": "/path/to/data.csv"}, "source_column": {"waived": false, "parameter": "Gene_A"}, "target_column": {"waived": false, "parameter": "Gene_B"}, "delimiter_char_code": {"waived": false, "parameter": 44}, "use_header_row": {"waived": false, "parameter": true}, "interaction_column": {"waived": true, "parameter": null}, "node_attributes_source_columns": {"waived": false, "parameter": [{"name": "Score", "inferred_data_type": "double"}]}, "node_attributes_target_columns": {"waived": false, "parameter": [{"name": "Score", "inferred_data_type": "double"}]}, "edge_columns": {"waived": true, "parameter": null}}
+{"source": "tabular-file", "file_path": {"waived": false, "parameter": "/path/to/data.csv"}, "source_column": {"waived": false, "parameter": "Gene_A"}, "target_column": {"waived": false, "parameter": "Gene_B"}, "use_header_row": {"waived": false, "parameter": true}, "interaction_column": {"waived": true, "parameter": null}, "node_attributes_source_columns": {"waived": false, "parameter": [{"name": "Score", "inferred_data_type": "double"}]}, "node_attributes_target_columns": {"waived": false, "parameter": [{"name": "Score", "inferred_data_type": "double"}]}, "edge_columns": {"waived": true, "parameter": null}}
 
 Example 4 — open network on cytoscape desktop:
 {"source": "determine the source such as ndex, or local file(network or tabular) first, then figure out rest of related input params"}
@@ -109,19 +109,6 @@ Example 4 — open network on cytoscape desktop:
         }
       }
     },
-    "delimiter_char_code" : {
-      "type" : "object",
-      "description" : "Conditional on source='tabular-file' with a non-Excel file (i.e. excel_sheet not set). ASCII code of the column delimiter (e.g. 44=comma, 9=tab). Use the file extension, or inspect the source file to determine the delimiter. Required when source='tabular-file' and file is not Excel. Ignored for Excel files (use excel_sheet instead). Confirm with the user by inspecting the file before setting or waiving.",
-      "properties" : {
-        "waived" : {
-          "type" : "boolean",
-          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
-        },
-        "parameter" : {
-          "type" : "integer"
-        }
-      }
-    },
     "use_header_row" : {
       "type" : "object",
       "description" : "Conditional on source='tabular-file'. Whether the first row contains column headers. Preview columns from the file (and sheet if applicable) to determine if the first row has values suitable as headers. If false, ordinal column names are generated. Required when source='tabular-file'. Confirm with the user by inspecting the file before setting or waiving.",
@@ -137,7 +124,7 @@ Example 4 — open network on cytoscape desktop:
     },
     "excel_sheet" : {
       "type" : "object",
-      "description" : "Conditional on source='tabular-file' with an Excel file (mutually exclusive with delimiter_char_code — set one or the other, not both). Name of the Excel sheet containing the network edge data. Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files (use delimiter_char_code instead). Confirm with the user which sheet to use before setting or waiving.",
+      "description" : "Conditional on source='tabular-file' with an Excel file. Name of the Excel sheet containing the network edge data. Inspect the source file to determine what sheets are available. Required when source='tabular-file' and file is Excel. Ignored for non-Excel files — delimiter is detected automatically. Confirm with the user which sheet to use before setting or waiving.",
       "properties" : {
         "waived" : {
           "type" : "boolean",
@@ -626,18 +613,17 @@ Example 4 — What delimiter is used in a file for importing into Cytoscape desk
 
 ## Examples
 
-Example 1 — Read column headers from a file for Cytoscape desktop import:
-{"file_path": "/path/to/data.csv", "delimiter_char_code": 44, "use_header_row": true}
+Example 1 — Read column headers from a CSV file:
+{"file_path": "/path/to/data.csv", "use_header_row": true}
 
-Example 2 — Preview columns from a file:
-{"file_path": "/path/to/data.tsv", "delimiter_char_code": 9, "use_header_row": true}
+Example 2 — Preview columns from a TSV file:
+{"file_path": "/path/to/data.tsv", "use_header_row": true}
 
-Example 3 — Read columns from an Excel sheet for Cytoscape desktop import:
+Example 3 — Read columns from an Excel sheet:
 {"file_path": "/path/to/data.xlsx", "use_header_row": true, "excel_sheet": "Sheet1"}
 
-Example 4 — Get column headers from a file:
-Inspect the file first to determine input params as needed.
-{"file_path": "/path/to/data.csv", "delimiter_char_code": 44, "use_header_row": true}
+Example 4 — Get column headers from a pipe-delimited file:
+{"file_path": "/path/to/data.txt", "use_header_row": true}
 
 
 
@@ -647,30 +633,17 @@ Inspect the file first to determine input params as needed.
 {
   "type" : "object",
   "properties" : {
-    "use_header_row" : {
-      "type" : "boolean",
-      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
-    },
     "file_path" : {
       "type" : "string",
       "description" : "Required. Absolute path to the tabular file."
     },
-    "delimiter_char_code" : {
-      "type" : "object",
-      "description" : "Conditional on file type derived from file_path. Required when file_path is a non-Excel file (CSV, TSV, pipe-delimited, etc.). ASCII code of the column delimiter (44=comma, 9=tab, 124=pipe). Waive when file_path is an Excel file (.xlsx/.xls) — use excel_sheet instead. Inspect the file extension to determine which applies. Confirm with the user before setting or waiving.",
-      "properties" : {
-        "waived" : {
-          "type" : "boolean",
-          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
-        },
-        "parameter" : {
-          "type" : "integer"
-        }
-      }
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Required. If true, the first row is treated as column headers and those strings appear in 'columns'. If false, ordinal names are generated ('Column 1', 'Column 2', ...) and those ordinal names appear in 'columns' instead."
     },
     "excel_sheet" : {
       "type" : "object",
-      "description" : "Conditional on file type derived from file_path. Required when file_path is an Excel file (.xlsx/.xls). Name of the Excel sheet to read. Waive for non-Excel files — use delimiter_char_code instead. Inspect the file extension and available sheets to determine the correct one. Confirm the sheet name with the user before setting or waiving.",
+      "description" : "Conditional on file type derived from file_path. Required when file_path is an Excel file (.xlsx/.xls). Name of the Excel sheet to read. Waive for non-Excel files — delimiter is detected automatically. Inspect the file extension and available sheets to determine the correct one. Confirm the sheet name with the user before setting or waiving.",
       "properties" : {
         "waived" : {
           "type" : "boolean",
@@ -1536,18 +1509,18 @@ Example 4 — "Change node color based on centrality": before invoking, confirm 
 {
   "type" : "object",
   "properties" : {
-    "property_id" : {
+    "column_type" : {
       "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
+      "description" : "Required. Java type of the data column.",
+      "enum" : [ "Integer", "Long", "Double" ]
     },
     "column_name" : {
       "type" : "string",
       "description" : "Required. Name of the numeric data column driving the mapping. Query numeric network columns compatible with continuous mapping for the chosen property using other tooling available."
     },
-    "column_type" : {
+    "property_id" : {
       "type" : "string",
-      "description" : "Required. Java type of the data column.",
-      "enum" : [ "Integer", "Long", "Double" ]
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SIZE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
     },
     "points" : {
       "type" : "array",
@@ -1626,22 +1599,22 @@ Example 4 — "Color each node based on data": this is ambiguous — do not assu
 {
   "type" : "object",
   "properties" : {
-    "property_id" : {
-      "type" : "string",
-      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
-    },
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the data column driving the mapping. Query compatible network columns for the chosen property using other tooling available."
+    "entries" : {
+      "type" : "object",
+      "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
     },
     "column_type" : {
       "type" : "string",
       "description" : "Required. Java type of the data column. All five types are valid for discrete mapping.",
       "enum" : [ "Integer", "Long", "Double", "String", "Boolean" ]
     },
-    "entries" : {
-      "type" : "object",
-      "description" : "Required. Map of column value (as string key) to visual property value allowed for the visual style property id specified by property_id. Minimum 1 entry; maximum 1000 entries — the tool returns an error if either limit is violated. This tool is designed for columns with a small number of distinct values (typically tens); if the column has hundreds of distinct values, consider auto-generated discrete mapping options instead. Keys are the column's distinct values expressed as strings (e.g. \"23\" for Integer 23, \"true\" for Boolean). Values: hex for colors (#RRGGBB), display names for shapes (Ellipse, Diamond), display names for line types (Solid, Dash), numbers for numeric properties."
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column driving the mapping. Query compatible network columns for the chosen property using other tooling available."
+    },
+    "property_id" : {
+      "type" : "string",
+      "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_LINE_TYPE). Retrieve the available style properties in the active style using other tooling available."
     }
   },
   "required" : [ "property_id", "column_name", "column_type", "entries" ]
@@ -1711,13 +1684,13 @@ Example 4 — "Create a discrete size mapping based on the Degree column automat
 {
   "type" : "object",
   "properties" : {
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the data column to drive the mapping. Query compatible network columns for the chosen property using other tooling available."
-    },
     "property_id" : {
       "type" : "string",
       "description" : "Required. Visual property ID (e.g. NODE_FILL_COLOR, NODE_SHAPE, EDGE_WIDTH). Retrieve the available style properties in the active style using other tooling available."
+    },
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column to drive the mapping. Query compatible network columns for the chosen property using other tooling available."
     },
     "column_type" : {
       "type" : "string",
@@ -1825,13 +1798,13 @@ Example 4 — "Show node names": this is a clear passthrough request. Use other 
 {
   "type" : "object",
   "properties" : {
-    "column_name" : {
-      "type" : "string",
-      "description" : "Required. Name of the data column whose values will be used directly as the visual property value. The column must already exist in the node or edge table of the current network — use other available tools to confirm available columns before invoking."
-    },
     "property_id" : {
       "type" : "string",
       "description" : "Required. Visual property ID (e.g. NODE_LABEL, EDGE_LABEL, NODE_TOOLTIP)."
+    },
+    "column_name" : {
+      "type" : "string",
+      "description" : "Required. Name of the data column whose values will be used directly as the visual property value. The column must already exist in the node or edge table of the current network — use other available tools to confirm available columns before invoking."
     },
     "column_type" : {
       "type" : "string",
@@ -1989,13 +1962,213 @@ Example 3 — Create a new style cloned from the current style:
 
 ---
 
+### `table_import_file`
+
+**Title:** Import Table File into Cytoscape Desktop
+
+**Description:** Import columns from a local tabular file into Cytoscape Desktop node, edge, or network tables of the currently active network view, or create a new standalone private table in the current session. Use when external annotation data — such as expression values, ontology terms, or experimental scores — needs to be attached to the active network or stored as an independent reference table. Supports CSV, TSV, pipe-delimited, and Excel (.xlsx/.xls) file formats; file format is detected from the file extension. Side-effects: adds or updates columns in the current network's node, edge, or network table, or creates and registers a new table with the Cytoscape table manager. Returns an error response when the file cannot be read, no active network is loaded, required parameters are absent or inconsistent, or the destination is invalid; the error message identifies the specific cause.
+
+## Examples
+
+Example 1 — Import node expression data from a TSV into the current network's node table:
+{"file_path": "/data/expr.tsv", "excel_sheet": {"waived": true}, "where_to_import": "current_network_view", "table_type": {"waived": false, "parameter": "node"}, "datafile_key_column_index": {"waived": false, "parameter": 1}, "network_key_column_name": {"waived": false, "parameter": "shared name"}, "new_table_name": {"waived": true}}
+
+Example 2 — Attach edge scores from a CSV into the current network's edge table:
+{"file_path": "/data/scores.csv", "excel_sheet": {"waived": true}, "where_to_import": "current_network_view", "table_type": {"waived": false, "parameter": "edge"}, "datafile_key_column_index": {"waived": false, "parameter": 1}, "network_key_column_name": {"waived": false, "parameter": "shared name"}, "new_table_name": {"waived": true}}
+
+Example 3 — Create a standalone lookup table from an Excel workbook:
+{"file_path": "/data/lookup.xlsx", "excel_sheet": {"waived": false, "parameter": "Sheet1"}, "where_to_import": "unassigned_table", "new_table_name": {"waived": false, "parameter": "GeneAnnotations"}, "table_type": {"waived": true}, "datafile_key_column_index": {"waived": true}, "network_key_column_name": {"waived": true}}
+
+Example 4 — Import node attributes with explicit types and a comment character:
+{"file_path": "/data/attrs.csv", "excel_sheet": {"waived": true}, "data_type_list": {"waived": false, "parameter": "s,d,d"}, "comment_char": {"waived": false, "parameter": "#"}, "where_to_import": "current_network_view", "table_type": {"waived": false, "parameter": "node"}, "datafile_key_column_index": {"waived": false, "parameter": 1}, "network_key_column_name": {"waived": false, "parameter": "shared name"}, "new_table_name": {"waived": true}}
+
+
+
+**Input Schema:**
+
+```json
+{
+  "type" : "object",
+  "properties" : {
+    "file_path" : {
+      "type" : "string",
+      "description" : "Required. Absolute path to the tabular file on the local machine. Supports CSV, TSV, pipe-delimited, and Excel (.xlsx/.xls) formats. Use the file inspection tool if the format is uncertain before invoking.\n\nExamples: \"/data/expression.tsv\", \"/home/user/annotations.csv\", \"/tmp/lookup.xlsx\""
+    },
+    "use_header_row" : {
+      "type" : "boolean",
+      "description" : "Optional. When true (default), the first row in the file is treated as column headers and those values become the column names in Cytoscape. When false, all rows are treated as data rows and columns are assigned generated names (Column_1, Column_2, etc.). Defaults to true.\n\nExamples: true, false"
+    },
+    "where_to_import" : {
+      "type" : "string",
+      "description" : "Optional. Determines where the imported columns are placed. Must be exactly one of: \"current_network_view\" (default, adds columns to the currently active network's tables) or \"unassigned_table\" (creates a new standalone private table not connected to any network — if the final goal requires that table to be associated with a network, merging it with an existing table can be considered as a follow-on step). No other values are accepted. Resolve this value before setting the destination parameters that depend on it.",
+      "enum" : [ "current_network_view", "unassigned_table" ]
+    },
+    "excel_sheet" : {
+      "type" : "object",
+      "description" : "Optional. Required when file_path is an Excel file (.xlsx or .xls). Name of the sheet to import. Waive for non-Excel files — delimiter is detected automatically. Use the file inspection tool to enumerate available sheet names before setting. Confirm with the user before setting or waiving.\n\nExamples: \"Sheet1\", \"Node Attributes\", \"Data\"",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
+    },
+    "comment_char" : {
+      "type" : "object",
+      "description" : "Optional. Single character; lines that begin with this character are treated as comments and skipped before column parsing. Waive if the file contains no comment lines.\n\nExamples: \"#\", \"!\", \";\"",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
+    },
+    "decimal_separator" : {
+      "type" : "object",
+      "description" : "Optional. Single character used as the decimal point when parsing numeric values in non-Excel files. Defaults to \".\". Cannot be waived — always provide either the default or an alternative value. Has no effect on Excel files. Confirm the value with the user.\n\nExamples: \".\" (default, standard locale), \",\" (European locale)",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
+    },
+    "data_type_list" : {
+      "type" : "object",
+      "description" : "Optional. Ordered, comma-separated per-column type codes. Must use only the following codes — any other value is invalid and will produce an error. Scalar codes: s=String, i=Integer, l=Long, d=Double, b=Boolean. List-variant codes: sl=List of String, il=List of Integer, ll=List of Long, dl=List of Double, bl=List of Boolean. Count of codes must equal the number of columns in the file. Waive to let the tool infer types from sample values.\n\nExamples: \"s,d,d\" (name, two doubles), \"s,s,b\" (two strings, boolean), \"s,il\" (name, integer list)",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
+    },
+    "list_delimiter" : {
+      "type" : "object",
+      "description" : "Optional. Single character used to split values in list-typed columns into individual elements. Defaults to \"|\". Cannot be waived — always provide either the default or an alternative value. Only meaningful when data_type_list contains list-type codes (sl, il, ll, dl, bl). Confirm the value with the user.\n\nExamples: \"|\" (default), \",\", \";\"",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
+    },
+    "table_type" : {
+      "type" : "object",
+      "description" : "Optional. Required when where_to_import is \"current_network_view\". Must be exactly one of: \"node\" (default node table), \"edge\" (default edge table), or \"network\" (network-level attributes table). No other values are accepted. Waive when where_to_import is \"unassigned_table\". Confirm with the user before setting or waiving.",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
+    },
+    "datafile_key_column_index" : {
+      "type" : "object",
+      "description" : "Optional. Required when where_to_import is \"current_network_view\". 1-based ordinal position of the column in the data file that contains the key values used to match rows to the active network table. Column 1 is the leftmost column. Defaults to 1. Cannot be waived — always provide either the default or another value. Confirm the column position with the user. Waive when where_to_import is \"unassigned_table\".\n\nExamples: 1 (leftmost/first column, default), 2 (second column), 3",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "integer"
+        }
+      }
+    },
+    "network_key_column_name" : {
+      "type" : "object",
+      "description" : "Optional. Required when where_to_import is \"current_network_view\". Name of the column in the active network's node, edge, or network table whose values are compared against the data file key column to match rows. The standard Cytoscape identifier column name is \"shared name\". Use the loaded networks tool to confirm available column names. Waive when where_to_import is \"unassigned_table\". Confirm with the user before setting or waiving.\n\nExamples: \"shared name\", \"GeneID\", \"Entrez ID\"",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
+    },
+    "new_table_name" : {
+      "type" : "object",
+      "description" : "Optional. Required when where_to_import is \"unassigned_table\". Name for the new standalone table to create. Must be unique within the current Cytoscape session; if a table with this name already exists an error is returned. Waive when where_to_import is \"current_network_view\". Confirm with the user before setting or waiving.\n\nExamples: \"ExpressionData\", \"GeneAnnotations\", \"LookupTable\"",
+      "properties" : {
+        "waived" : {
+          "type" : "boolean",
+          "description" : "Imperative: set to true only after direct user confirmation that this parameter should be intentionally omitted. Set to false when providing a value in the parameter field. Never assume or default — this requires explicit user confirmation or unambiguous contextual evidence in the current interaction."
+        },
+        "parameter" : {
+          "type" : "string"
+        }
+      }
+    }
+  },
+  "required" : [ "file_path" ]
+}
+```
+
+**Output Schema:**
+
+```json
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "columns_added" : {
+      "type" : "integer",
+      "description" : "Number of new columns created in the target table during this import. A column is counted as added only when it did not previously exist in the table.\n\nExamples: 3, 0, 7"
+    },
+    "columns_updated" : {
+      "type" : "integer",
+      "description" : "Number of existing columns in the target table that received new values from the file. A column is counted as updated when it was already present and at least one row value was written to it.\n\nExamples: 1, 0, 5"
+    },
+    "network_suid" : {
+      "type" : "integer",
+      "description" : "Unique session identifier (SUID) of the Cytoscape network modified. Absent for unassigned_table imports. For current_network_view imports, this SUID can be used with other tools to inspect or set the network as current.\n\nExamples: 12345, 67890 (absent for unassigned_table imports)"
+    },
+    "rows_imported" : {
+      "type" : "integer",
+      "description" : "Number of file data rows successfully imported — either matched to an existing row in a network table and updated, or added as a new row in a standalone table.\n\nExamples: 3, 150, 0"
+    },
+    "rows_unmatched" : {
+      "type" : "integer",
+      "description" : "Number of file data rows that had no matching key in the active network table and were skipped. Absent when zero. Present only for current_network_view imports; always absent for unassigned_table imports. A nonzero value is a data quality observation — not all file entries have a corresponding row in the network table.\n\nExamples: 1, 12 (absent when all rows matched)"
+    },
+    "table_name" : {
+      "type" : "string",
+      "description" : "Name of the target table. For current_network_view imports, this is the name of the node, edge, or network table of the active network. For unassigned_table imports, this is the name of the newly created table.\n\nExamples: \"default node\", \"default edge\", \"ExpressionData\""
+    }
+  }
+}
+```
+
+---
+
 ### `command_gateway_search`
 
 **Title:** Search Desktop Commands
 
-**Description:** Search the full catalog of Cytoscape Desktop commands registered on user's machine  using a Lucene full-text query. Use this tool whenever the current user conversation touches on any Cytoscape Desktop oriented task — selecting elements, running algorithms, exporting data, changing layouts, manipulating tables, adjusting styles, or any other desktop action. Submit a Lucene-formatted query built from keywords in the user's current context; the tool returns a ranked list of matching commands with relevance scores so you can quickly identify the best candidates of commands.
+**Description:** Search the full catalog of Cytoscape Desktop commands registered on user's machine  using a Lucene full-text query.  WHEN TO USE: Call this tool whenever the current user conversation refers to Cytoscape Desktop tasks and no other registered cytoscape tools match up closely enough to the task.  This tool will search within Cytoscape desktop for any commands that closely match up with search terms related to the task the user wants to accomplish.  It essentially provides a dynamic bridge of tools which represent underlying desktop commands.  Submit a Lucene-formatted query built from key terms extracted from the user's current request context; the tool returns a ranked list of matching commands with relevance scores so you can quickly identify the best candidates of commands.
 
-WHEN TO USE: Call this tool proactively whenever you detect the user describing a Cytoscape action — even partial context is enough. The search is fast and designed for repeated calls as the conversation evolves. A targeted keyword query is more useful than a broad one; the match score on each result row is the key signal: a high-scoring result is very likely the right command. Use field-scoped queries (e.g., inputParams:filePath or description:export) to drill into specific aspects of the command metadata. After reviewing scores and summaries and deciding upon which command to invoke, it is required to invoke the command schema retrieval tool first for a commandKey from search results to get the full schema and description of the command's required and optional input parameters before invoking.
+ Call this tool proactively as the search is fast, light, and designed for repeated calls as the conversation evolves. A targeted keyword query is more useful than a broad one; the match score on each result row is the key signal: a high-scoring result is very likely the right command. Use field-scoped queries (e.g., inputParams:filePath or description:export) to drill into specific aspects of the command metadata. After reviewing scores and summaries and deciding upon which command to invoke, it is required to invoke the command schema retrieval tool first for a commandKey from search results to get the full schema and description of the command's required and optional input parameters before invoking.
 
 LUCENE QUERY SYNTAX: Keywords search across all indexed command text by default. Field-specific syntax: description:X, inputParams:X, outputSchema:X, namespace:X. Boolean operators: AND, OR, NOT. Phrase matching: "exact phrase". Wildcards: select*, lay?ut. Boosting: select^2 nodes. Submit a query, review match scores, refine if needed.
 
@@ -2026,13 +2199,13 @@ Example 5 — Search for table import commands:
 {
   "type" : "object",
   "properties" : {
-    "max" : {
-      "type" : "integer",
-      "description" : "Required. Maximum number of result rows to return. Use 5–15 for targeted queries; up to 50 for broad exploratory scans. Example values: 5, 10, 25."
-    },
     "query" : {
       "type" : "string",
       "description" : "Required. Lucene query string to search command metadata. Evaluated against command descriptions, input parameter names and descriptions, output schema text, and namespace. Supports full Lucene query syntax: bare keywords search across all indexed text; field-scoped syntax (e.g., 'inputParams:filePath', 'namespace:network'); boolean operators AND, OR, NOT; phrase quotes; wildcards (e.g., 'select*'). Invalid syntax returns success=false with a parse error. Example values: 'layout force-directed', 'export table csv', 'namespace:network'."
+    },
+    "max" : {
+      "type" : "integer",
+      "description" : "Required. Maximum number of result rows to return. Use 5–15 for targeted queries; up to 50 for broad exploratory scans. Example values: 5, 10, 25."
     }
   },
   "required" : [ "query", "max" ]
@@ -2275,17 +2448,17 @@ Example 4 — Close a named network:
 {
   "type" : "object",
   "properties" : {
-    "inputParams" : {
-      "type" : "object",
-      "description" : "Required. JSON object of input parameter key-value pairs for the command being invoked. The valid keys and their expected value types for a given command are defined by that command's input schema — obtain the command's full schema via the schema retrieval functionality available in this server before composing this object. Unknown parameter names are rejected.\n\nExample: {}, {\"network\": \"current\"}, {\"filePath\": \"/data/net.sif\", \"firstRowAsColumnNames\": true}."
+    "retrievedDesktopCommandSchema" : {
+      "type" : "boolean",
+      "description" : "Required. Set to true only if the full command schema for the specified commandKey has already been retrieved via the schema retrieval functionality in this session and was used as advice for setting the inputParams. Do not set to true speculatively — the schema must have been explicitly retrieved before this invocation."
     },
     "commandKey" : {
       "type" : "string",
       "description" : "Required. Fully qualified command key in 'namespace command' format. Must match a key returned by the command search and retrieval functionality available in this server.\n\nExample values: 'network select', 'layout force-directed', 'table import file'."
     },
-    "retrievedDesktopCommandSchema" : {
-      "type" : "boolean",
-      "description" : "Required. Set to true only if the full command schema for the specified commandKey has already been retrieved via the schema retrieval functionality in this session and was used as advice for setting the inputParams. Do not set to true speculatively — the schema must have been explicitly retrieved before this invocation."
+    "inputParams" : {
+      "type" : "object",
+      "description" : "Required. JSON object of input parameter key-value pairs for the command being invoked. The valid keys and their expected value types for a given command are defined by that command's input schema — obtain the command's full schema via the schema retrieval functionality available in this server before composing this object. Unknown parameter names are rejected.\n\nExample: {}, {\"network\": \"current\"}, {\"filePath\": \"/data/net.sif\", \"firstRowAsColumnNames\": true}."
     }
   },
   "required" : [ "commandKey", "inputParams", "retrievedDesktopCommandSchema" ]

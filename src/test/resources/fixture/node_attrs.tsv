@@ -1,0 +1,4 @@
+gene_id	expression	pvalue
+BRCA1	1.5	0.01
+TP53	-2.3	0.001
+EGFR	0.8	0.05

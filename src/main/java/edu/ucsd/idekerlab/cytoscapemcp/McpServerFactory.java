@@ -31,6 +31,7 @@ import edu.ucsd.idekerlab.cytoscapemcp.tools.LoadNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetCurrentNetworkViewTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SetVisualDefaultTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.SwitchCurrentStyleTool;
+import edu.ucsd.idekerlab.cytoscapemcp.tools.TableImportFileTool;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.TabularTypeConverter;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.ValidationService;
 import edu.ucsd.idekerlab.cytoscapemcp.tools.VisualPropertyService;
@@ -42,6 +43,8 @@ import org.cytoscape.io.read.CyNetworkReaderManager;
 import org.cytoscape.io.read.InputStreamTaskFactory;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
+import org.cytoscape.model.CyTableFactory;
+import org.cytoscape.model.CyTableManager;
 import org.cytoscape.property.CyProperty;
 import org.cytoscape.util.color.PaletteProviderManager;
 import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
@@ -99,6 +102,8 @@ public final class McpServerFactory {
      * @param visualStyleFactory factory for creating new visual styles (nullable)
      * @param availableCommands Cytoscape command registry for gateway tools (nullable)
      * @param commandService Lucene-backed command index for gateway search (nullable)
+     * @param tableFactory Cytoscape table factory for creating standalone tables (nullable)
+     * @param tableManager Cytoscape table manager for registering tables (nullable)
      */
     public static McpSyncServer create(
             McpTransportProvider transportProvider,
@@ -124,7 +129,9 @@ public final class McpServerFactory {
             VisualStyleFactory visualStyleFactory,
             PaletteProviderManager paletteProviderManager,
             AvailableCommands availableCommands,
-            CommandService commandService) {
+            CommandService commandService,
+            CyTableFactory tableFactory,
+            CyTableManager tableManager) {
 
         // Explicitly supply jsonMapper and jsonSchemaValidator to bypass McpJsonDefaults,
         // which uses ServiceLoader with the Thread context classloader — that classloader
@@ -244,6 +251,15 @@ public final class McpServerFactory {
         server.addTool(
                 new SwitchCurrentStyleTool(
                                 appManager, vmmManager, visualStyleFactory, validationService)
+                        .toSpec());
+
+        server.addTool(
+                new TableImportFileTool(
+                                appManager,
+                                tableManager,
+                                tableFactory,
+                                typeConverter,
+                                validationService)
                         .toSpec());
 
         // Gateway tools — Desktop command discovery, schema retrieval, and invocation.

@@ -10,16 +10,29 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.command.AvailableCommands;
+import org.cytoscape.model.CyNetwork;
+import org.cytoscape.model.CyNetworkFactory;
+import org.cytoscape.model.CyNetworkManager;
+import org.cytoscape.model.CyRow;
+import org.cytoscape.model.SavePolicy;
+import org.cytoscape.view.model.CyNetworkView;
+import org.cytoscape.view.model.CyNetworkViewFactory;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,6 +44,11 @@ import static org.mockito.Mockito.when;
 public class CommandETLServiceTest {
 
     @Mock private AvailableCommands availableCommands;
+    @Mock private CyNetworkFactory networkFactory;
+    @Mock private CyApplicationManager appMgr;
+    @Mock private CyNetworkManager networkMgr;
+    @Mock private CyNetworkViewFactory networkViewFactory;
+
     private CommandService commandService;
     private CommandETLService etlService;
     private AutoCloseable mocks;
@@ -39,7 +57,19 @@ public class CommandETLServiceTest {
     public void setUp() throws Exception {
         mocks = MockitoAnnotations.openMocks(this);
         commandService = new CommandService();
-        etlService = new CommandETLService(availableCommands, commandService);
+
+        // Default: simulate an existing current network/view so existing tests skip scaffold.
+        when(appMgr.getCurrentNetwork()).thenReturn(mock(CyNetwork.class));
+        when(appMgr.getCurrentNetworkView()).thenReturn(mock(CyNetworkView.class));
+
+        etlService =
+                new CommandETLService(
+                        availableCommands,
+                        commandService,
+                        networkFactory,
+                        appMgr,
+                        networkMgr,
+                        networkViewFactory);
     }
 
     @After
@@ -115,7 +145,6 @@ public class CommandETLServiceTest {
         Optional<Command> cmd = commandService.getByKey("layout force-directed");
         assertTrue(cmd.isPresent());
         assertFalse(cmd.get().supportsJson());
-        // outputExampleJson stored as empty string via nvl("") — null or blank are both acceptable
         String outEx = cmd.get().outputExampleJson();
         assertTrue(outEx == null || outEx.isBlank());
     }
@@ -152,7 +181,6 @@ public class CommandETLServiceTest {
 
     @Test
     public void performScan_removesStaleCommands() throws Exception {
-        // Pre-seed a command that will no longer appear in live registry.
         commandService.upsert(makeCmd("old app command", "old", "app command"));
 
         when(availableCommands.getNamespaces()).thenReturn(List.of("network"));
@@ -168,7 +196,6 @@ public class CommandETLServiceTest {
 
     @Test
     public void performScan_existingCommandUpdated_onRescan() throws Exception {
-        // First scan: description "v1"
         when(availableCommands.getNamespaces()).thenReturn(List.of("network"));
         when(availableCommands.getCommands("network")).thenReturn(List.of("select"));
         when(availableCommands.getDescription("network", "select")).thenReturn("v1");
@@ -180,7 +207,6 @@ public class CommandETLServiceTest {
         assertTrue(etlService.awaitIdle(2, TimeUnit.SECONDS));
         assertEquals("v1", commandService.getByKey("network select").orElseThrow().description());
 
-        // Second scan: description updated to "v2"
         when(availableCommands.getDescription("network", "select")).thenReturn("v2");
         etlService.scheduleScan();
         assertTrue(etlService.awaitIdle(2, TimeUnit.SECONDS));
@@ -210,14 +236,67 @@ public class CommandETLServiceTest {
         etlService.scheduleScan();
         assertTrue("first scan did not start in time", firstScanBlocked.await(2, TimeUnit.SECONDS));
 
-        // Scan is in progress — this should set rescanRequested, not spawn a new thread.
         etlService.scheduleScan();
 
         releaseFirstScan.countDown();
         assertTrue(etlService.awaitIdle(2, TimeUnit.SECONDS));
 
-        // getNamespaces called once per scan pass; expect exactly two passes.
         verify(availableCommands, times(2)).getNamespaces();
+    }
+
+    // -- scaffold lifecycle ---------------------------------------------------
+
+    @Test
+    public void performScan_noCurrentNetwork_scaffoldCreatedAndDestroyed() throws Exception {
+        CyNetwork scaffold = mockScaffoldNetwork();
+        CyNetworkView scaffoldView = mock(CyNetworkView.class);
+
+        when(appMgr.getCurrentNetwork()).thenReturn(null);
+        when(appMgr.getCurrentNetworkView()).thenReturn(null);
+        when(networkFactory.createNetwork(SavePolicy.DO_NOT_SAVE)).thenReturn(scaffold);
+        when(networkViewFactory.createNetworkView(scaffold)).thenReturn(scaffoldView);
+        when(availableCommands.getNamespaces()).thenReturn(List.of());
+
+        // After addNetwork fires, simulate appMgr reflecting scaffold as current.
+        when(appMgr.getCurrentNetworkView()).thenReturn(null).thenReturn(scaffoldView);
+
+        etlService.scheduleScan();
+        assertTrue(etlService.awaitIdle(2, TimeUnit.SECONDS));
+
+        verify(networkMgr).addNetwork(scaffold, true);
+        verify(appMgr).setCurrentNetwork(scaffold);
+        verify(networkViewFactory).createNetworkView(scaffold);
+        verify(appMgr).setCurrentNetworkView(scaffoldView);
+        verify(networkMgr).destroyNetwork(scaffold);
+    }
+
+    @Test
+    public void performScan_existingCurrentNetwork_noScaffoldCreated() throws Exception {
+        // Default setUp already stubs getCurrentNetwork() to non-null.
+        when(availableCommands.getNamespaces()).thenReturn(List.of());
+
+        etlService.scheduleScan();
+        assertTrue(etlService.awaitIdle(2, TimeUnit.SECONDS));
+
+        verify(networkMgr, never()).addNetwork(any(), anyBoolean());
+        verify(networkFactory, never()).createNetwork(any(SavePolicy.class));
+    }
+
+    @Test
+    public void performScan_scaffoldNetworkName_isCommandDocGen() throws Exception {
+        CyNetwork scaffold = mockScaffoldNetwork();
+
+        when(appMgr.getCurrentNetwork()).thenReturn(null);
+        when(appMgr.getCurrentNetworkView()).thenReturn(mock(CyNetworkView.class));
+        when(networkFactory.createNetwork(SavePolicy.DO_NOT_SAVE)).thenReturn(scaffold);
+        when(availableCommands.getNamespaces()).thenReturn(List.of());
+
+        etlService.scheduleScan();
+        assertTrue(etlService.awaitIdle(2, TimeUnit.SECONDS));
+
+        ArgumentCaptor<String> nameCaptor = ArgumentCaptor.forClass(String.class);
+        verify(scaffold.getRow(scaffold)).set(eq(CyNetwork.NAME), nameCaptor.capture());
+        assertEquals("cy:command_documentation_generation", nameCaptor.getValue());
     }
 
     // -- mapArgType static helper ---------------------------------------------
@@ -267,7 +346,18 @@ public class CommandETLServiceTest {
         when(availableCommands.getArgExampleStringValue(ns, cmd, arg)).thenReturn(example);
     }
 
+    /**
+     * Creates a mock CyNetwork wired up with the minimal row/table chain needed for {@code
+     * scaffold.getRow(scaffold).set(CyNetwork.NAME, ...)} to be verifiable.
+     */
+    private CyNetwork mockScaffoldNetwork() {
+        CyNetwork scaffold = mock(CyNetwork.class);
+        CyRow row = mock(CyRow.class);
+        when(scaffold.getRow(scaffold)).thenReturn(row);
+        return scaffold;
+    }
+
     private static Command makeCmd(String key, String ns, String name) {
-        return new Command(key, ns, name, "desc", null, "[]", "", "", null, false);
+        return new Command(key, ns, name, "desc", null, "", "", null, false);
     }
 }

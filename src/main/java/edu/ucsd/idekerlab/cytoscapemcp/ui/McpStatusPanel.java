@@ -19,8 +19,9 @@ import javax.swing.UIManager;
  *
  * <p>Status color is determined by a live {@code tools/list} probe against the MCP server endpoint
  * via {@link McpLivenessProbe}. A single-threaded {@link ScheduledExecutorService} runs the probe
- * off the EDT every 5 seconds (with a 1-second initial delay), then marshals the color update back
- * to the EDT via {@link SwingUtilities#invokeLater}.
+ * off the EDT every 5 seconds (with a 5-second initial delay to allow Jetty to mount the endpoint
+ * before the first check), then marshals the color update back to the EDT via {@link
+ * SwingUtilities#invokeLater}.
  */
 public class McpStatusPanel extends JButton {
 
@@ -61,7 +62,7 @@ public class McpStatusPanel extends JButton {
                             t.setDaemon(true);
                             return t;
                         });
-        scheduler.scheduleWithFixedDelay(this::runProbe, 1, 5, TimeUnit.SECONDS);
+        scheduler.scheduleWithFixedDelay(this::runProbe, 5, 5, TimeUnit.SECONDS);
     }
 
     @Override

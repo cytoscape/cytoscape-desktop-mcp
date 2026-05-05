@@ -165,7 +165,6 @@ public class CommandService {
         doc.add(new StoredField("longDescription", nvl(cmd.longDescription())));
         doc.add(new TextField("inputParams", nvl(cmd.inputParamsText()), Field.Store.YES));
         doc.add(new StoredField("argNames", nvl(cmd.argNamesDelimited())));
-        doc.add(new StoredField("inputParamsJson", nvl(cmd.inputParamsJson())));
         doc.add(new TextField("outputSchema", nvl(cmd.outputExampleJson()), Field.Store.YES));
         doc.add(new StoredField("supportsJson", String.valueOf(cmd.supportsJson())));
         // Catch-all field searched by default (not stored)
@@ -188,7 +187,6 @@ public class CommandService {
                 doc.get("commandName"),
                 doc.get("description"),
                 emptyToNull(doc.get("longDescription")),
-                emptyToNull(doc.get("inputParamsJson")),
                 doc.get("inputParams"),
                 doc.get("argNames"),
                 emptyToNull(doc.get("outputSchema")),

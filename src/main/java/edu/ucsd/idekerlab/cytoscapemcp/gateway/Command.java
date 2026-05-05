@@ -7,7 +7,6 @@ public record Command(
         String commandName,
         String description,
         String longDescription,
-        String inputParamsJson,
         String inputParamsText,
         String argNamesDelimited,
         String outputExampleJson,
