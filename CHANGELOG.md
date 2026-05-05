@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-05-25
+
+First GA release.
+
+-  Added TableImportFile mcp tool, [pull/4](https://github.com/cytoscape/cytoscape-desktop-mcp/pull/4)
+
 ## [1.0.0-rc.4] - 2026-04-25
 
 -  Add 3 new tools for using desktop commands from llm: CommandGatewayGetTool, CommandGatewayInvokeTool, CommandGatewaySearchTool, [pull/3](https://github.com/cytoscape/cytoscape-desktop-mcp/pull/3)
