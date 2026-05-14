@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-05-25
+
+- Fixed app init after installing app into a running instance of desktop. The app init routine wasn't getting triggered to render the toolbar icon for mcp and start the etl service, had to restart desktop. This fixes the behavior to force app init to run after install on current desktop. [pull/6](https://github.com/cytoscape/cytoscape-desktop-mcp/pull/6)
+
 ## [1.0.0] - 2026-05-25
 
 First GA release.
