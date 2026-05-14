@@ -4,6 +4,7 @@ import java.awt.Component;
 import java.awt.Container;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
@@ -59,6 +60,7 @@ public class CyActivator extends AbstractCyActivator {
     private volatile BundleContext bundleContext;
     private volatile CommandService commandService;
     private volatile CommandETLService commandETLService;
+    private final AtomicBoolean initDone = new AtomicBoolean(false);
 
     /**
      * Reads app properties from cytoscapemcp.props bundled in the JAR, then merges any user
@@ -92,6 +94,19 @@ public class CyActivator extends AbstractCyActivator {
                     }
                 };
         registerService(bc, listener, AppsFinishedStartingListener.class, new Properties());
+
+        // Dynamic-install path: when the app is installed via the app store while Cytoscape is
+        // already running, AppsFinishedStartingEvent has already fired and will never fire again.
+        // AvailableCommands is registered only after the full startup sequence completes — its
+        // presence in the registry means the desktop is already up.
+        if (bc.getServiceReference(AvailableCommands.class) != null) {
+            LOGGER.info("Desktop already running — initializing MCP server directly");
+            try {
+                initializeApp();
+            } catch (Exception e) {
+                LOGGER.error("Failed to start Cytoscape MCP Server (dynamic install path)", e);
+            }
+        }
     }
 
     @Override
@@ -100,7 +115,15 @@ public class CyActivator extends AbstractCyActivator {
         super.shutDown();
     }
 
-    private void initializeApp() {
+    void initializeApp() {
+        if (!initDone.compareAndSet(false, true)) {
+            LOGGER.info("initializeApp already completed — no-op");
+            return;
+        }
+        doInitializeApp();
+    }
+
+    void doInitializeApp() {
         // Register and expose app properties so users can edit them via
         // Edit > Preferences > Properties > "cytoscapemcp" in Cytoscape.
         PropsReader propsReader = new PropsReader("cytoscapemcp", "cytoscapemcp.props");
