@@ -8,16 +8,16 @@ Do each step one at at time in the sequence presented. Each step must result in 
 Download the AP-MS experiment data file to current working directory on local machine from this url - https://cytoscape.github.io/cytoscape-tutorials/protocols/data/ap-ms-demodata.csv. If the file is already present then skip this step.
 
 ### Step 2
-load a new network view in cytoscape from the ap-ms-demodata.csv tabular file present in current dirctory and specify a custom column mapping of bait is source node, prey is target node and ap-ms score is edge attrib and rest of columns should be mapped to target node attribs.
+load a new network view in cytoscape from the ap-ms-demodata.csv tabular file present in current dirctory and specify a custom column mapping of bait is source node, prey is target node and ap-ms score is edge attrib and rest of columns should be mapped to target node attribs. Specify a unique name of 'ap ms demo network xx' for the network to avoid duplicate collision with any pre-existing networks that may be on desktop. And remember the network suid returned as will use it in step 5 later.
 
 ### Step 3
 export name column from the node table to a new temp file that is csv of each unique name.
 
 ### Step 4
-submit the node names as string protein query with .999 confidence.
+submit the node names as string protein query with .999 confidence, specify a unique name of 'ap-ms demo string network xx' to avoid creating a new string network with duplicate collsiion on any pre-existing networks with same name on desktop. 
 
 ### Step 5
-merge the string network into the original ap ms network as a union using query term to name respectively for matching nodes.
+merge the new string network into the original ap ms network created from Step #2 as a union using query term to name respectively for matching nodes.
 
 ### Step 6
 set the style to default on the merged network.
