@@ -50,7 +50,7 @@ set continuous mapping on edge width based on 'ap ms score' between 1 and 5.
 perform string functional enrichment and show the string enrichment tab in cytoscape.
 
 ### Step 16
-add a filter to the string functional enrichment table to only show rows that belong to 'GO Biological Process' category and remove redundant terms.
+add a filter to the string functional enrichment table to only show rows that have category value equal to the exact term of "GO Biological Process" and remove redundant terms.
 
 ### Step 17
 add a split donut chart onto nodes which represents top terms from the filtered string enrichment table.
