@@ -14,7 +14,7 @@ load a new network view in cytoscape from the ap-ms-demodata.csv tabular file pr
 export name column from the node table to a new temp file that is csv of each unique name.
 
 ### Step 4
-submit the node names as string protein query with .999 confidence, specify a unique name of 'ap-ms demo string network xx' to avoid creating a new string network with duplicate collsiion on any pre-existing networks with same name on desktop. 
+submit the node names as string protein query with .999 confidence, specify a unique name of 'ap-ms demo string network xx' to avoid creating a new string network with duplicate collision on any pre-existing networks with same name on desktop. 
 
 ### Step 5
 merge the new string network into the original ap ms network created from Step #2 as a union using query term to name respectively for matching nodes.
