@@ -11,10 +11,13 @@ Download the AP-MS experiment data file to current working directory on local ma
 load a new network view in cytoscape from the ap-ms-demodata.csv tabular file present in current dirctory and specify a custom column mapping of bait is source node, prey is target node and ap-ms score is edge attrib and rest of columns should be mapped to target node attribs. Specify a unique name of 'ap ms demo network xx' for the network to avoid duplicate collision with any pre-existing networks that may be on desktop. And remember the network suid returned as will use it in step 5 later.
 
 ### Step 3
-export name column from the node table to a new temp file that is csv of each unique name.
+filter the node table by selecting all rows that have HekScore < .780 and deleting those rows from node table as we want to focus on kidney cells. 
+
+### Step 3.5
+extract the values from name column of node table to a new temp file that is just one long comma separated string of each name.
 
 ### Step 4
-submit the node names as string protein query with .999 confidence, specify a unique name of 'ap-ms demo string network xx' to avoid creating a new string network with duplicate collision on any pre-existing networks with same name on desktop. 
+submit the string of node names as a string network protein query with .999 confidence, specify a unique name of 'ap-ms demo string network xx' to avoid creating a new string network with duplicate collision on any pre-existing networks with same name on desktop. 
 
 ### Step 5
 merge the new string network into the original ap ms network created from Step #2 as a union using query term to name respectively for matching nodes.
@@ -59,8 +62,7 @@ add a split donut chart onto nodes which represents top terms from the filtered 
 Create a Discrete mapping for edge stroke Color on the interaction column to green if the interaction column value is empty or null. 
 
 ### Step 19
-export an image of the current network view called Enriched-APMS-Visualization.png
-
+export a png image of current networkview with a new unique filename of apms-demo-<current_timestamp>.png.
 
 
 
