@@ -14,6 +14,7 @@ import org.cytoscape.view.model.DiscreteRange;
 import org.cytoscape.view.model.Range;
 import org.cytoscape.view.model.VisualLexicon;
 import org.cytoscape.view.model.VisualProperty;
+import org.cytoscape.view.presentation.customgraphics.CyCustomGraphics;
 import org.cytoscape.view.presentation.property.BasicVisualLexicon;
 import org.cytoscape.view.presentation.property.values.ArrowShape;
 import org.cytoscape.view.presentation.property.values.EdgeStacking;
@@ -42,8 +43,6 @@ public class VisualPropertyService {
      * <p>Excluded types and why:
      *
      * <ul>
-     *   <li>{@code CyCustomGraphics} — requires a graphic resource reference (URL/bundle); not
-     *       representable as a simple string value.
      *   <li>{@code ObjectPosition} — complex multi-field serialized format (anchor, justification,
      *       X/Y offset) with no single-string representation.
      *   <li>{@code EdgeBend} — variable-length list of 2D control points; cannot be expressed as a
@@ -65,7 +64,8 @@ public class VisualPropertyService {
                     EdgeStacking.class,
                     Font.class,
                     String.class,
-                    Boolean.class);
+                    Boolean.class,
+                    CyCustomGraphics.class);
 
     /**
      * Returns {@code true} if the VP is a node property, {@code false} if edge, {@code null} if

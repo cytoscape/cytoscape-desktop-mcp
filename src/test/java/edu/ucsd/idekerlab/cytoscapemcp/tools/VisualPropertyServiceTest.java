@@ -11,8 +11,10 @@ import org.junit.Test;
 
 import org.cytoscape.view.model.ContinuousRange;
 import org.cytoscape.view.model.DiscreteRange;
+import org.cytoscape.view.model.Range;
 import org.cytoscape.view.model.VisualLexicon;
 import org.cytoscape.view.model.VisualProperty;
+import org.cytoscape.view.presentation.customgraphics.CyCustomGraphics;
 import org.cytoscape.view.presentation.property.ArrowShapeVisualProperty;
 import org.cytoscape.view.presentation.property.BasicVisualLexicon;
 import org.cytoscape.view.presentation.property.LineTypeVisualProperty;
@@ -50,6 +52,17 @@ public class VisualPropertyServiceTest {
     }
 
     // ---- isSupported ----
+    @SuppressWarnings("unchecked")
+    @Test
+    public void isSupported_customGraphicsRange_returnsTrue() {
+        VisualProperty<CyCustomGraphics> vp = mock(VisualProperty.class);
+        Range<CyCustomGraphics> range = mock(Range.class);
+
+        when(vp.getRange()).thenReturn(range);
+        when(range.getType()).thenReturn(CyCustomGraphics.class);
+
+        assertTrue(service.isSupported(vp));
+    }
 
     @SuppressWarnings("unchecked")
     @Test

@@ -19,9 +19,11 @@ import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.model.CyNetwork;
 import org.cytoscape.model.CyTable;
 import org.cytoscape.view.model.CyNetworkView;
+import org.cytoscape.view.model.Range;
 import org.cytoscape.view.model.VisualLexicon;
 import org.cytoscape.view.model.VisualProperty;
 import org.cytoscape.view.presentation.RenderingEngineManager;
+import org.cytoscape.view.presentation.customgraphics.CyCustomGraphics;
 import org.cytoscape.view.presentation.property.BasicVisualLexicon;
 import org.cytoscape.view.vizmap.VisualMappingFunctionFactory;
 import org.cytoscape.view.vizmap.VisualMappingManager;
@@ -47,15 +49,7 @@ public class CreatePassthroughMappingToolTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /** Real VP instances known to findPropertyById for these tests. */
-    @SuppressWarnings("unchecked")
-    private static final Set<VisualProperty<?>> ALL_TEST_PROPS =
-            Set.of(
-                    BasicVisualLexicon.NODE_FILL_COLOR,
-                    BasicVisualLexicon.NODE_SIZE,
-                    BasicVisualLexicon.NODE_SHAPE,
-                    BasicVisualLexicon.NODE_LABEL,
-                    BasicVisualLexicon.EDGE_WIDTH,
-                    BasicVisualLexicon.EDGE_LINE_TYPE);
+    private Set<VisualProperty<?>> allTestProps;
 
     private static final String INIT_REQUEST =
             "{\"jsonrpc\":\"2.0\",\"id\":0,\"method\":\"initialize\","
@@ -77,6 +71,8 @@ public class CreatePassthroughMappingToolTest {
     @Mock private VisualLexicon lexicon;
     @Mock private PassthroughMapping mockMapping;
     @Mock private CyTable nodeTable;
+    @Mock private VisualProperty<CyCustomGraphics> nodeCustomGraphics1;
+    @Mock private Range<CyCustomGraphics> customGraphicsRange;
 
     private CreatePassthroughMappingTool tool;
     private InMemoryTransport transport;
@@ -84,6 +80,19 @@ public class CreatePassthroughMappingToolTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
+        when(nodeCustomGraphics1.getIdString()).thenReturn("NODE_CUSTOMGRAPHICS_1");
+        when(nodeCustomGraphics1.getRange()).thenReturn(customGraphicsRange);
+        when(customGraphicsRange.getType()).thenReturn(CyCustomGraphics.class);
+
+        allTestProps =
+                Set.of(
+                        BasicVisualLexicon.NODE_FILL_COLOR,
+                        BasicVisualLexicon.NODE_SIZE,
+                        BasicVisualLexicon.NODE_SHAPE,
+                        BasicVisualLexicon.NODE_LABEL,
+                        BasicVisualLexicon.EDGE_WIDTH,
+                        BasicVisualLexicon.EDGE_LINE_TYPE,
+                        nodeCustomGraphics1);
         tool =
                 new CreatePassthroughMappingTool(
                         appManager,
@@ -212,6 +221,34 @@ public class CreatePassthroughMappingToolTest {
     }
 
     // -----------------------------------------------------------------------
+    // Success: String column, NODE_CUSTOMGRAPHICS_1
+    // -----------------------------------------------------------------------
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void successStringColumn_nodeCustomGraphics1() throws Exception {
+        stubSuccessPath();
+        stubFactory();
+
+        String response = callTool(buildArgs("NODE_CUSTOMGRAPHICS_1", "image", "String"));
+
+        assertFalse("Should not be error", response.contains("\"isError\":true"));
+        assertTrue("Should have status success", response.contains("\"status\":\"success\""));
+        assertTrue(
+                "Should report PassthroughMapping",
+                response.contains("\"mapping_type\":\"PassthroughMapping\""));
+
+        verify(passthroughMappingFactory)
+                .createVisualMappingFunction(
+                        any(String.class), any(Class.class), any(VisualProperty.class));
+
+        verify(style).removeVisualMappingFunction(nodeCustomGraphics1);
+        verify(style).addVisualMappingFunction(mockMapping);
+        verify(style).apply(networkView);
+        verify(networkView).updateView();
+    }
+
+    // -----------------------------------------------------------------------
     // Success: Integer column type
     // -----------------------------------------------------------------------
 
@@ -326,7 +363,7 @@ public class CreatePassthroughMappingToolTest {
         when(appManager.getCurrentNetworkView()).thenReturn(networkView);
         when(vmmManager.getCurrentVisualStyle()).thenReturn(style);
         when(renderingEngineManager.getDefaultVisualLexicon()).thenReturn(lexicon);
-        when(lexicon.getAllVisualProperties()).thenReturn(ALL_TEST_PROPS);
+        when(lexicon.getAllVisualProperties()).thenReturn(allTestProps);
     }
 
     @SuppressWarnings("unchecked")
