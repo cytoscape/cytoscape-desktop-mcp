@@ -263,7 +263,17 @@ test {
 // Run 'spotlessApply' to auto-fix; 'spotlessCheck' (part of 'check') to verify.
 spotless {
     java {
-        googleJavaFormat('1.17.0').aosp()
+        // 1.28.0 is the only google-java-format release that runs on both the
+        // JDK 17 used by .github/workflows and a JDK 25 developer machine.
+        //   <= 1.24.0  NoSuchMethodError on JDK 25: the version calls
+        //              Log$DeferredDiagnosticHandler.getDiagnostics(), whose
+        //              return type changed from Queue to List in JDK 25.
+        //   >= 1.35.0  NoClassDefFoundError on JDK 17: the version binds to
+        //              JCTree$JCAnyPattern, javac's unnamed-pattern node, which
+        //              does not exist before JDK 21. (Its bytecode target is
+        //              still 17, so the class file version does not reveal this.)
+        // Raising this pin therefore requires raising the CI JDK first.
+        googleJavaFormat('1.28.0').aosp()
         importOrder('java', 'javax', 'org', 'com', 'edu.ucsd', 'org.cytoscape', '\\#')
         removeUnusedImports()
     }

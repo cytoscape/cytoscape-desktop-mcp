@@ -469,10 +469,11 @@ public class VisualPropertyService {
             case "Double" -> Double.class;
             case "String" -> String.class;
             case "Boolean" -> Boolean.class;
-            default -> throw new IllegalArgumentException(
-                    "Unsupported column type: '"
-                            + typeName
-                            + "'. Valid types: Integer, Long, Double, String, Boolean.");
+            default ->
+                    throw new IllegalArgumentException(
+                            "Unsupported column type: '"
+                                    + typeName
+                                    + "'. Valid types: Integer, Long, Double, String, Boolean.");
         };
     }
 
